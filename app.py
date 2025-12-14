@@ -8,19 +8,19 @@ import json
 import re
 import io
 import time
+import datetime
 
 # ==============================================================================
-# 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI (BẢO MẬT)
+# 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
 # ==============================================================================
+# Lấy API Key từ Secrets (Két sắt bảo mật)
 try:
-    # Lấy thông tin từ "Két sắt" (Secrets)
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-    ADMIN_PASS = st.secrets["ADMIN_PASS"]
-    USER_PASS = st.secrets["USER_PASS"]
-except FileNotFoundError:
-    st.error("⚠️ Lỗi: Không tìm thấy file secrets.toml! Vui lòng cấu hình bảo mật.")
-    st.stop()
+except:
+    # Dự phòng nếu chưa cấu hình secrets (để không bị lỗi crash app)
+    SUPABASE_URL = ""
+    SUPABASE_KEY = ""
 
 # Cấu hình trang
 st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="collapsed")
@@ -202,9 +202,7 @@ st.markdown("""
     }
     .struct-label { font-weight: 600; color: #334155; font-size: 0.9em; }
 
-    /* 8. NÂNG CẤP CLASS HIỂN THỊ VĂN BẢN (FIX FONT WEB APP) */
-    @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
-
+    /* 8. PAPER VIEW - FIX FONT WEB APP */
     .paper-view {
         font-family: 'Times New Roman', Times, serif !important;
         font-size: 14pt !important;
@@ -217,28 +215,19 @@ st.markdown("""
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         text-align: justify;
     }
-
-    /* Ép tất cả thẻ con cũng phải theo font này */
     .paper-view * {
         font-family: 'Times New Roman', Times, serif !important;
+        color: #000000 !important;
     }
-
     .paper-view h1, .paper-view h2, .paper-view h3, .paper-view strong, .paper-view b {
         font-weight: bold !important;
         font-family: 'Times New Roman', Times, serif !important;
     }
-
     .paper-view table {
-        width: 100% !important;
-        border-collapse: collapse !important;
-        margin: 10px 0 !important;
+        width: 100% !important; border-collapse: collapse !important; margin: 10px 0 !important;
     }
-    
     .paper-view td, .paper-view th {
-        border: 1px solid #000000 !important;
-        padding: 8px !important;
-        font-family: 'Times New Roman', Times, serif !important;
-        font-size: 13pt !important;
+        border: 1px solid #000000 !important; padding: 8px !important; font-size: 13pt !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -272,9 +261,8 @@ def clean_json(text):
     if match: return match.group(0)
     return text
 
-# --- HÀM TẠO FILE WORD CHUẨN FONT BỘ GIÁO DỤC (ĐÃ FIX) ---
+# --- HÀM TẠO FILE WORD CHUẨN FONT BỘ GIÁO DỤC ---
 def create_word_doc(html, title):
-    # Sử dụng cấu trúc XML Word và ép cứng CSS Font
     doc_content = f"""
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
     <head>
@@ -288,43 +276,23 @@ def create_word_doc(html, title):
             </w:WordDocument>
         </xml>
         <style>
-            @page {{
-                size: 21cm 29.7cm;
-                margin: 2cm 2cm 2cm 2cm;
-                mso-page-orientation: portrait;
-            }}
-            body {{
-                font-family: 'Times New Roman', serif;
-                font-size: 13pt;
-                line-height: 1.3;
-            }}
-            p, div, span, li, td, th {{
-                font-family: 'Times New Roman', serif;
-                mso-ascii-font-family: 'Times New Roman';
-                mso-hansi-font-family: 'Times New Roman';
-                color: #000000;
-            }}
+            @page {{ size: 21cm 29.7cm; margin: 2cm 2cm 2cm 2cm; mso-page-orientation: portrait; }}
+            body {{ font-family: 'Times New Roman', serif; font-size: 13pt; line-height: 1.3; }}
+            p, div, span, li, td, th {{ font-family: 'Times New Roman', serif; mso-ascii-font-family: 'Times New Roman'; mso-hansi-font-family: 'Times New Roman'; color: #000000; }}
             table {{ border-collapse: collapse; width: 100%; }}
             td, th {{ border: 1px solid black; padding: 5px; }}
         </style>
     </head>
-    <body>
-        <div class="WordSection1">
-            {html}
-        </div>
-    </body>
+    <body><div class="WordSection1">{html}</div></body>
     </html>
     """
     return "\ufeff" + doc_content
-# -------------------------------------------------------------
 
 def get_knowledge_context(subject, grade, book, scope):
     try:
         data = CURRICULUM_DATA.get(subject, {}).get(grade, {}).get(book, {})
         key = next((k for k in data.keys() if k in scope or scope in k), None)
-        
         if key: return f"NỘI DUNG CHƯƠNG TRÌNH ({key}): {data[key]}"
-        
         week_info = SCOPE_MAPPING.get(scope, scope)
         return f"NỘI DUNG TỰ TRA CỨU: Bám sát chuẩn kiến thức kĩ năng môn {subject} {grade} - Bộ sách {book}. Thời điểm: {week_info}."
     except: return "NỘI DUNG: Theo chuẩn CTGDPT 2018."
@@ -342,7 +310,7 @@ def main_app():
     c1, c2, c3 = st.columns([3, 0.8, 0.8])
     with c1:
         st.markdown(f"<div class='header-text'>🎓 {APP_CONFIG['name']}</div>", unsafe_allow_html=True)
-        st.caption(f"User: {user.get('email', '')} | Role: {user.get('role', '').upper()}")
+        st.caption(f"User: {user.get('fullname', user.get('email', 'Guest'))} | Role: {user.get('role', '').upper()}")
     
     # Nút RESET
     with c2:
@@ -376,14 +344,12 @@ def main_app():
         with c2: subject = st.selectbox("Môn học", edu["subjects"])
         with c3: book = st.selectbox("Bộ sách", BOOKS_LIST)
         
-        # --- LOGIC ẨN GIỮA KỲ ---
         available_scopes = FULL_SCOPE_LIST
         if curr_lvl == "tieu_hoc" and grade in ["Lớp 1", "Lớp 2", "Lớp 3"]:
             available_scopes = LIMITED_SCOPE_LIST 
         
         with c4: scope = st.selectbox("Thời điểm", available_scopes)
 
-        # --- LOGIC CẤU TRÚC ĐỀ ---
         if curr_lvl == "thpt":
             struct_info = SUBJECT_STRUCTURE_DATA["THPT_2025"]
         elif curr_lvl == "tieu_hoc":
@@ -427,54 +393,57 @@ def main_app():
         with b3:
             st.write(""); st.write("")
             if st.button("⚡ KHỞI CHẠY (AI STUDIO ENGINE)", type="primary", use_container_width=True):
-                api_key = st.session_state.get('api_key', '')
-                if not api_key: st.toast("⚠️ Vui lòng nhập API Key ở Tab Hồ Sơ!", icon="❌")
+                # Kiểm tra quyền hạn
+                if user['role'] == 'free' and len(st.session_state['dossier']) >= 1:
+                    st.warning("⚠️ Tài khoản miễn phí chỉ được tạo thử 1 đề. Vui lòng nâng cấp PRO!")
                 else:
-                    with st.spinner(f"🔮 AI đang soạn đề: {num_choice} TN - {num_essay} TL - {num_practice} TH..."):
-                        txt_mt = read_file_content(mt_file, 'matrix')
-                        txt_dt = read_file_content(dt_file, 'spec')
-                        knowledge_context = get_knowledge_context(subject, grade, book, scope)
-                        
-                        SYSTEM_PROMPT = f"""
-                        {APP_CONFIG['context']}
-                        I. THÔNG TIN ĐẦU VÀO:
-                        - Năm học: {school_year} | Cấp: {level_key} | Môn: {subject} | Lớp: {grade} | Bộ sách: "{book}"
-                        - {knowledge_context}
-                        II. LUẬT RA ĐỀ:
-                        - Tiểu học: 3 mức độ. - Trung học: 4 mức độ.
-                        III. AUTO-DETECT: { "TỰ XÂY DỰNG MA TRẬN & ĐẶC TẢ" if auto_mode else "TUÂN THỦ FILE UPLOAD" }
-                        IV. OUTPUT JSON: {{ "title": "...", "content": "HTML...", "matrixHtml": "...", "specHtml": "...", "answers": "HTML..." }}
-                        V. LIST FILE: De_Kiem_Tra_[CODE].docx, Ma_Tran_[CODE].docx, Ban_Dac_Ta_[CODE].docx, Dap_An_[CODE].docx
-                        """
-
-                        try:
-                            genai.configure(api_key=api_key)
-                            # --- MODEL CỦA THẦY ---
-                            model = genai.GenerativeModel('gemini-3-pro-preview', system_instruction=SYSTEM_PROMPT)
+                    api_key = st.session_state.get('api_key', '')
+                    if not api_key: st.toast("⚠️ Vui lòng nhập API Key ở Tab Hồ Sơ!", icon="❌")
+                    else:
+                        with st.spinner(f"🔮 AI đang soạn đề: {num_choice} TN - {num_essay} TL - {num_practice} TH..."):
+                            txt_mt = read_file_content(mt_file, 'matrix')
+                            txt_dt = read_file_content(dt_file, 'spec')
+                            knowledge_context = get_knowledge_context(subject, grade, book, scope)
                             
-                            new_exams = []
-                            for i in range(num_exams):
-                                code = start_code + i
-                                prompt = SYSTEM_PROMPT.replace("[CODE]", str(code))
-                                
-                                struct_request = f"""
-                                \n[YÊU CẦU CẤU TRÚC BẮT BUỘC]:
-                                - Số câu Trắc nghiệm: {num_choice} câu.
-                                - Số câu Tự luận: {num_essay} câu.
-                                - Số bài Thực hành: {num_practice} bài.
-                                """
-                                
-                                user_msg = f"DỮ LIỆU: {txt_mt} {txt_dt}\nGHI CHÚ: {user_req}\n{struct_request}\nNHIỆM VỤ: Tạo Đề số {i+1} (Mã {code})."
+                            SYSTEM_PROMPT = f"""
+                            {APP_CONFIG['context']}
+                            I. THÔNG TIN ĐẦU VÀO:
+                            - Năm học: {school_year} | Cấp: {level_key} | Môn: {subject} | Lớp: {grade} | Bộ sách: "{book}"
+                            - {knowledge_context}
+                            II. LUẬT RA ĐỀ:
+                            - Tiểu học: 3 mức độ. - Trung học: 4 mức độ.
+                            III. AUTO-DETECT: { "TỰ XÂY DỰNG MA TRẬN & ĐẶC TẢ" if auto_mode else "TUÂN THỦ FILE UPLOAD" }
+                            IV. OUTPUT JSON: {{ "title": "...", "content": "HTML...", "matrixHtml": "...", "specHtml": "...", "answers": "HTML..." }}
+                            V. LIST FILE: De_Kiem_Tra_[CODE].docx, Ma_Tran_[CODE].docx, Ban_Dac_Ta_[CODE].docx, Dap_An_[CODE].docx
+                            """
 
-                                res = model.generate_content(user_msg, generation_config={"response_mime_type": "application/json"})
-                                data = json.loads(clean_json(res.text))
-                                data['id'] = str(code)
-                                data['title'] = f"Đề {subject} {grade} - {scope} (Mã {code})"
-                                new_exams.append(data)
-                            
-                            st.session_state['dossier'] = new_exams + st.session_state['dossier']
-                            st.success(f"✅ Đã tạo xong {num_exams} đề!")
-                        except Exception as e: st.error(f"Lỗi AI: {e}")
+                            try:
+                                genai.configure(api_key=api_key)
+                                model = genai.GenerativeModel('gemini-3-pro-preview', system_instruction=SYSTEM_PROMPT)
+                                
+                                new_exams = []
+                                for i in range(num_exams):
+                                    code = start_code + i
+                                    prompt = SYSTEM_PROMPT.replace("[CODE]", str(code))
+                                    
+                                    struct_request = f"""
+                                    \n[YÊU CẦU CẤU TRÚC BẮT BUỘC]:
+                                    - Số câu Trắc nghiệm: {num_choice} câu.
+                                    - Số câu Tự luận: {num_essay} câu.
+                                    - Số bài Thực hành: {num_practice} bài.
+                                    """
+                                    
+                                    user_msg = f"DỮ LIỆU: {txt_mt} {txt_dt}\nGHI CHÚ: {user_req}\n{struct_request}\nNHIỆM VỤ: Tạo Đề số {i+1} (Mã {code})."
+
+                                    res = model.generate_content(user_msg, generation_config={"response_mime_type": "application/json"})
+                                    data = json.loads(clean_json(res.text))
+                                    data['id'] = str(code)
+                                    data['title'] = f"Đề {subject} {grade} - {scope} (Mã {code})"
+                                    new_exams.append(data)
+                                
+                                st.session_state['dossier'] = new_exams + st.session_state['dossier']
+                                st.success(f"✅ Đã tạo xong {num_exams} đề!")
+                            except Exception as e: st.error(f"Lỗi AI: {e}")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # --- TAB 2: XEM & XUẤT ---
@@ -488,11 +457,9 @@ def main_app():
             st1, st2, st3 = st.tabs(["📄 NỘI DUNG ĐỀ", "📊 MA TRẬN", "📝 ĐẶC TẢ"])
             
             with st1:
-                # Class paper-view đã fix font
                 st.markdown(f"""<div class="paper-view">{curr.get('content', '')}</div>""", unsafe_allow_html=True)
                 footer = f"<br/><center><p>{APP_CONFIG['name']}</p></center>"
                 if is_admin: 
-                    # create_word_doc đã fix font
                     st.download_button("⬇️ Tải Đề (.doc)", create_word_doc(curr.get('content', '') + footer, curr['title']), f"De_{curr['id']}.doc", type="primary")
             
             with st2:
@@ -525,7 +492,7 @@ def main_app():
             k = st.text_input("🔑 API Key Gemini", type="password", key="api_key_in")
             if k: st.session_state['api_key'] = k
 
-    # --- FOOTER THƯƠNG HIỆU ---
+    # --- FOOTER ---
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;">
@@ -535,25 +502,71 @@ def main_app():
     """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 6. LOGIN
+# 6. LOGIN (ĐÃ KẾT NỐI SUPABASE)
 # ==============================================================================
 def login_screen():
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
-        st.markdown("<br><h2 style='text-align:center; color: #1E3A8A;'>🔐 ĐĂNG NHẬP</h2>", unsafe_allow_html=True)
-        email = st.text_input("Tài khoản", value="admin")
-        pw = st.text_input("Mật khẩu", type="password", placeholder="Nhập mật khẩu...")
+        st.markdown("<br><h2 style='text-align:center; color: #1E3A8A;'>🔐 HỆ THỐNG ĐĂNG NHẬP</h2>", unsafe_allow_html=True)
         
-        if st.button("VÀO HỆ THỐNG", type="primary", use_container_width=True):
-            if email == "admin" and pw == ADMIN_PASS:
-                st.session_state['user'] = {"email": "Administrator", "role": "admin"}
-                st.success("Đăng nhập thành công!")
-                time.sleep(0.5); st.rerun()
-            elif pw == USER_PASS:
-                st.session_state['user'] = {"email": "Giáo viên", "role": "user"}
-                st.success("Xin chào Giáo viên!")
-                time.sleep(0.5); st.rerun()
-            else: st.error("❌ Thông tin không chính xác")
+        tab_login, tab_signup = st.tabs(["ĐĂNG NHẬP", "ĐĂNG KÝ MỚI"])
+        
+        # --- TAB ĐĂNG NHẬP ---
+        with tab_login:
+            st.write("")
+            u = st.text_input("Tên đăng nhập", key="l_user")
+            p = st.text_input("Mật khẩu", type="password", key="l_pass")
+            
+            if st.button("ĐĂNG NHẬP NGAY", type="primary", use_container_width=True):
+                client = init_supabase()
+                if client:
+                    try:
+                        # Query database
+                        res = client.table('users_pro').select("*").eq('username', u).eq('password', p).execute()
+                        if res.data and len(res.data) > 0:
+                            user_data = res.data[0]
+                            st.session_state['user'] = {
+                                "email": user_data['username'], 
+                                "fullname": user_data['fullname'],
+                                "role": user_data['role']
+                            }
+                            st.toast(f"Xin chào {user_data['fullname']}!", icon="🎉")
+                            time.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.error("Tên đăng nhập hoặc mật khẩu không đúng.")
+                    except Exception as e:
+                        st.error(f"Lỗi kết nối: {e}")
+                else:
+                    st.error("Không thể kết nối Server.")
+
+        # --- TAB ĐĂNG KÝ ---
+        with tab_signup:
+            st.write("")
+            new_u = st.text_input("Tên đăng nhập mới", key="s_user")
+            new_p = st.text_input("Mật khẩu mới", type="password", key="s_pass")
+            new_name = st.text_input("Họ và tên", key="s_name")
+            
+            if st.button("TẠO TÀI KHOẢN", use_container_width=True):
+                client = init_supabase()
+                if client and new_u and new_p:
+                    try:
+                        # Check exist
+                        check = client.table('users_pro').select("*").eq('username', new_u).execute()
+                        if check.data:
+                            st.warning("Tên đăng nhập đã tồn tại!")
+                        else:
+                            # Insert new user (Default Role: free)
+                            client.table('users_pro').insert({
+                                "username": new_u,
+                                "password": new_p,
+                                "fullname": new_name,
+                                "role": "free",
+                                "expiry_date": None
+                            }).execute()
+                            st.success("Đăng ký thành công! Mời đăng nhập.")
+                    except Exception as e:
+                        st.error(f"Lỗi đăng ký: {e}")
 
 if 'user' not in st.session_state: login_screen()
 else: main_app()
