@@ -18,7 +18,7 @@ MAX_FREE_USAGE = 3   # Tài khoản Free: 3 đề
 MAX_PRO_USAGE = 15   # Tài khoản Pro: 15 đề
 
 # --- CẤU HÌNH THANH TOÁN (VIETQR) ---
-BANK_ID = "VietinBank"   # Đã sửa lỗi chính tả VietinBabk
+BANK_ID = "VietinBank"   # Đã sửa lỗi chính tả VietinBabk thành VietinBank
 BANK_ACC = "0918198687"  
 BANK_NAME = "TRAN THANH TUAN" 
 PRICE_VIP = 50000        
@@ -214,7 +214,7 @@ st.markdown("""
     }
     .struct-label { font-weight: 600; color: #334155; font-size: 0.9em; }
 
-    /* 8. PAPER VIEW - FIX FONT WEB APP (Quan trọng) */
+    /* 8. PAPER VIEW - FIX FONT WEB APP */
     @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
 
     .paper-view {
@@ -284,7 +284,7 @@ def clean_json(text):
     if match: return match.group(0)
     return text
 
-# --- HÀM TẠO FILE WORD CHUẨN FONT BỘ GIÁO DỤC (ĐÃ SỬA CHUẨN) ---
+# --- HÀM TẠO FILE WORD CHUẨN FONT BỘ GIÁO DỤC (ĐÃ SỬA CHUẨN XML) ---
 def create_word_doc(html, title):
     # Thêm cấu hình XML xmlns để ép Word dùng chế độ Print View và Font chuẩn
     doc_content = f"""
