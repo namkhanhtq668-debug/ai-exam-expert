@@ -18,10 +18,10 @@ MAX_FREE_USAGE = 3   # Tài khoản Free: 3 đề
 MAX_PRO_USAGE = 15   # Tài khoản Pro: 15 đề
 
 # --- CẤU HÌNH THANH TOÁN (VIETQR) ---
-BANK_ID = "MB"           
+BANK_ID = "VietinBank"           
 BANK_ACC = "0918198687"  
 BANK_NAME = "TRAN THANH TUAN" 
-PRICE_VIP = 99000        
+PRICE_VIP = 50000        
 
 # Lấy API Key từ Secrets (Két sắt bảo mật)
 try:
@@ -529,3 +529,4 @@ def login_screen():
 
 if 'user' not in st.session_state: login_screen()
 else: main_app()
+
