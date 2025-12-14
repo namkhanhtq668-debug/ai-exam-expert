@@ -18,7 +18,7 @@ MAX_FREE_USAGE = 3   # Tài khoản Free: 3 đề
 MAX_PRO_USAGE = 15   # Tài khoản Pro: 15 đề
 
 # --- CẤU HÌNH THANH TOÁN (VIETQR) ---
-BANK_ID = "VietinBank"           
+BANK_ID = "VietinBank"   # Đã sửa lỗi chính tả VietinBabk
 BANK_ACC = "0918198687"  
 BANK_NAME = "TRAN THANH TUAN" 
 PRICE_VIP = 50000        
@@ -27,7 +27,7 @@ PRICE_VIP = 50000
 try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-    # [MỚI] TỰ ĐỘNG LẤY KEY GEMINI CỦA ADMIN
+    # Tự động lấy Key Gemini của Admin (để khách không phải nhập)
     SYSTEM_GOOGLE_KEY = st.secrets.get("GOOGLE_API_KEY", "")
 except:
     SUPABASE_URL = ""
@@ -150,9 +150,13 @@ LEGAL_DOCUMENTS = [
 # ==============================================================================
 st.markdown("""
 <style>
+    /* Ẩn Menu mặc định */
     #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
+    
+    /* 1. NỀN TỔNG THỂ */
     .stApp { background-color: #F8FAFC; }
     
+    /* 2. HEADER TEXT */
     .header-text {
         background: linear-gradient(90deg, #1E3A8A 0%, #2563EB 100%);
         -webkit-background-clip: text;
@@ -164,15 +168,21 @@ st.markdown("""
         letter-spacing: 1px;
     }
     
+    /* 3. BUTTON CHÍNH (Gradient Blue) */
     div[data-testid="stButton"] button[kind="primary"] {
         background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
-        color: white; border-radius: 8px; height: 50px; font-weight: 700;
+        color: white;
+        border-radius: 8px;
+        height: 50px;
+        border: none;
+        font-weight: 700;
         box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(37, 99, 235, 0.1);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         transition: all 0.2s ease-in-out;
     }
     
+    /* 4. CARD */
     .css-card {
         background: #FFFFFF;
         border-radius: 12px;
@@ -182,11 +192,13 @@ st.markdown("""
         margin-bottom: 25px;
     }
     
+    /* 5. CÁC THẺ NHỎ */
     .auto-tag {
         background: #EFF6FF; color: #1D4ED8; padding: 6px 12px; border-radius: 20px; 
         font-size: 11px; font-weight: 700; text-transform: uppercase; border: 1px solid #BFDBFE;
     }
 
+    /* 6. THẺ PHÁP LÝ */
     .legal-card {
         background: #FFFFFF; border-radius: 10px; padding: 15px; margin-bottom: 10px;
         border-left: 4px solid #64748B; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #F1F5F9;
@@ -196,10 +208,14 @@ st.markdown("""
         border-radius: 10px; border: 1px solid #FEE2E2;
     }
 
+    /* 7. INPUT & SELECT BOX */
     .stTextInput input, .stSelectbox div[data-baseweb="select"], .stNumberInput input {
         border-radius: 8px; border: 1px solid #CBD5E1;
     }
     .struct-label { font-weight: 600; color: #334155; font-size: 0.9em; }
+
+    /* 8. PAPER VIEW - FIX FONT WEB APP (Quan trọng) */
+    @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
 
     .paper-view {
         font-family: 'Times New Roman', Times, serif !important;
@@ -228,6 +244,7 @@ st.markdown("""
         border: 1px solid #000000 !important; padding: 8px !important; font-size: 13pt !important;
     }
     
+    /* 9. PRICING CARD (MỚI THÊM) */
     .pricing-card {
         background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 25px;
         text-align: center; transition: all 0.3s;
@@ -254,6 +271,8 @@ def read_file_content(uploaded_file, file_type):
             return "\n".join([p.text for p in doc.paragraphs])
         elif uploaded_file.name.endswith('.xlsx'):
             content = pd.read_excel(uploaded_file).to_string()
+        
+        # Gắn nhãn chuẩn Logic React
         if file_type == 'matrix': return f"\n[DỮ LIỆU MA TRẬN TỪ NGƯỜI DÙNG]:\n{content}\n"
         if file_type == 'spec': return f"\n[DỮ LIỆU ĐẶC TẢ TỪ NGƯỜI DÙNG]:\n{content}\n"
     except: return ""
@@ -265,20 +284,42 @@ def clean_json(text):
     if match: return match.group(0)
     return text
 
+# --- HÀM TẠO FILE WORD CHUẨN FONT BỘ GIÁO DỤC (ĐÃ SỬA CHUẨN) ---
 def create_word_doc(html, title):
+    # Thêm cấu hình XML xmlns để ép Word dùng chế độ Print View và Font chuẩn
     doc_content = f"""
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
     <head>
-        <meta charset='utf-8'><title>{title}</title>
-        <xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml>
+        <meta charset='utf-8'>
+        <title>{title}</title>
+        <xml>
+            <w:WordDocument>
+                <w:View>Print</w:View>
+                <w:Zoom>100</w:Zoom>
+                <w:DoNotOptimizeForBrowser/>
+            </w:WordDocument>
+        </xml>
         <style>
             @page {{ size: 21cm 29.7cm; margin: 2cm 2cm 2cm 2cm; mso-page-orientation: portrait; }}
             body {{ font-family: 'Times New Roman', serif; font-size: 13pt; line-height: 1.3; }}
-            p, div, span, li, td, th {{ font-family: 'Times New Roman', serif; mso-ascii-font-family: 'Times New Roman'; mso-hansi-font-family: 'Times New Roman'; color: #000000; }}
+            /* Ép cứng Font cho mọi thẻ */
+            p, div, span, li, td, th, h1, h2, h3, h4, h5, h6, pre {{ 
+                font-family: 'Times New Roman', serif; 
+                mso-ascii-font-family: 'Times New Roman'; 
+                mso-hansi-font-family: 'Times New Roman'; 
+                mso-bidi-font-family: 'Times New Roman';
+                color: #000000; 
+            }}
             table {{ border-collapse: collapse; width: 100%; }}
             td, th {{ border: 1px solid black; padding: 5px; }}
         </style>
-    </head><body><div class="WordSection1">{html}</div></body></html>
+    </head>
+    <body>
+        <div class="WordSection1">
+            {html}
+        </div>
+    </body>
+    </html>
     """
     return "\ufeff" + doc_content
 
@@ -300,20 +341,27 @@ def main_app():
     user = st.session_state.get('user', {'role': 'guest'})
     is_admin = user.get('role') == 'admin'
 
+    # --- HEADER ---
     c1, c2, c3 = st.columns([3, 0.8, 0.8])
     with c1:
         st.markdown(f"<div class='header-text'>🎓 {APP_CONFIG['name']}</div>", unsafe_allow_html=True)
         st.caption(f"User: {user.get('fullname', user.get('email', 'Guest'))} | Role: {user.get('role', '').upper()}")
     
+    # Nút RESET
     with c2:
         if st.button("🔄 LÀM MỚI", use_container_width=True): 
             st.session_state['dossier'] = [] 
-            st.toast("Đã làm mới hệ thống!", icon="🧹"); time.sleep(0.5); st.rerun()
+            st.toast("Đã làm mới hệ thống!", icon="🧹")
+            time.sleep(0.5)
+            st.rerun()
             
+    # Nút ĐĂNG XUẤT
     with c3:
         if st.button("ĐĂNG XUẤT", use_container_width=True):
-            st.session_state.pop('user', None); st.rerun()
+            st.session_state.pop('user', None)
+            st.rerun()
 
+    # --- CẬP NHẬT TAB MỚI: THÊM '💎 NÂNG CẤP VIP' ---
     tabs = st.tabs(["🚀 THIẾT LẬP", "📄 XEM ĐỀ", "✅ ĐÁP ÁN", "⚖️ PHÁP LÝ", "💎 NÂNG CẤP VIP", "📂 HỒ SƠ"])
 
     # --- TAB 1: THIẾT LẬP ---
@@ -333,12 +381,20 @@ def main_app():
         with c3: book = st.selectbox("Bộ sách", BOOKS_LIST)
         
         available_scopes = FULL_SCOPE_LIST
-        if curr_lvl == "tieu_hoc" and grade in ["Lớp 1", "Lớp 2", "Lớp 3"]: available_scopes = LIMITED_SCOPE_LIST 
+        if curr_lvl == "tieu_hoc" and grade in ["Lớp 1", "Lớp 2", "Lớp 3"]:
+            available_scopes = LIMITED_SCOPE_LIST 
+        
         with c4: scope = st.selectbox("Thời điểm", available_scopes)
 
-        if curr_lvl == "thpt": struct_info = SUBJECT_STRUCTURE_DATA["THPT_2025"]
-        elif curr_lvl == "tieu_hoc": struct_info = SUBJECT_STRUCTURE_DATA["TieuHoc_TV"] if subject == "Tiếng Việt" else SUBJECT_STRUCTURE_DATA["TieuHoc_Chung"]
-        else: struct_info = SUBJECT_STRUCTURE_DATA.get(subject, SUBJECT_STRUCTURE_DATA['Mặc định'])
+        if curr_lvl == "thpt":
+            struct_info = SUBJECT_STRUCTURE_DATA["THPT_2025"]
+        elif curr_lvl == "tieu_hoc":
+            if subject == "Tiếng Việt":
+                struct_info = SUBJECT_STRUCTURE_DATA["TieuHoc_TV"]
+            else:
+                struct_info = SUBJECT_STRUCTURE_DATA["TieuHoc_Chung"]
+        else:
+            struct_info = SUBJECT_STRUCTURE_DATA.get(subject, SUBJECT_STRUCTURE_DATA['Mặc định'])
             
         st.info(f"💡 **Cấu trúc:** {struct_info} | **Pháp lý:** {edu['legal']}")
 
@@ -353,12 +409,16 @@ def main_app():
 
         user_req = st.text_area("Ghi chú chuyên môn:", "Ví dụ: Đề cần phân loại học sinh giỏi...", height=80)
 
+        # --- CÔNG CỤ CẤU HÌNH SỐ LƯỢNG ---
         st.markdown("---")
         st.markdown("##### 🛠 CẤU TRÚC ĐỀ THI MONG MUỐN")
         col_s1, col_s2, col_s3 = st.columns(3)
-        with col_s1: num_choice = st.number_input("Trắc nghiệm (Số câu)", 0, 100, 10, 1)
-        with col_s2: num_essay = st.number_input("Tự luận (Số câu)", 0, 20, 2, 1)
-        with col_s3: num_practice = st.number_input("Thực hành (Bài)", 0, 10, 0, 1)
+        with col_s1: 
+            num_choice = st.number_input("Trắc nghiệm (Số câu)", min_value=0, max_value=100, value=10, step=1, key="num_choice")
+        with col_s2: 
+            num_essay = st.number_input("Tự luận (Số câu)", min_value=0, max_value=20, value=2, step=1, key="num_essay")
+        with col_s3: 
+            num_practice = st.number_input("Thực hành (Bài)", min_value=0, max_value=10, value=0, step=1, key="num_practice")
 
         st.markdown("---")
         b1, b2, b3 = st.columns([1, 1, 2])
@@ -370,6 +430,7 @@ def main_app():
                 client = init_supabase()
                 if client:
                     try:
+                        # 1. LẤY THÔNG TIN NGƯỜI DÙNG TỪ DB
                         current_user_db = client.table('users_pro').select("*").eq('username', user.get('email')).execute()
                         if current_user_db.data:
                             db_role = current_user_db.data[0]['role']
@@ -378,19 +439,22 @@ def main_app():
                             is_blocked = False
                             msg_blocked = ""
 
+                            # 2. LOGIC KIỂM TRA GIỚI HẠN (3 Free / 15 Pro)
                             if db_role == 'free' and usage_count >= MAX_FREE_USAGE:
                                 is_blocked = True
-                                msg_blocked = f"🔒 HẾT LƯỢT DÙNG THỬ! (Đã dùng {usage_count}/{MAX_FREE_USAGE}). Vui lòng nâng cấp PRO."
+                                msg_blocked = f"🔒 HẾT LƯỢT DÙNG THỬ! (Bạn đã tạo {usage_count}/{MAX_FREE_USAGE} đề). Vui lòng nâng cấp PRO."
                             elif db_role == 'pro' and usage_count >= MAX_PRO_USAGE:
                                 is_blocked = True
-                                msg_blocked = f"🔒 HẾT LƯỢT GÓI PRO! (Đã dùng {usage_count}/{MAX_PRO_USAGE}). Vui lòng gia hạn."
+                                msg_blocked = f"🔒 HẾT LƯỢT GÓI PRO! (Bạn đã tạo {usage_count}/{MAX_PRO_USAGE} đề). Vui lòng gia hạn."
 
                             if is_blocked:
                                 st.error(msg_blocked)
                                 st.info("💎 Vào tab 'NÂNG CẤP VIP' để gia hạn.")
                             else:
+                                # 3. NẾU ĐƯỢC PHÉP -> CHẠY AI
                                 api_key = st.session_state.get('api_key', '')
-                                # [CƠ CHẾ TỰ ĐỘNG LẤY KEY]
+                                
+                                # [QUAN TRỌNG] Tự động lấy Key của Admin nếu user không nhập
                                 if not api_key: api_key = SYSTEM_GOOGLE_KEY 
                                 
                                 if not api_key: st.toast("⚠️ Vui lòng nhập API Key ở Tab Hồ Sơ!", icon="❌")
@@ -399,24 +463,46 @@ def main_app():
                                         txt_mt = read_file_content(mt_file, 'matrix')
                                         txt_dt = read_file_content(dt_file, 'spec')
                                         knowledge_context = get_knowledge_context(subject, grade, book, scope)
-                                        SYSTEM_PROMPT = f"""{APP_CONFIG['context']}
-                                        I. INPUT: {school_year} | {level_key} | {subject} | {grade} | "{book}" | {knowledge_context}
-                                        II. RULE: { "AUTO-DETECT" if auto_mode else "USER-UPLOAD" }
-                                        III. OUTPUT: JSON {{ "title": "...", "content": "HTML...", "matrixHtml": "...", "specHtml": "...", "answers": "HTML..." }}
+                                        
+                                        SYSTEM_PROMPT = f"""
+                                        {APP_CONFIG['context']}
+                                        I. THÔNG TIN ĐẦU VÀO:
+                                        - Năm học: {school_year} | Cấp: {level_key} | Môn: {subject} | Lớp: {grade} | Bộ sách: "{book}"
+                                        - {knowledge_context}
+                                        II. LUẬT RA ĐỀ:
+                                        - Tiểu học: 3 mức độ. - Trung học: 4 mức độ.
+                                        III. AUTO-DETECT: { "TỰ XÂY DỰNG MA TRẬN & ĐẶC TẢ" if auto_mode else "TUÂN THỦ FILE UPLOAD" }
+                                        IV. OUTPUT JSON: {{ "title": "...", "content": "HTML...", "matrixHtml": "...", "specHtml": "...", "answers": "HTML..." }}
+                                        V. LIST FILE: De_Kiem_Tra_[CODE].docx, Ma_Tran_[CODE].docx, Ban_Dac_Ta_[CODE].docx, Dap_An_[CODE].docx
                                         """
+
                                         try:
                                             genai.configure(api_key=api_key)
                                             model = genai.GenerativeModel('gemini-3-pro-preview', system_instruction=SYSTEM_PROMPT)
+                                            
                                             new_exams = []
                                             for i in range(num_exams):
                                                 code = start_code + i
                                                 prompt = SYSTEM_PROMPT.replace("[CODE]", str(code))
-                                                req = f"DATA: {txt_mt} {txt_dt}\nNOTE: {user_req}\nSTRUCT: {num_choice} TN, {num_essay} TL, {num_practice} TH\nTASK: Exam {i+1} (Code {code})"
-                                                res = model.generate_content(req, generation_config={"response_mime_type": "application/json"})
+                                                
+                                                struct_request = f"""
+                                                \n[YÊU CẦU CẤU TRÚC BẮT BUỘC]:
+                                                - Số câu Trắc nghiệm: {num_choice} câu.
+                                                - Số câu Tự luận: {num_essay} câu.
+                                                - Số bài Thực hành: {num_practice} bài.
+                                                """
+                                                
+                                                user_msg = f"DỮ LIỆU: {txt_mt} {txt_dt}\nGHI CHÚ: {user_req}\n{struct_request}\nNHIỆM VỤ: Tạo Đề số {i+1} (Mã {code})."
+
+                                                res = model.generate_content(user_msg, generation_config={"response_mime_type": "application/json"})
                                                 data = json.loads(clean_json(res.text))
-                                                data['id'] = str(code); data['title'] = f"Đề {subject} {grade} - {scope} (Mã {code})"
+                                                data['id'] = str(code)
+                                                data['title'] = f"Đề {subject} {grade} - {scope} (Mã {code})"
                                                 new_exams.append(data)
+                                            
                                             st.session_state['dossier'] = new_exams + st.session_state['dossier']
+                                            
+                                            # 4. CẬP NHẬT DATABASE
                                             client.table('users_pro').update({'usage_count': usage_count + 1}).eq('username', user.get('email')).execute()
                                             
                                             limit_show = MAX_PRO_USAGE if db_role == 'pro' else MAX_FREE_USAGE
@@ -426,65 +512,126 @@ def main_app():
                 else: st.error("Lỗi kết nối.")
         st.markdown('</div>', unsafe_allow_html=True)
 
+    # --- TAB 2: XEM & XUẤT (CLASS paper-view ĐÃ CHUẨN HÓA FONT) ---
     with tabs[1]:
         if not st.session_state['dossier']: st.info("👈 Chưa có dữ liệu.")
         else:
             all_e = st.session_state['dossier']
             sel = st.selectbox("Chọn mã đề:", range(len(all_e)), format_func=lambda x: f"[{all_e[x]['id']}] {all_e[x]['title']}")
             curr = all_e[sel]
+            
             st1, st2, st3 = st.tabs(["📄 NỘI DUNG ĐỀ", "📊 MA TRẬN", "📝 ĐẶC TẢ"])
+            
             with st1:
                 st.markdown(f"""<div class="paper-view">{curr.get('content', '')}</div>""", unsafe_allow_html=True)
                 footer = f"<br/><center><p>{APP_CONFIG['name']}</p></center>"
                 if is_admin or user.get('role') == 'pro': 
                     st.download_button("⬇️ Tải Đề (.doc)", create_word_doc(curr.get('content', '') + footer, curr['title']), f"De_{curr['id']}.doc", type="primary")
                 else: st.warning("🔒 Nâng cấp PRO để tải file Word")
+            
             with st2:
-                st.markdown(curr.get('matrixHtml', '...'), unsafe_allow_html=True)
+                st.markdown(curr.get('matrixHtml', 'Không có dữ liệu ma trận'), unsafe_allow_html=True)
                 if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Ma trận", create_word_doc(curr['matrixHtml'], "MaTran"), f"MaTran_{curr['id']}.doc")
+
             with st3:
-                st.markdown(curr.get('specHtml', '...'), unsafe_allow_html=True)
+                st.markdown(curr.get('specHtml', 'Không có dữ liệu đặc tả'), unsafe_allow_html=True)
                 if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Đặc tả", create_word_doc(curr['specHtml'], "DacTa"), f"DacTa_{curr['id']}.doc")
 
+    # --- TAB 3: ĐÁP ÁN ---
     with tabs[2]:
         if st.session_state['dossier']:
             curr = st.session_state['dossier'][sel]
             if is_admin or user.get('role') == 'pro':
-                st.markdown(f"""<div class="paper-view">{curr.get('answers','...')}</div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="paper-view">{curr.get('answers','Chưa có đáp án')}</div>""", unsafe_allow_html=True)
                 st.download_button("⬇️ Tải Đáp án (.doc)", create_word_doc(curr.get('answers',''), "DapAn"), f"DA_{curr['id']}.doc")
             else: st.info("🔒 Nâng cấp PRO để xem và tải Đáp án chi tiết.")
         else: st.info("Chưa có dữ liệu.")
 
+    # --- TAB 4: PHÁP LÝ ---
     with tabs[3]:
         for doc in LEGAL_DOCUMENTS:
             cls = "highlight-card" if doc.get('highlight') else "legal-card"
             st.markdown(f"""<div class="{cls}" style="padding:15px; margin-bottom:10px; border-radius:10px;"><span style="background:#1e293b; color:white; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold">{doc['code']}</span><span style="font-weight:bold; color:#334155; margin-left:8px">{doc['title']}</span><p style="font-size:13px; color:#64748b; margin:5px 0 0 0">{doc['summary']}</p></div>""", unsafe_allow_html=True)
     
+    # --- TAB 5: NÂNG CẤP VIP ---
     with tabs[4]:
         st.markdown("<h3 style='text-align: center; color: #1E3A8A;'>🚀 BẢNG GIÁ & NÂNG CẤP VIP</h3>", unsafe_allow_html=True)
         col_free, col_pro = st.columns(2)
+        
         with col_free:
-            st.markdown(f"""<div class="pricing-card"><h3>Gói FREE</h3><div class="price-tag">0đ</div><div class="feature-list">✅ Tạo thử <b>{MAX_FREE_USAGE} đề</b><br>❌ Tải file Word<br>❌ Xem đáp án chi tiết</div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="pricing-card">
+                <h3>Gói FREE</h3>
+                <div class="price-tag">0đ</div>
+                <div class="feature-list">
+                    ✅ Tạo thử <b>{MAX_FREE_USAGE} đề</b><br>
+                    ❌ Tải file Word<br>
+                    ❌ Xem đáp án chi tiết<br>
+                    ❌ Hỗ trợ kỹ thuật
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
         with col_pro:
-            st.markdown(f"""<div class="pricing-card" style="border: 2px solid #2563EB;"><h3 style="color: #2563EB;">Gói PRO VIP</h3><div class="price-tag">{PRICE_VIP:,.0f}đ / gói</div><div class="feature-list">✅ <b>Tạo tối đa {MAX_PRO_USAGE} đề</b><br>✅ <b>Tải file Word chuẩn</b><br>✅ <b>Xem & Tải Đáp án/Ma trận</b></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="pricing-card" style="border: 2px solid #2563EB;">
+                <h3 style="color: #2563EB;">Gói PRO VIP</h3>
+                <div class="price-tag">{PRICE_VIP:,.0f}đ / gói</div>
+                <div class="feature-list">
+                    ✅ <b>Tạo tối đa {MAX_PRO_USAGE} đề</b><br>
+                    ✅ <b>Tải file Word chuẩn (In được ngay)</b><br>
+                    ✅ <b>Xem & Tải Đáp án/Ma trận/Đặc tả</b><br>
+                    ✅ Hỗ trợ ưu tiên 24/7
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         
         st.markdown("---")
         st.subheader("📲 QUÉT MÃ QR ĐỂ THANH TOÁN TỰ ĐỘNG")
+        
+        # Tạo link VietQR động
         content_ck = f"NAP VIP {user.get('email')}"
         qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_ACC}-compact.png?amount={PRICE_VIP}&addInfo={content_ck}&accountName={BANK_NAME}"
+        
         c1, c2 = st.columns([1, 2])
-        with c1: st.image(qr_url, caption="Mã QR VietQR", width=300)
-        with c2: st.info(f"**Nội dung chuyển khoản:** `{content_ck}`\n\nSau khi chuyển khoản, vui lòng nhắn Zalo **{BANK_ACC}** để kích hoạt.")
+        with c1:
+            st.image(qr_url, caption="Mã QR VietQR", width=300)
+        with c2:
+            st.info(f"""
+            **HƯỚNG DẪN THANH TOÁN:**
+            1. Mở App Ngân hàng bất kỳ.
+            2. Chọn **Quét Mã QR**.
+            3. Quét mã bên cạnh (Hệ thống tự điền Số tiền & Nội dung).
+            4. Bấm Chuyển khoản.
+            
+            **Hoặc chuyển khoản thủ công:**
+            * Ngân hàng: **{BANK_ID}**
+            * Số TK: **{BANK_ACC}**
+            * Chủ TK: **{BANK_NAME}**
+            * Số tiền: **{PRICE_VIP:,.0f}đ**
+            * Nội dung: `{content_ck}`
+            
+            👉 *Sau khi chuyển khoản, vui lòng nhắn Zalo {BANK_ACC} để kích hoạt ngay!*
+            """)
 
+    # --- TAB 6: HỒ SƠ ---
     with tabs[5]:
         c1, c2 = st.columns([2, 1])
-        with c1: st.write("**Lịch sử:**"); [st.write(f"- {e['title']}") for e in st.session_state['dossier']]
+        with c1: 
+            st.write("**Lịch sử tạo đề:**")
+            for e in st.session_state['dossier']: st.write(f"- {e['title']}")
         with c2: 
             k = st.text_input("🔑 API Key Gemini (Nếu có)", type="password", key="api_key_in")
             if k: st.session_state['api_key'] = k
 
+    # --- FOOTER ---
     st.markdown("---")
-    st.markdown("""<div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;"><strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>SĐT: 0918198687</div>""", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;">
+        <strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>
+        SĐT: 0918198687
+    </div>
+    """, unsafe_allow_html=True)
 
 # ==============================================================================
 # 6. LOGIN
@@ -493,40 +640,66 @@ def login_screen():
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
         st.markdown("<br><h2 style='text-align:center; color: #1E3A8A;'>🔐 HỆ THỐNG ĐĂNG NHẬP</h2>", unsafe_allow_html=True)
+        
         tab_login, tab_signup = st.tabs(["ĐĂNG NHẬP", "ĐĂNG KÝ MỚI"])
         
+        # --- TAB ĐĂNG NHẬP ---
         with tab_login:
             st.write("")
             u = st.text_input("Tên đăng nhập", key="l_user")
             p = st.text_input("Mật khẩu", type="password", key="l_pass")
+            
             if st.button("ĐĂNG NHẬP NGAY", type="primary", use_container_width=True):
                 client = init_supabase()
                 if client:
                     try:
+                        # Query database
                         res = client.table('users_pro').select("*").eq('username', u).eq('password', p).execute()
-                        if res.data:
+                        if res.data and len(res.data) > 0:
                             user_data = res.data[0]
-                            st.session_state['user'] = {"email": user_data['username'], "fullname": user_data['fullname'], "role": user_data['role']}
-                            st.toast(f"Xin chào {user_data['fullname']}!", icon="🎉"); time.sleep(0.5); st.rerun()
-                        else: st.error("Sai thông tin đăng nhập.")
-                    except Exception as e: st.error(f"Lỗi: {e}")
-        
+                            st.session_state['user'] = {
+                                "email": user_data['username'], 
+                                "fullname": user_data['fullname'],
+                                "role": user_data['role']
+                            }
+                            st.toast(f"Xin chào {user_data['fullname']}!", icon="🎉")
+                            time.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.error("Tên đăng nhập hoặc mật khẩu không đúng.")
+                    except Exception as e:
+                        st.error(f"Lỗi kết nối: {e}")
+                else:
+                    st.error("Không thể kết nối Server.")
+
+        # --- TAB ĐĂNG KÝ ---
         with tab_signup:
             st.write("")
             new_u = st.text_input("Tên đăng nhập mới", key="s_user")
             new_p = st.text_input("Mật khẩu mới", type="password", key="s_pass")
             new_name = st.text_input("Họ và tên", key="s_name")
+            
             if st.button("TẠO TÀI KHOẢN", use_container_width=True):
                 client = init_supabase()
                 if client and new_u and new_p:
                     try:
+                        # Check exist
                         check = client.table('users_pro').select("*").eq('username', new_u).execute()
-                        if check.data: st.warning("Tên này đã có người dùng!")
+                        if check.data:
+                            st.warning("Tên đăng nhập đã tồn tại!")
                         else:
-                            client.table('users_pro').insert({"username": new_u, "password": new_p, "fullname": new_name, "role": "free", "usage_count": 0}).execute()
+                            # Insert new user (Default Role: free, usage: 0)
+                            client.table('users_pro').insert({
+                                "username": new_u,
+                                "password": new_p,
+                                "fullname": new_name,
+                                "role": "free",
+                                "usage_count": 0, # Mặc định là 0
+                                "expiry_date": None
+                            }).execute()
                             st.success("Đăng ký thành công! Mời đăng nhập.")
-                    except Exception as e: st.error(f"Lỗi: {e}")
+                    except Exception as e:
+                        st.error(f"Lỗi đăng ký: {e}")
 
 if 'user' not in st.session_state: login_screen()
 else: main_app()
-
