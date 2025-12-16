@@ -9,6 +9,7 @@ import re
 import io
 import time
 import datetime
+import requests # [THÊM] Thư viện kiểm tra tiền
 
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
@@ -16,6 +17,12 @@ import datetime
 # --- CẤU HÌNH GIỚI HẠN SỬ DỤNG ---
 MAX_FREE_USAGE = 3   # Tài khoản Free: 3 đề
 MAX_PRO_USAGE = 15   # Tài khoản Pro: 15 đề
+
+# --- [BỔ SUNG] CẤU HÌNH KHUYẾN MẠI & THANH TOÁN ---
+BONUS_PER_REF = 0    # Đăng ký mới: Không tặng lượt (Chỉ lưu mã)
+BONUS_PRO_REF = 3    # Mua Pro lần đầu có mã: Tặng 3 lượt
+DISCOUNT_AMT = 0     # Không giảm giá tiền
+COMMISSION_AMT = 10000 # Hoa hồng người giới thiệu
 
 # --- CẤU HÌNH THANH TOÁN (VIETQR) ---
 BANK_ID = "VietinBank"   # Đã sửa lỗi chính tả VietinBabk -> VietinBank
@@ -29,10 +36,13 @@ try:
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     # Tự động lấy Key Gemini của Admin (để khách không phải nhập)
     SYSTEM_GOOGLE_KEY = st.secrets.get("GOOGLE_API_KEY", "")
+    # [THÊM] Token SePay
+    SEPAY_API_TOKEN = st.secrets.get("SEPAY_API_TOKEN", "") 
 except:
     SUPABASE_URL = ""
     SUPABASE_KEY = ""
     SYSTEM_GOOGLE_KEY = ""
+    SEPAY_API_TOKEN = ""
 
 # Cấu hình trang
 st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="collapsed")
@@ -151,7 +161,10 @@ LEGAL_DOCUMENTS = [
 st.markdown("""
 <style>
     /* Ẩn Menu mặc định */
-    #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
+    #MainMenu {visibility: hidden; display: none;} 
+    header {visibility: hidden; display: none;} 
+    footer {visibility: hidden; display: none;}
+    div[data-testid="stDecoration"] {display: none;}
     
     /* 1. NỀN TỔNG THỂ */
     .stApp { background-color: #F8FAFC; }
@@ -216,7 +229,7 @@ st.markdown("""
 
     /* 8. PAPER VIEW - FIX FONT WEB APP (CẬP NHẬT FONT TIMES) */
     @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
-
+    
     .paper-view {
         font-family: 'Times New Roman', Times, serif !important;
         font-size: 14pt !important;
@@ -315,14 +328,7 @@ def create_word_doc(html, title):
         <style>
             @page {{ size: 21cm 29.7cm; margin: 2cm 2cm 2cm 2cm; mso-page-orientation: portrait; }}
             body {{ font-family: 'Times New Roman', serif; font-size: 13pt; line-height: 1.3; }}
-            /* Ép cứng Font cho mọi thẻ */
-            p, div, span, li, td, th, h1, h2, h3, h4, h5, h6, pre {{ 
-                font-family: 'Times New Roman', serif; 
-                mso-ascii-font-family: 'Times New Roman'; 
-                mso-hansi-font-family: 'Times New Roman'; 
-                mso-bidi-font-family: 'Times New Roman';
-                color: #000000; 
-            }}
+            p, div, span, li, td, th {{ font-family: 'Times New Roman', serif; mso-ascii-font-family: 'Times New Roman'; mso-hansi-font-family: 'Times New Roman'; color: #000000; }}
             table {{ border-collapse: collapse; width: 100%; }}
             td, th {{ border: 1px solid black; padding: 5px; }}
         </style>
@@ -345,6 +351,27 @@ def get_knowledge_context(subject, grade, book, scope):
         return f"NỘI DUNG TỰ TRA CỨU: Bám sát chuẩn kiến thức kĩ năng môn {subject} {grade} - Bộ sách {book}. Thời điểm: {week_info}."
     except: return "NỘI DUNG: Theo chuẩn CTGDPT 2018."
 
+# --- [BỔ SUNG] HÀM CHECK TIỀN TỰ ĐỘNG (Dùng SePay) ---
+def check_sepay_transaction(amount, content_search):
+    token = st.secrets.get("SEPAY_API_TOKEN", "")
+    if not token: return False
+    try:
+        url = "https://my.sepay.vn/userapi/transactions/list"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        res = requests.get(url, headers=headers)
+        if res.status_code == 200:
+            data = res.json()
+            for t in data.get('transactions', []):
+                # Kiểm tra số tiền và nội dung
+                if float(t['amount_in']) >= amount and content_search in t['transaction_content']:
+                    return True
+    except:
+        return False
+    return False
+
 # ==============================================================================
 # 5. GIAO DIỆN CHÍNH
 # ==============================================================================
@@ -354,7 +381,6 @@ def main_app():
     user = st.session_state.get('user', {'role': 'guest'})
     is_admin = user.get('role') == 'admin'
 
-    # --- HEADER ---
     c1, c2, c3 = st.columns([3, 0.8, 0.8])
     with c1:
         st.markdown(f"<div class='header-text'>🎓 {APP_CONFIG['name']}</div>", unsafe_allow_html=True)
@@ -375,7 +401,7 @@ def main_app():
             st.rerun()
 
     # --- CẬP NHẬT TAB MỚI: THÊM '💎 NÂNG CẤP VIP' ---
-    tabs = st.tabs(["🚀 THIẾT LẬP", "📄 XEM ĐỀ", "✅ ĐÁP ÁN", "⚖️ PHÁP LÝ", "💎 NÂNG CẤP VIP", "📂 HỒ SƠ"])
+    tabs = st.tabs(["🚀 THIẾT LẬP", "📄 XEM ĐỀ", "✅ ĐÁP ÁN", "⚖️ PHÁP LÝ", "💎 NÂNG CẤP VIP", "💰 ĐỐI TÁC", "📂 HỒ SƠ"])
 
     # --- TAB 1: THIẾT LẬP ---
     with tabs[0]:
@@ -446,22 +472,16 @@ def main_app():
                         # 1. LẤY THÔNG TIN NGƯỜI DÙNG TỪ DB
                         current_user_db = client.table('users_pro').select("*").eq('username', user.get('email')).execute()
                         if current_user_db.data:
-                            db_role = current_user_db.data[0]['role']
-                            usage_count = current_user_db.data[0].get('usage_count', 0)
+                            user_data = current_user_db.data[0]
+                            db_role = user_data['role']
+                            usage_count = user_data.get('usage_count', 0)
                             
-                            is_blocked = False
-                            msg_blocked = ""
+                            # [BỔ SUNG] TÍNH TỔNG LƯỢT DÙNG (CÓ BONUS)
+                            bonus_turns = user_data.get('bonus_turns', 0)
+                            limit_check = MAX_PRO_USAGE if db_role == 'pro' else (MAX_FREE_USAGE + bonus_turns)
 
-                            # 2. KIỂM TRA GIỚI HẠN (CẬP NHẬT LOGIC MỚI: CHẶN CẢ PRO NẾU QUÁ 15 LẦN)
-                            if db_role == 'free' and usage_count >= MAX_FREE_USAGE:
-                                is_blocked = True
-                                msg_blocked = f"🔒 HẾT LƯỢT DÙNG THỬ! (Bạn đã tạo {usage_count}/{MAX_FREE_USAGE} đề). Vui lòng nâng cấp PRO."
-                            elif db_role == 'pro' and usage_count >= MAX_PRO_USAGE:
-                                is_blocked = True
-                                msg_blocked = f"🔒 HẾT LƯỢT GÓI PRO! (Bạn đã tạo {usage_count}/{MAX_PRO_USAGE} đề). Vui lòng gia hạn."
-
-                            if is_blocked:
-                                st.error(msg_blocked)
+                            if usage_count >= limit_check:
+                                st.error(f"🔒 HẾT LƯỢT! (Bạn đã dùng {usage_count}/{limit_check}). Vui lòng gia hạn hoặc giới thiệu bạn bè.")
                                 st.info("💎 Vào tab 'NÂNG CẤP VIP' để gia hạn.")
                             else:
                                 # 3. NẾU ĐƯỢC PHÉP -> CHẠY AI
@@ -477,7 +497,7 @@ def main_app():
                                         txt_dt = read_file_content(dt_file, 'spec')
                                         knowledge_context = get_knowledge_context(subject, grade, book, scope)
                                         
-                                        # [CẬP NHẬT] XỬ LÝ LOGIC ĐẶC BIỆT CHO MÔN HỌC
+                                        # [BỔ SUNG] XỬ LÝ LOGIC ĐẶC BIỆT CHO MÔN HỌC
                                         special_prompt = ""
                                         
                                         # Môn Tiếng Việt (Tiểu học)
@@ -495,7 +515,7 @@ def main_app():
                                             2. Tập làm văn: Soạn {num_essay} câu đề bài yêu cầu viết đoạn văn.
                                             """
                                         
-                                        # [CẬP NHẬT MỚI] Môn Tin học (Tiểu học)
+                                        # [BỔ SUNG] Môn Tin học (Tiểu học) - Theo YCCĐ
                                         elif (subject == "Tin học" or subject == "Tin học và Công nghệ") and curr_lvl == "tieu_hoc":
                                             special_prompt = f"""
                                             ⚠️ YÊU CẦU ĐẶC BIỆT CHO MÔN TIN HỌC (Theo YCCĐ Chương trình GDPT 2018):
@@ -522,7 +542,7 @@ def main_app():
                                             genai.configure(api_key=api_key)
                                             model = genai.GenerativeModel('gemini-3-pro-preview', system_instruction=SYSTEM_PROMPT)
                                             
-                                            # [CẬP NHẬT] Thêm Safety Settings để không bị chặn
+                                            # [BỔ SUNG] Thêm Safety Settings để không bị chặn
                                             safe_settings = [
                                                 {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
                                                 {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -548,7 +568,7 @@ def main_app():
                                                     data = json.loads(clean_text)
                                                     data['id'] = str(code); data['title'] = f"Đề {subject} {grade} - {scope} (Mã {code})"
                                                     
-                                                    # [CẬP NHẬT] TỰ ĐỘNG LƯU VÀO KHO LỊCH SỬ
+                                                    # [BỔ SUNG] TỰ ĐỘNG LƯU VÀO KHO LỊCH SỬ
                                                     save_data = {"username": user.get('email'), "title": data['title'], "exam_data": data}
                                                     client.table('exam_history').insert(save_data).execute()
                                                     
@@ -560,8 +580,7 @@ def main_app():
                                             st.session_state['dossier'] = new_exams + st.session_state['dossier']
                                             client.table('users_pro').update({'usage_count': usage_count + 1}).eq('username', user.get('email')).execute()
                                             
-                                            limit_show = MAX_PRO_USAGE if db_role == 'pro' else MAX_FREE_USAGE
-                                            st.success(f"✅ Tạo thành công! (Đã dùng: {usage_count + 1}/{limit_show})")
+                                            st.success(f"✅ Tạo thành công! (Đã dùng: {usage_count + 1}/{limit_check})")
                                         except Exception as e: st.error(f"Lỗi AI: {e}")
                     except Exception as e: st.error(f"Lỗi DB: {e}")
                 else: st.error("Lỗi kết nối.")
@@ -585,11 +604,11 @@ def main_app():
                 else: st.warning("🔒 Nâng cấp PRO để tải file Word")
             
             with st2:
-                st.markdown(curr.get('matrixHtml', 'Không có dữ liệu ma trận'), unsafe_allow_html=True)
+                st.markdown(curr.get('matrixHtml', '...'), unsafe_allow_html=True)
                 if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Ma trận", create_word_doc(curr['matrixHtml'], "MaTran"), f"MaTran_{curr['id']}.doc")
 
             with st3:
-                st.markdown(curr.get('specHtml', 'Không có dữ liệu đặc tả'), unsafe_allow_html=True)
+                st.markdown(curr.get('specHtml', '...'), unsafe_allow_html=True)
                 if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Đặc tả", create_word_doc(curr['specHtml'], "DacTa"), f"DacTa_{curr['id']}.doc")
 
     # --- TAB 3: ĐÁP ÁN ---
@@ -597,7 +616,7 @@ def main_app():
         if st.session_state['dossier']:
             curr = st.session_state['dossier'][sel]
             if is_admin or user.get('role') == 'pro':
-                st.markdown(f"""<div class="paper-view">{curr.get('answers','Chưa có đáp án')}</div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="paper-view">{curr.get('answers','...')}</div>""", unsafe_allow_html=True)
                 st.download_button("⬇️ Tải Đáp án (.doc)", create_word_doc(curr.get('answers',''), "DapAn"), f"DA_{curr['id']}.doc")
             else: st.info("🔒 Nâng cấp PRO để xem và tải Đáp án chi tiết.")
         else: st.info("Chưa có dữ liệu.")
@@ -608,76 +627,123 @@ def main_app():
             cls = "highlight-card" if doc.get('highlight') else "legal-card"
             st.markdown(f"""<div class="{cls}" style="padding:15px; margin-bottom:10px; border-radius:10px;"><span style="background:#1e293b; color:white; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold">{doc['code']}</span><span style="font-weight:bold; color:#334155; margin-left:8px">{doc['title']}</span><p style="font-size:13px; color:#64748b; margin:5px 0 0 0">{doc['summary']}</p></div>""", unsafe_allow_html=True)
     
-    # --- TAB 5: NÂNG CẤP VIP (MỚI BỔ SUNG) ---
+    # --- [BỔ SUNG] TAB 5: NÂNG CẤP VIP & THANH TOÁN (LOGIC MỚI) ---
     with tabs[4]:
         st.markdown("<h3 style='text-align: center; color: #1E3A8A;'>🚀 BẢNG GIÁ & NÂNG CẤP VIP</h3>", unsafe_allow_html=True)
         col_free, col_pro = st.columns(2)
-        
         with col_free:
-            st.markdown(f"""
-            <div class="pricing-card">
-                <h3>Gói FREE</h3>
-                <div class="price-tag">0đ</div>
-                <div class="feature-list">
-                    ✅ Tạo thử <b>{MAX_FREE_USAGE} đề</b><br>
-                    ❌ Tải file Word<br>
-                    ❌ Xem đáp án chi tiết<br>
-                    ❌ Hỗ trợ kỹ thuật
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
+            st.markdown(f"""<div class="pricing-card"><h3>Gói FREE</h3><div class="price-tag">0đ</div><div class="feature-list">✅ Tạo thử <b>{MAX_FREE_USAGE} đề</b><br>❌ Tải file Word<br>❌ Xem đáp án chi tiết<br>❌ Hỗ trợ kỹ thuật</div></div>""", unsafe_allow_html=True)
         with col_pro:
-            st.markdown(f"""
-            <div class="pricing-card" style="border: 2px solid #2563EB;">
-                <h3 style="color: #2563EB;">Gói PRO VIP</h3>
-                <div class="price-tag">{PRICE_VIP:,.0f}đ / gói</div>
-                <div class="feature-list">
-                    ✅ <b>Tạo tối đa {MAX_PRO_USAGE} đề</b><br>
-                    ✅ <b>Tải file Word chuẩn (In được ngay)</b><br>
-                    ✅ <b>Xem & Tải Đáp án/Ma trận/Đặc tả</b><br>
-                    ✅ Hỗ trợ ưu tiên 24/7
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class="pricing-card" style="border: 2px solid #2563EB;"><h3 style="color: #2563EB;">Gói PRO VIP</h3><div class="price-tag">{PRICE_VIP:,.0f}đ / gói</div><div class="feature-list">✅ <b>Tạo tối đa {MAX_PRO_USAGE} đề</b><br>✅ <b>Tải file Word chuẩn</b><br>✅ <b>Xem & Tải Đáp án/Ma trận</b><br>✅ Hỗ trợ ưu tiên 24/7</div></div>""", unsafe_allow_html=True)
         
         st.markdown("---")
         st.subheader("📲 QUÉT MÃ QR ĐỂ THANH TOÁN TỰ ĐỘNG")
         
-        # Tạo link VietQR động
-        content_ck = f"NAP VIP {user.get('email')}"
-        qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_ACC}-compact.png?amount={PRICE_VIP}&addInfo={content_ck}&accountName={BANK_NAME}"
-        
         c1, c2 = st.columns([1, 2])
         with c1:
-            st.image(qr_url, caption="Mã QR VietQR", width=300)
-        with c2:
-            st.info(f"""
-            **HƯỚNG DẪN THANH TOÁN:**
-            1. Mở App Ngân hàng bất kỳ.
-            2. Chọn **Quét Mã QR**.
-            3. Quét mã bên cạnh (Hệ thống tự điền Số tiền & Nội dung).
-            4. Bấm Chuyển khoản.
+            ref_code_input = st.text_input("Mã giới thiệu (Để tặng lượt khi mua Pro):")
             
-            **Hoặc chuyển khoản thủ công:**
-            * Ngân hàng: **{BANK_ID}**
-            * Số TK: **{BANK_ACC}**
-            * Chủ TK: **{BANK_NAME}**
-            * Số tiền: **{PRICE_VIP:,.0f}đ**
-            * Nội dung: `{content_ck}`
-            
-            👉 *Sau khi chuyển khoản, vui lòng nhắn Zalo {BANK_ACC} để kích hoạt ngay!*
-            """)
+        current_price = PRICE_VIP
+        final_content_ck = f"NAP VIP {user.get('email')}"
+        show_qr = True
+        
+        # [LOGIC MỚI] CHECK MÃ GIỚI THIỆU ĐỂ ẨN/HIỆN QR
+        if ref_code_input:
+            client = init_supabase()
+            if client:
+                check_ref = client.table('users_pro').select("*").eq('username', ref_code_input).execute()
+                if check_ref.data and ref_code_input != user.get('email'):
+                    st.success(f"✅ Mã hợp lệ! Bạn sẽ được tặng thêm {BONUS_PRO_REF} lượt khi kích hoạt Pro.")
+                    final_content_ck = f"NAP VIP {user.get('email')} REF {ref_code_input}"
+                    show_qr = True
+                elif ref_code_input == user.get('email'):
+                    st.warning("Bạn không thể tự giới thiệu chính mình.")
+                    show_qr = True # Vẫn hiện QR gốc
+                else:
+                    st.error("❌ Mã giới thiệu không tồn tại! (Vui lòng nhập đúng hoặc xóa đi để thanh toán).")
+                    show_qr = False # Ẩn QR
 
-    # --- TAB 6: HỒ SƠ & LỊCH SỬ (CẬP NHẬT LOAD TỪ DB) ---
+        if show_qr:
+            qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_ACC}-compact.png?amount={current_price}&addInfo={final_content_ck}&accountName={BANK_NAME}"
+            c_qr1, c_qr2 = st.columns([1, 2])
+            with c_qr1: st.image(qr_url, caption=f"Mã QR ({current_price:,.0f}đ)", width=300)
+            with c_qr2: 
+                st.info(f"**Nội dung chuyển khoản:** `{final_content_ck}`\n\n1. Quét mã QR.\n2. Bấm nút **'KÍCH HOẠT NGAY'** bên dưới sau khi chuyển khoản.")
+                
+                # [BỔ SUNG] NÚT KÍCH HOẠT TỰ ĐỘNG (CHECK SEPAY)
+                if st.button("🚀 KÍCH HOẠT NGAY (Sau khi đã CK)", type="primary"):
+                    if check_sepay_transaction(current_price, final_content_ck):
+                        client = init_supabase()
+                        if client:
+                            # Lấy trạng thái hiện tại để kiểm tra có phải lần đầu không
+                            curr_user_db = client.table('users_pro').select("*").eq('username', user.get('email')).execute()
+                            is_first_time = False
+                            if curr_user_db.data:
+                                if curr_user_db.data[0]['role'] == 'free': is_first_time = True
+
+                            # 1. Update người mua lên Pro (Reset lượt)
+                            bonus_add = BONUS_PRO_REF if (ref_code_input and is_first_time) else 0
+                            client.table('users_pro').update({
+                                'role': 'pro',
+                                'usage_count': 0,
+                                'bonus_turns': bonus_add,
+                                'referred_by': ref_code_input if ref_code_input else None
+                            }).eq('username', user.get('email')).execute()
+                            
+                            # 2. Cộng hoa hồng (Chỉ khi lần đầu lên Pro)
+                            if ref_code_input and is_first_time:
+                                 ref_user = client.table('users_pro').select('commission_balance').eq('username', ref_code_input).execute()
+                                 if ref_user.data:
+                                     curr_comm = ref_user.data[0].get('commission_balance', 0)
+                                     client.table('users_pro').update({
+                                         'commission_balance': curr_comm + COMMISSION_AMT
+                                     }).eq('username', ref_code_input).execute()
+
+                            st.balloons()
+                            st.success("🎉 CHÚC MỪNG! TÀI KHOẢN ĐÃ NÂNG CẤP LÊN PRO!")
+                            time.sleep(2)
+                            st.rerun()
+                    else:
+                        st.error("⚠️ Hệ thống chưa nhận được tiền. Vui lòng thử lại sau 30s.")
+
+    # --- [BỔ SUNG] TAB 6: ĐỐI TÁC (AFFILIATE) ---
     with tabs[5]:
+        st.subheader("💰 CHƯƠNG TRÌNH ĐỐI TÁC (AFFILIATE)")
+        st.info(f"Mã giới thiệu của bạn chính là tên đăng nhập: **{user.get('email')}**")
+        client = init_supabase()
+        if client:
+            try:
+                # Thống kê số người đã giới thiệu
+                ref_res = client.table('users_pro').select("*").eq('referred_by', user.get('email')).execute()
+                
+                # Lấy số dư hoa hồng
+                me_res = client.table('users_pro').select('commission_balance').eq('username', user.get('email')).execute()
+                comm_balance = me_res.data[0].get('commission_balance', 0) if me_res.data else 0
+
+                if ref_res.data:
+                    count_ref = len(ref_res.data)
+                    count_pro = sum(1 for u in ref_res.data if u['role'] == 'pro')
+                    c1, c2, c3 = st.columns(3)
+                    with c1: st.metric("Tổng người giới thiệu", f"{count_ref} người")
+                    with c2: st.metric("Đã lên PRO", f"{count_pro} người")
+                    with c3: st.metric("Hoa hồng hiện có", f"{comm_balance:,.0f}đ")
+                    st.write("---")
+                    st.write("**Danh sách thành viên:**")
+                    df_ref = pd.DataFrame(ref_res.data)
+                    if not df_ref.empty:
+                        st.dataframe(df_ref[['username', 'fullname', 'role', 'created_at']], use_container_width=True)
+                else: st.info("Bạn chưa giới thiệu được ai.")
+            except: st.error("Lỗi tải dữ liệu đối tác.")
+
+    # --- TAB 7: HỒ SƠ ---
+    with tabs[6]:
         c1, c2 = st.columns([2, 1])
         with c1: 
             st.write(f"**👤 Xin chào: {user.get('fullname')}**")
             st.write("---")
             st.subheader("🗂️ KHO ĐỀ CỦA BẠN (Đã lưu vĩnh viễn)")
             
-            # [CẬP NHẬT] Nút tải lại lịch sử từ Supabase
+            # [BỔ SUNG] Nút tải lại lịch sử từ Supabase
             if st.button("🔄 Tải lại danh sách đề đã lưu"):
                 client = init_supabase()
                 if client:
@@ -689,8 +755,7 @@ def main_app():
                             st.success(f"Đã tải {len(saved_exams)} đề từ kho lưu trữ!")
                             time.sleep(1)
                             st.rerun()
-                        else:
-                            st.info("Bạn chưa lưu đề nào.")
+                        else: st.info("Bạn chưa lưu đề nào.")
                     except: st.error("Lỗi tải lịch sử.")
             
             if st.session_state['dossier']:
@@ -702,12 +767,7 @@ def main_app():
             if k: st.session_state['api_key'] = k
 
     st.markdown("---")
-    st.markdown("""
-    <div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;">
-        <strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>
-        SĐT: 0918198687
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("""<div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;"><strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>SĐT: 0918198687</div>""", unsafe_allow_html=True)
 
 # ==============================================================================
 # 6. LOGIN
@@ -716,66 +776,58 @@ def login_screen():
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
         st.markdown("<br><h2 style='text-align:center; color: #1E3A8A;'>🔐 HỆ THỐNG ĐĂNG NHẬP</h2>", unsafe_allow_html=True)
-        
         tab_login, tab_signup = st.tabs(["ĐĂNG NHẬP", "ĐĂNG KÝ MỚI"])
         
-        # --- TAB ĐĂNG NHẬP ---
         with tab_login:
             st.write("")
             u = st.text_input("Tên đăng nhập", key="l_user")
             p = st.text_input("Mật khẩu", type="password", key="l_pass")
-            
             if st.button("ĐĂNG NHẬP NGAY", type="primary", use_container_width=True):
                 client = init_supabase()
                 if client:
                     try:
-                        # Query database
                         res = client.table('users_pro').select("*").eq('username', u).eq('password', p).execute()
-                        if res.data and len(res.data) > 0:
+                        if res.data:
                             user_data = res.data[0]
-                            st.session_state['user'] = {
-                                "email": user_data['username'], 
-                                "fullname": user_data['fullname'],
-                                "role": user_data['role']
-                            }
-                            st.toast(f"Xin chào {user_data['fullname']}!", icon="🎉")
-                            time.sleep(0.5)
-                            st.rerun()
-                        else:
-                            st.error("Tên đăng nhập hoặc mật khẩu không đúng.")
-                    except Exception as e:
-                        st.error(f"Lỗi kết nối: {e}")
-                else:
-                    st.error("Không thể kết nối Server.")
-
-        # --- TAB ĐĂNG KÝ ---
+                            st.session_state['user'] = {"email": user_data['username'], "fullname": user_data['fullname'], "role": user_data['role']}
+                            st.toast(f"Xin chào {user_data['fullname']}!", icon="🎉"); time.sleep(0.5); st.rerun()
+                        else: st.error("Sai thông tin đăng nhập.")
+                    except Exception as e: st.error(f"Lỗi: {e}")
+        
         with tab_signup:
             st.write("")
             new_u = st.text_input("Tên đăng nhập mới", key="s_user")
             new_p = st.text_input("Mật khẩu mới", type="password", key="s_pass")
             new_name = st.text_input("Họ và tên", key="s_name")
+            # [BỔ SUNG] Thêm ô nhập mã giới thiệu khi đăng ký
+            ref_code = st.text_input("Mã người giới thiệu (Nếu có)", key="s_ref")
             
             if st.button("TẠO TÀI KHOẢN", use_container_width=True):
                 client = init_supabase()
                 if client and new_u and new_p:
                     try:
-                        # Check exist
                         check = client.table('users_pro').select("*").eq('username', new_u).execute()
-                        if check.data:
-                            st.warning("Tên đăng nhập đã tồn tại!")
+                        if check.data: st.warning("Tên này đã có người dùng!")
                         else:
-                            # Insert new user (Default Role: free, usage: 0)
+                            # Đăng ký mới không tặng lượt, chỉ lưu mã giới thiệu
+                            valid_ref = None
+                            if ref_code:
+                                check_ref = client.table('users_pro').select("*").eq('username', ref_code).execute()
+                                if check_ref.data: valid_ref = ref_code
+                                else: st.warning("Mã giới thiệu không tồn tại (Vẫn tạo tài khoản).")
+
                             client.table('users_pro').insert({
                                 "username": new_u,
                                 "password": new_p,
                                 "fullname": new_name,
                                 "role": "free",
-                                "usage_count": 0, # Mặc định là 0
-                                "expiry_date": None
+                                "usage_count": 0,
+                                "expiry_date": None,
+                                "referred_by": valid_ref,
+                                "bonus_turns": 0
                             }).execute()
                             st.success("Đăng ký thành công! Mời đăng nhập.")
-                    except Exception as e:
-                        st.error(f"Lỗi đăng ký: {e}")
+                    except Exception as e: st.error(f"Lỗi đăng ký: {e}")
 
 if 'user' not in st.session_state: login_screen()
 else: main_app()
