@@ -13,12 +13,11 @@ import datetime
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
 # ==============================================================================
-# --- CẤU HÌNH GIỚI HẠN SỬ DỤNG ---
+# --- [NÂNG CẤP] CẤU HÌNH GIỚI HẠN & THANH TOÁN ---
 MAX_FREE_USAGE = 3   # Tài khoản Free: 3 đề
 MAX_PRO_USAGE = 15   # Tài khoản Pro: 15 đề
 
-# --- CẤU HÌNH THANH TOÁN (VIETQR) ---
-BANK_ID = "VietinBank"   # Đã sửa lỗi chính tả VietinBabk thành VietinBank
+BANK_ID = "VietinBank"   # Đã sửa lỗi chính tả
 BANK_ACC = "0918198687"  
 BANK_NAME = "TRAN THANH TUAN" 
 PRICE_VIP = 50000        
@@ -27,7 +26,7 @@ PRICE_VIP = 50000
 try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-    # Tự động lấy Key Gemini của Admin (để khách không phải nhập)
+    # [NÂNG CẤP] Tự động lấy Key Gemini của Admin
     SYSTEM_GOOGLE_KEY = st.secrets.get("GOOGLE_API_KEY", "")
 except:
     SUPABASE_URL = ""
@@ -216,7 +215,7 @@ st.markdown("""
 
     /* 8. PAPER VIEW - FIX FONT WEB APP */
     @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
-
+    
     .paper-view {
         font-family: 'Times New Roman', Times, serif !important;
         font-size: 14pt !important;
@@ -278,15 +277,28 @@ def read_file_content(uploaded_file, file_type):
     except: return ""
     return content
 
+# [NÂNG CẤP] Hàm làm sạch JSON mạnh mẽ hơn để tránh lỗi Extra Data
 def clean_json(text):
     text = text.strip()
-    match = re.search(r'\{.*\}', text, re.DOTALL)
-    if match: return match.group(0)
-    return text
+    if "```" in text:
+        parts = re.split(r'```(?:json)?', text)
+        if len(parts) > 1: text = parts[1]
+    
+    start_idx = text.find('{')
+    if start_idx == -1: return "{}"
+    text = text[start_idx:]
+    
+    try:
+        decoder = json.JSONDecoder()
+        obj, idx = decoder.raw_decode(text)
+        return json.dumps(obj)
+    except:
+        end_idx = text.rfind('}')
+        if end_idx != -1: return text[:end_idx+1]
+        return text
 
 # --- HÀM TẠO FILE WORD CHUẨN FONT BỘ GIÁO DỤC (ĐÃ SỬA CHUẨN XML) ---
 def create_word_doc(html, title):
-    # Thêm cấu hình XML xmlns để ép Word dùng chế độ Print View và Font chuẩn
     doc_content = f"""
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
     <head>
@@ -302,23 +314,12 @@ def create_word_doc(html, title):
         <style>
             @page {{ size: 21cm 29.7cm; margin: 2cm 2cm 2cm 2cm; mso-page-orientation: portrait; }}
             body {{ font-family: 'Times New Roman', serif; font-size: 13pt; line-height: 1.3; }}
-            /* Ép cứng Font cho mọi thẻ */
-            p, div, span, li, td, th, h1, h2, h3, h4, h5, h6, pre {{ 
-                font-family: 'Times New Roman', serif; 
-                mso-ascii-font-family: 'Times New Roman'; 
-                mso-hansi-font-family: 'Times New Roman'; 
-                mso-bidi-font-family: 'Times New Roman';
-                color: #000000; 
-            }}
+            p, div, span, li, td, th {{ font-family: 'Times New Roman', serif; mso-ascii-font-family: 'Times New Roman'; mso-hansi-font-family: 'Times New Roman'; color: #000000; }}
             table {{ border-collapse: collapse; width: 100%; }}
             td, th {{ border: 1px solid black; padding: 5px; }}
         </style>
     </head>
-    <body>
-        <div class="WordSection1">
-            {html}
-        </div>
-    </body>
+    <body><div class="WordSection1">{html}</div></body>
     </html>
     """
     return "\ufeff" + doc_content
@@ -439,7 +440,7 @@ def main_app():
                             is_blocked = False
                             msg_blocked = ""
 
-                            # 2. LOGIC KIỂM TRA GIỚI HẠN (3 Free / 15 Pro)
+                            # 2. KIỂM TRA GIỚI HẠN (CẬP NHẬT LOGIC MỚI: CHẶN CẢ PRO NẾU QUÁ 15 LẦN)
                             if db_role == 'free' and usage_count >= MAX_FREE_USAGE:
                                 is_blocked = True
                                 msg_blocked = f"🔒 HẾT LƯỢT DÙNG THỬ! (Bạn đã tạo {usage_count}/{MAX_FREE_USAGE} đề). Vui lòng nâng cấp PRO."
@@ -454,7 +455,7 @@ def main_app():
                                 # 3. NẾU ĐƯỢC PHÉP -> CHẠY AI
                                 api_key = st.session_state.get('api_key', '')
                                 
-                                # [QUAN TRỌNG] Tự động lấy Key của Admin nếu user không nhập
+                                # [NÂNG CẤP] Tự động lấy Key của Admin nếu user không nhập
                                 if not api_key: api_key = SYSTEM_GOOGLE_KEY 
                                 
                                 if not api_key: st.toast("⚠️ Vui lòng nhập API Key ở Tab Hồ Sơ!", icon="❌")
@@ -464,6 +465,24 @@ def main_app():
                                         txt_dt = read_file_content(dt_file, 'spec')
                                         knowledge_context = get_knowledge_context(subject, grade, book, scope)
                                         
+                                        # [NÂNG CẤP] XỬ LÝ ĐẶC BIỆT CHO TIẾNG VIỆT TIỂU HỌC (TÁCH 2 BÀI)
+                                        special_prompt = ""
+                                        if subject == "Tiếng Việt" and curr_lvl == "tieu_hoc":
+                                            special_prompt = f"""
+                                            ⚠️ YÊU CẦU ĐẶC BIỆT CHO MÔN TIẾNG VIỆT (Theo Thông tư 27/2020):
+                                            BẮT BUỘC TÁCH ĐỀ THI THÀNH 2 BÀI KIỂM TRA RIÊNG BIỆT (A và B) TRONG CÙNG 1 FILE:
+                                            
+                                            -------- BÀI A: KIỂM TRA ĐỌC (10 điểm) --------
+                                            1. Đọc thành tiếng: (Chỉ cần ghi hướng dẫn chung: "GV cho HS bốc thăm văn bản...").
+                                            2. Đọc hiểu: Cung cấp 1 văn bản mới (ngoài SGK) và soạn {num_choice} câu hỏi (Trắc nghiệm hoặc Tự luận ngắn) để kiểm tra.
+                                            
+                                            -------- BÀI B: KIỂM TRA VIẾT (10 điểm) --------
+                                            1. Chính tả: Cung cấp 1 đoạn văn/thơ để nghe-viết (khoảng 50-80 chữ).
+                                            2. Tập làm văn: Soạn {num_essay} câu đề bài yêu cầu viết đoạn văn/bài văn theo chủ điểm.
+                                            
+                                            TUYỆT ĐỐI KHÔNG TRỘN LẪN CÂU HỎI. PHẢI TÁCH RÕ BÀI A VÀ BÀI B.
+                                            """
+                                        
                                         SYSTEM_PROMPT = f"""
                                         {APP_CONFIG['context']}
                                         I. THÔNG TIN ĐẦU VÀO:
@@ -472,37 +491,32 @@ def main_app():
                                         II. LUẬT RA ĐỀ:
                                         - Tiểu học: 3 mức độ. - Trung học: 4 mức độ.
                                         III. AUTO-DETECT: { "TỰ XÂY DỰNG MA TRẬN & ĐẶC TẢ" if auto_mode else "TUÂN THỦ FILE UPLOAD" }
+                                        {special_prompt}
                                         IV. OUTPUT JSON: {{ "title": "...", "content": "HTML...", "matrixHtml": "...", "specHtml": "...", "answers": "HTML..." }}
                                         V. LIST FILE: De_Kiem_Tra_[CODE].docx, Ma_Tran_[CODE].docx, Ban_Dac_Ta_[CODE].docx, Dap_An_[CODE].docx
+                                        V. IMPORTANT: OUTPUT RAW JSON ONLY. NO EXTRA TEXT. NO COMMENTS.
                                         """
 
                                         try:
                                             genai.configure(api_key=api_key)
                                             model = genai.GenerativeModel('gemini-3-pro-preview', system_instruction=SYSTEM_PROMPT)
-                                            
                                             new_exams = []
                                             for i in range(num_exams):
                                                 code = start_code + i
                                                 prompt = SYSTEM_PROMPT.replace("[CODE]", str(code))
+                                                req = f"DATA: {txt_mt} {txt_dt}\nNOTE: {user_req}\nSTRUCT: {num_choice} TN, {num_essay} TL, {num_practice} TH\nTASK: Exam {i+1} (Code {code})"
+                                                res = model.generate_content(req, generation_config={"response_mime_type": "application/json"})
                                                 
-                                                struct_request = f"""
-                                                \n[YÊU CẦU CẤU TRÚC BẮT BUỘC]:
-                                                - Số câu Trắc nghiệm: {num_choice} câu.
-                                                - Số câu Tự luận: {num_essay} câu.
-                                                - Số bài Thực hành: {num_practice} bài.
-                                                """
-                                                
-                                                user_msg = f"DỮ LIỆU: {txt_mt} {txt_dt}\nGHI CHÚ: {user_req}\n{struct_request}\nNHIỆM VỤ: Tạo Đề số {i+1} (Mã {code})."
-
-                                                res = model.generate_content(user_msg, generation_config={"response_mime_type": "application/json"})
-                                                data = json.loads(clean_json(res.text))
-                                                data['id'] = str(code)
-                                                data['title'] = f"Đề {subject} {grade} - {scope} (Mã {code})"
-                                                new_exams.append(data)
+                                                try:
+                                                    clean_text = clean_json(res.text)
+                                                    data = json.loads(clean_text)
+                                                    data['id'] = str(code); data['title'] = f"Đề {subject} {grade} - {scope} (Mã {code})"
+                                                    new_exams.append(data)
+                                                except Exception as e:
+                                                    st.error(f"Lỗi phân tích đề {code}: {e}")
+                                                    continue
                                             
                                             st.session_state['dossier'] = new_exams + st.session_state['dossier']
-                                            
-                                            # 4. CẬP NHẬT DATABASE
                                             client.table('users_pro').update({'usage_count': usage_count + 1}).eq('username', user.get('email')).execute()
                                             
                                             limit_show = MAX_PRO_USAGE if db_role == 'pro' else MAX_FREE_USAGE
@@ -553,7 +567,7 @@ def main_app():
             cls = "highlight-card" if doc.get('highlight') else "legal-card"
             st.markdown(f"""<div class="{cls}" style="padding:15px; margin-bottom:10px; border-radius:10px;"><span style="background:#1e293b; color:white; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold">{doc['code']}</span><span style="font-weight:bold; color:#334155; margin-left:8px">{doc['title']}</span><p style="font-size:13px; color:#64748b; margin:5px 0 0 0">{doc['summary']}</p></div>""", unsafe_allow_html=True)
     
-    # --- TAB 5: NÂNG CẤP VIP ---
+    # --- TAB 5: NÂNG CẤP VIP (MỚI BỔ SUNG) ---
     with tabs[4]:
         st.markdown("<h3 style='text-align: center; color: #1E3A8A;'>🚀 BẢNG GIÁ & NÂNG CẤP VIP</h3>", unsafe_allow_html=True)
         col_free, col_pro = st.columns(2)
