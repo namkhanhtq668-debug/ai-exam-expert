@@ -17,7 +17,7 @@ import datetime
 MAX_FREE_USAGE = 3   # Tài khoản Free: 3 đề
 MAX_PRO_USAGE = 15   # Tài khoản Pro: 15 đề
 
-BANK_ID = "VietinBank"   # Đã sửa lỗi chính tả
+BANK_ID = "VietinBank"   # Đã sửa lỗi chính tả VietinBabk thành VietinBank
 BANK_ACC = "0918198687"  
 BANK_NAME = "TRAN THANH TUAN" 
 PRICE_VIP = 50000        
@@ -26,7 +26,7 @@ PRICE_VIP = 50000
 try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-    # [NÂNG CẤP] Tự động lấy Key Gemini của Admin
+    # Tự động lấy Key Gemini của Admin (để khách không phải nhập)
     SYSTEM_GOOGLE_KEY = st.secrets.get("GOOGLE_API_KEY", "")
 except:
     SUPABASE_URL = ""
@@ -150,7 +150,10 @@ LEGAL_DOCUMENTS = [
 st.markdown("""
 <style>
     /* Ẩn Menu mặc định */
-    #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
+    #MainMenu {visibility: hidden; display: none;} 
+    header {visibility: hidden; display: none;} 
+    footer {visibility: hidden; display: none;}
+    div[data-testid="stDecoration"] {display: none;}
     
     /* 1. NỀN TỔNG THỂ */
     .stApp { background-color: #F8FAFC; }
@@ -297,7 +300,7 @@ def clean_json(text):
         if end_idx != -1: return text[:end_idx+1]
         return text
 
-# --- HÀM TẠO FILE WORD CHUẨN FONT BỘ GIÁO DỤC (ĐÃ SỬA CHUẨN XML) ---
+# --- [NÂNG CẤP] HÀM TẠO FILE WORD CHUẨN FONT XML ---
 def create_word_doc(html, title):
     doc_content = f"""
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
@@ -465,24 +468,26 @@ def main_app():
                                         txt_dt = read_file_content(dt_file, 'spec')
                                         knowledge_context = get_knowledge_context(subject, grade, book, scope)
                                         
-                                        # [NÂNG CẤP] XỬ LÝ ĐẶC BIỆT CHO TIẾNG VIỆT TIỂU HỌC (TÁCH 2 BÀI)
+                                        # [NÂNG CẤP] XỬ LÝ ĐẶC BIỆT CHO MÔN TIN HỌC (YCCĐ Lớp 3,4,5)
                                         special_prompt = ""
-                                        if subject == "Tiếng Việt" and curr_lvl == "tieu_hoc":
+                                        if (subject == "Tin học" or subject == "Tin học và Công nghệ") and curr_lvl == "tieu_hoc":
                                             special_prompt = f"""
-                                            ⚠️ YÊU CẦU ĐẶC BIỆT CHO MÔN TIẾNG VIỆT (Theo Thông tư 27/2020):
-                                            BẮT BUỘC TÁCH ĐỀ THI THÀNH 2 BÀI KIỂM TRA RIÊNG BIỆT (A và B) TRONG CÙNG 1 FILE:
+                                            ⚠️ YÊU CẦU ĐẶC BIỆT CHO MÔN TIN HỌC (Theo YCCĐ Chương trình GDPT 2018):
+                                            CẤU TRÚC ĐỀ THI BÁM SÁT 6 CHỦ ĐỀ (A, B, C, D, E, F) VÀ NĂNG LỰC ĐẶC THÙ (NLa-NLe):
                                             
-                                            -------- BÀI A: KIỂM TRA ĐỌC (10 điểm) --------
-                                            1. Đọc thành tiếng: (Chỉ cần ghi hướng dẫn chung: "GV cho HS bốc thăm văn bản...").
-                                            2. Đọc hiểu: Cung cấp 1 văn bản mới (ngoài SGK) và soạn {num_choice} câu hỏi (Trắc nghiệm hoặc Tự luận ngắn) để kiểm tra.
+                                            1. PHẦN TRẮC NGHIỆM ({num_choice} câu):
+                                               - Kiểm tra kiến thức về Máy tính (Chủ đề A), Internet (Chủ đề B), Tổ chức lưu trữ (Chủ đề C), Đạo đức số (Chủ đề D).
+                                               - Lớp 3: Nhận diện chuột, bàn phím, tư thế ngồi, thông tin và xử lý thông tin.
+                                               - Lớp 4: Phần cứng/phần mềm, gõ phím, thư mục, bản quyền phần mềm.
+                                               - Lớp 5: Hợp tác tìm kiếm, cây thư mục, bản quyền nội dung, quy tắc ứng xử trên mạng.
                                             
-                                            -------- BÀI B: KIỂM TRA VIẾT (10 điểm) --------
-                                            1. Chính tả: Cung cấp 1 đoạn văn/thơ để nghe-viết (khoảng 50-80 chữ).
-                                            2. Tập làm văn: Soạn {num_essay} câu đề bài yêu cầu viết đoạn văn/bài văn theo chủ điểm.
-                                            
-                                            TUYỆT ĐỐI KHÔNG TRỘN LẪN CÂU HỎI. PHẢI TÁCH RÕ BÀI A VÀ BÀI B.
+                                            2. PHẦN THỰC HÀNH/TỰ LUẬN ({num_essay} câu):
+                                               - Kiểm tra kỹ năng Ứng dụng (Chủ đề E) và Giải quyết vấn đề (Chủ đề F).
+                                               - Lớp 3: Tạo bài trình chiếu đơn giản, thao tác chuột.
+                                               - Lớp 4: Soạn thảo văn bản tiếng Việt, tạo bài trình chiếu có hiệu ứng, làm quen lập trình trực quan.
+                                               - Lớp 5: Định dạng văn bản nâng cao, sử dụng biến/cấu trúc lặp trong lập trình trực quan.
                                             """
-                                        
+
                                         SYSTEM_PROMPT = f"""
                                         {APP_CONFIG['context']}
                                         I. THÔNG TIN ĐẦU VÀO:
@@ -511,6 +516,11 @@ def main_app():
                                                     clean_text = clean_json(res.text)
                                                     data = json.loads(clean_text)
                                                     data['id'] = str(code); data['title'] = f"Đề {subject} {grade} - {scope} (Mã {code})"
+                                                    
+                                                    # [NÂNG CẤP] TỰ ĐỘNG LƯU VÀO KHO
+                                                    save_data = {"username": user.get('email'), "title": data['title'], "exam_data": data}
+                                                    client.table('exam_history').insert(save_data).execute()
+                                                    
                                                     new_exams.append(data)
                                                 except Exception as e:
                                                     st.error(f"Lỗi phân tích đề {code}: {e}")
@@ -526,7 +536,6 @@ def main_app():
                 else: st.error("Lỗi kết nối.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- TAB 2: XEM & XUẤT (CLASS paper-view ĐÃ CHUẨN HÓA FONT) ---
     with tabs[1]:
         if not st.session_state['dossier']: st.info("👈 Chưa có dữ liệu.")
         else:
@@ -628,24 +637,40 @@ def main_app():
             👉 *Sau khi chuyển khoản, vui lòng nhắn Zalo {BANK_ACC} để kích hoạt ngay!*
             """)
 
-    # --- TAB 6: HỒ SƠ ---
+    # --- TAB 6: HỒ SƠ & LỊCH SỬ (NÂNG CẤP LOAD TỪ SUPABASE) ---
     with tabs[5]:
         c1, c2 = st.columns([2, 1])
         with c1: 
-            st.write("**Lịch sử tạo đề:**")
-            for e in st.session_state['dossier']: st.write(f"- {e['title']}")
+            st.write(f"**👤 Xin chào: {user.get('fullname')}**")
+            st.write("---")
+            st.subheader("🗂️ KHO ĐỀ CỦA BẠN (Đã lưu vĩnh viễn)")
+            
+            # Nút tải lại lịch sử
+            if st.button("🔄 Tải lại danh sách đề đã lưu"):
+                client = init_supabase()
+                if client:
+                    try:
+                        history_res = client.table('exam_history').select("*").eq('username', user.get('email')).order('id', desc=True).execute()
+                        if history_res.data:
+                            saved_exams = [item['exam_data'] for item in history_res.data]
+                            st.session_state['dossier'] = saved_exams
+                            st.success(f"Đã tải {len(saved_exams)} đề từ kho lưu trữ!")
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.info("Bạn chưa lưu đề nào.")
+                    except: st.error("Lỗi tải lịch sử.")
+            
+            if st.session_state['dossier']:
+                for e in st.session_state['dossier']: st.write(f"📄 {e['title']}")
+            else: st.caption("Chưa có dữ liệu hiển thị.")
+
         with c2: 
             k = st.text_input("🔑 API Key Gemini (Nếu có)", type="password", key="api_key_in")
             if k: st.session_state['api_key'] = k
 
-    # --- FOOTER ---
     st.markdown("---")
-    st.markdown("""
-    <div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;">
-        <strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>
-        SĐT: 0918198687
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("""<div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;"><strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>SĐT: 0918198687</div>""", unsafe_allow_html=True)
 
 # ==============================================================================
 # 6. LOGIN
@@ -654,66 +679,39 @@ def login_screen():
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
         st.markdown("<br><h2 style='text-align:center; color: #1E3A8A;'>🔐 HỆ THỐNG ĐĂNG NHẬP</h2>", unsafe_allow_html=True)
-        
         tab_login, tab_signup = st.tabs(["ĐĂNG NHẬP", "ĐĂNG KÝ MỚI"])
         
-        # --- TAB ĐĂNG NHẬP ---
         with tab_login:
             st.write("")
             u = st.text_input("Tên đăng nhập", key="l_user")
             p = st.text_input("Mật khẩu", type="password", key="l_pass")
-            
             if st.button("ĐĂNG NHẬP NGAY", type="primary", use_container_width=True):
                 client = init_supabase()
                 if client:
                     try:
-                        # Query database
                         res = client.table('users_pro').select("*").eq('username', u).eq('password', p).execute()
-                        if res.data and len(res.data) > 0:
+                        if res.data:
                             user_data = res.data[0]
-                            st.session_state['user'] = {
-                                "email": user_data['username'], 
-                                "fullname": user_data['fullname'],
-                                "role": user_data['role']
-                            }
-                            st.toast(f"Xin chào {user_data['fullname']}!", icon="🎉")
-                            time.sleep(0.5)
-                            st.rerun()
-                        else:
-                            st.error("Tên đăng nhập hoặc mật khẩu không đúng.")
-                    except Exception as e:
-                        st.error(f"Lỗi kết nối: {e}")
-                else:
-                    st.error("Không thể kết nối Server.")
-
-        # --- TAB ĐĂNG KÝ ---
+                            st.session_state['user'] = {"email": user_data['username'], "fullname": user_data['fullname'], "role": user_data['role']}
+                            st.toast(f"Xin chào {user_data['fullname']}!", icon="🎉"); time.sleep(0.5); st.rerun()
+                        else: st.error("Sai thông tin đăng nhập.")
+                    except Exception as e: st.error(f"Lỗi: {e}")
+        
         with tab_signup:
             st.write("")
             new_u = st.text_input("Tên đăng nhập mới", key="s_user")
             new_p = st.text_input("Mật khẩu mới", type="password", key="s_pass")
             new_name = st.text_input("Họ và tên", key="s_name")
-            
             if st.button("TẠO TÀI KHOẢN", use_container_width=True):
                 client = init_supabase()
                 if client and new_u and new_p:
                     try:
-                        # Check exist
                         check = client.table('users_pro').select("*").eq('username', new_u).execute()
-                        if check.data:
-                            st.warning("Tên đăng nhập đã tồn tại!")
+                        if check.data: st.warning("Tên này đã có người dùng!")
                         else:
-                            # Insert new user (Default Role: free, usage: 0)
-                            client.table('users_pro').insert({
-                                "username": new_u,
-                                "password": new_p,
-                                "fullname": new_name,
-                                "role": "free",
-                                "usage_count": 0, # Mặc định là 0
-                                "expiry_date": None
-                            }).execute()
+                            client.table('users_pro').insert({"username": new_u, "password": new_p, "fullname": new_name, "role": "free", "usage_count": 0}).execute()
                             st.success("Đăng ký thành công! Mời đăng nhập.")
-                    except Exception as e:
-                        st.error(f"Lỗi đăng ký: {e}")
+                    except Exception as e: st.error(f"Lỗi: {e}")
 
 if 'user' not in st.session_state: login_screen()
 else: main_app()
