@@ -9,7 +9,7 @@ import re
 import io
 import time
 import datetime
-import requests # [THÊM] Thư viện kết nối SePay
+import requests # [THÊM] Thư viện để gọi API SePay kiểm tra tiền
 
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
@@ -18,7 +18,7 @@ import requests # [THÊM] Thư viện kết nối SePay
 MAX_FREE_USAGE = 3   # Tài khoản Free: 3 đề
 MAX_PRO_USAGE = 15   # Tài khoản Pro: 15 đề
 
-# --- [CẬP NHẬT] CẤU HÌNH KHUYẾN MẠI & HOA HỒNG ---
+# --- [BỔ SUNG] CẤU HÌNH KHUYẾN MẠI & HOA HỒNG ---
 BONUS_PER_REF = 0    # Đăng ký mới: Không tặng lượt (Chỉ lưu mã)
 BONUS_PRO_REF = 3    # Mua Pro lần đầu có mã: Tặng 3 lượt
 DISCOUNT_AMT = 0     # Không giảm giá tiền (Giữ nguyên giá gốc)
@@ -26,7 +26,7 @@ COMMISSION_AMT = 10000 # Hoa hồng cho người giới thiệu
 
 # --- [CẬP NHẬT] CẤU HÌNH THANH TOÁN (SEPAY - VIETQR) ---
 BANK_ID = "VietinBank"   
-BANK_ACC = "107878907329"  # [ĐÃ SỬA ĐÚNG SỐ TÀI KHOẢN CỦA THẦY]
+BANK_ACC = "107878907329"  # [ĐÃ SỬA ĐÚNG THEO YÊU CẦU]
 BANK_NAME = "TRAN THANH TUAN" 
 PRICE_VIP = 50000        
 
@@ -57,7 +57,20 @@ APP_CONFIG = {
     "role": "Trợ lý chuyên môn Cấp Sở: Ra đề - Thẩm định - Quản trị hồ sơ.",
     "context": """🎯 1. VAI TRÒ VÀ SỨ MỆNH:
     Bạn là Trợ lý AI Chuyên môn Cấp Sở, tuân thủ tuyệt đối các quy định mới nhất của Bộ GD&ĐT.
-    """
+
+    🟦 2. QUY ĐỊNH PHÁP LÝ (BẮT BUỘC):
+    2.1. CẤP TIỂU HỌC (Thông tư 27/2020):
+       - Đề thi thiết kế theo 3 MỨC ĐỘ: M1 (Nhận biết - 40%), M2 (Kết nối - 30%), M3 (Vận dụng - 30%).
+       - Điểm số: Thang 10, làm tròn thành số nguyên (0.5 -> 1).
+       - Môn TIẾNG VIỆT: Phần Đọc hiểu phải dùng văn bản MỚI (ngoài SGK). Phần Viết có Chính tả & TLV.
+
+    2.2. CẤP TRUNG HỌC (Thông tư 22/2021 & QĐ 764):
+       - Ma trận 4 MỨC ĐỘ: NB (40%) - TH (30%) - VD (20%) - VDC (10%).
+       - THPT từ 2025: Cấu trúc 3 phần (TN Nhiều lựa chọn, TN Đúng/Sai, Trả lời ngắn).
+
+    🟦 3. NGUYÊN TẮC:
+    - Không trùng lại nội dung SGK (đối với ngữ liệu đọc hiểu).
+    - Hình ảnh minh họa phải được mô tả chi tiết."""
 }
 
 # B. DANH SÁCH MÔN THỰC HÀNH
@@ -484,55 +497,66 @@ def main_app():
                                         txt_dt = read_file_content(dt_file, 'spec')
                                         knowledge_context = get_knowledge_context(subject, grade, book, scope)
                                         
-                                        # [NÂNG CẤP] XỬ LÝ ĐẶC BIỆT CHO TIẾNG VIỆT TIỂU HỌC (TÁCH 2 BÀI)
+                                        # [NÂNG CẤP] SYSTEM PROMPT THEO ĐÚNG INSTRUCTION GỐC
                                         special_prompt = ""
                                         
-                                        # 1. NẾU LÀ CẤP TIỂU HỌC (Áp dụng Instruction Gốc Chuyên gia Khảo thí)
+                                        # 1. NẾU LÀ CẤP TIỂU HỌC (Áp dụng "Luật thép" thầy vừa đưa)
                                         if curr_lvl == "tieu_hoc":
                                             special_prompt = f"""
-                                            🔥 VAI TRÒ BẮT BUỘC: CHUYÊN GIA KHẢO THÍ GIÁO DỤC TIỂU HỌC (Tuân thủ Thông tư 27/2020 & CV 7791).
+                                            🔥 VAI TRÒ TUYỆT ĐỐI: CHUYÊN GIA KHẢO THÍ GIÁO DỤC TIỂU HỌC.
                                             
-                                            ⛔ CÁC ĐIỀU CẤM KỴ (VI PHẠM LÀ SAI LUẬT):
-                                            1. TUYỆT ĐỐI KHÔNG dùng mức độ "Vận dụng cao".
-                                            2. TUYỆT ĐỐI KHÔNG dùng các thuật ngữ: Phân tích, Đánh giá, Sáng tạo (của cấp 2,3).
-                                            3. CHỈ SỬ DỤNG 3 MỨC: M1 (Nhận biết), M2 (Thông hiểu), M3 (Vận dụng).
+                                            I. TUÂN THỦ PHÁP LÝ (BẮT BUỘC):
+                                            - Thông tư 27/2020/TT-BGDĐT
+                                            - Công văn 7791/BGDĐT-GDTH
+                                            - Chương trình GDPT 2018
                                             
-                                            ✅ CẤU TRÚC PHÂN BỐ ĐIỂM BẮT BUỘC (Tổng 10đ):
-                                            - Mức 1 (Nhận biết): 40% - 50%.
-                                            - Mức 2 (Thông hiểu): 30% - 40%.
-                                            - Mức 3 (Vận dụng): 20% - 30%.
-                                            👉 KHÔNG ĐƯỢC ra đề quá khó hoặc đánh đố học sinh.
+                                            II. QUY ĐỊNH CẤM KỴ (VI PHẠM LÀ HỦY KẾT QUẢ):
+                                            1. CẤM dùng mức độ "Vận dụng cao".
+                                            2. CẤM dùng các thuật ngữ cấp 2,3: Phân tích, Đánh giá, Sáng tạo.
+                                            3. CHỈ SỬ DỤNG 3 MỨC: Nhận biết - Thông hiểu - Vận dụng.
+                                            
+                                            III. PHÂN BỐ ĐIỂM VÀ CÂU HỎI (TỔNG 10đ):
+                                            - Nhận biết: 40-50%
+                                            - Thông hiểu: 30-40%
+                                            - Vận dụng: 20-30%
+                                            - KHÔNG dồn điểm vào câu khó, KHÔNG đánh đố học sinh.
+                                            
+                                            IV. QUY ĐỊNH MA TRẬN & ĐẶC TẢ:
+                                            - Ma trận phải có đúng 5 cột: Chủ đề, NB, TH, VD, Tổng.
+                                            - Bản đặc tả phải khớp 100% với ma trận và đề thi.
+                                            - Yêu cầu cần đạt phải rõ ràng, bám sát CT 2018.
                                             """
                                             
                                             # Logic riêng từng môn Tiểu học
                                             if subject == "Toán":
                                                 special_prompt += """
-                                                - MÔN TOÁN: Nội dung số và phép tính, đại lượng, hình học, giải toán có lời văn.
-                                                - KHÔNG dùng toán mẹo, toán Olympic, Violympic. Vận dụng gắn với tình huống quen thuộc.
+                                                V. MÔN TOÁN: 
+                                                - Nội dung: Số và phép tính, Đại lượng, Hình học, Giải toán có lời văn.
+                                                - KHÔNG dùng toán mẹo, toán Olympic, Violympic. Vận dụng gắn với đời sống.
                                                 """
                                             elif subject == "Tiếng Việt":
                                                 special_prompt += f"""
-                                                ⚠️ YÊU CẦU MÔN TIẾNG VIỆT (Tách 2 bài kiểm tra riêng biệt A và B):
-                                                A. KIỂM TRA ĐỌC (10 điểm):
+                                                V. MÔN TIẾNG VIỆT (Tách 2 phần):
+                                                A. KIỂM TRA ĐỌC (10đ):
                                                    1. Đọc thành tiếng.
                                                    2. Đọc hiểu: Sử dụng văn bản MỚI (ngoài SGK) phù hợp lứa tuổi + {num_choice} câu hỏi (M1-M2-M3).
-                                                B. KIỂM TRA VIẾT (10 điểm):
+                                                B. KIỂM TRA VIẾT (10đ):
                                                    1. Chính tả (Nghe-viết đoạn ngắn).
                                                    2. Tập làm văn: {num_essay} câu (Viết đoạn/bài văn theo chủ điểm đã học).
                                                 """
                                             elif "Tin học" in subject:
                                                 special_prompt += f"""
-                                                ⚠️ YÊU CẦU MÔN TIN HỌC:
-                                                - Nội dung: máy tính, dữ liệu, an toàn thông tin, phần mềm học tập.
-                                                - Có thể kết hợp lý thuyết ({num_choice} câu) và thực hành ({num_essay} câu).
+                                                V. MÔN TIN HỌC:
+                                                - Nội dung: Máy tính, Dữ liệu, An toàn thông tin, Phần mềm học tập.
+                                                - Trắc nghiệm ({num_choice} câu) + Thực hành ({num_essay} câu).
                                                 - KHÔNG lập trình phức tạp.
                                                 """
                                             else:
                                                 special_prompt += """
-                                                - CÁC MÔN KHÁC (Khoa học, LS&ĐL, Đạo đức...): Gắn với đời sống, không dùng thuật ngữ hàn lâm.
+                                                V. CÁC MÔN KHÁC (Khoa học, LS&ĐL, Đạo đức...): Gắn với đời sống, không dùng thuật ngữ hàn lâm.
                                                 """
 
-                                        # 2. NẾU LÀ CẤP 2, 3 (Giữ logic cũ)
+                                        # 2. NẾU LÀ CẤP 2, 3 (Giữ nguyên logic cũ)
                                         else:
                                             special_prompt = """
                                             YÊU CẦU TRUNG HỌC (Theo Thông tư 22 & CV 7791):
@@ -551,7 +575,7 @@ def main_app():
                                         - Bộ sách: "{book}" | Phạm vi: {scope}
                                         - {knowledge_context}
                                         
-                                        II. QUY ĐỊNH CHUYÊN MÔN (TUÂN THỦ TUYỆT ĐỐI):
+                                        II. HƯỚNG DẪN CHUYÊN GIA (TUÂN THỦ TUYỆT ĐỐI):
                                         {special_prompt}
                                         
                                         III. CƠ CHẾ TỰ KIỂM TRA & TỪ CHỐI (SELF-REFLECTION):
@@ -658,7 +682,7 @@ def main_app():
             cls = "highlight-card" if doc.get('highlight') else "legal-card"
             st.markdown(f"""<div class="{cls}" style="padding:15px; margin-bottom:10px; border-radius:10px;"><span style="background:#1e293b; color:white; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold">{doc['code']}</span><span style="font-weight:bold; color:#334155; margin-left:8px">{doc['title']}</span><p style="font-size:13px; color:#64748b; margin:5px 0 0 0">{doc['summary']}</p></div>""", unsafe_allow_html=True)
     
-    # --- [NÂNG CẤP] TAB 5: NÂNG CẤP VIP & THANH TOÁN (LOGIC MỚI) ---
+    # --- [NÂNG CẤP] TAB 5: NÂNG CẤP VIP & THANH TOÁN (LOGIC SEVQR) ---
     with tabs[4]:
         st.markdown("<h3 style='text-align: center; color: #1E3A8A;'>🚀 BẢNG GIÁ & NÂNG CẤP VIP</h3>", unsafe_allow_html=True)
         col_free, col_pro = st.columns(2)
