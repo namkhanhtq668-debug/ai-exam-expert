@@ -9,7 +9,7 @@ import re
 import io
 import time
 import datetime
-import requests # [THÊM] Thư viện để gọi API SePay kiểm tra tiền
+import requests # [THÊM] Thư viện kiểm tra tiền SePay
 
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
@@ -26,7 +26,7 @@ COMMISSION_AMT = 10000 # Hoa hồng cho người giới thiệu
 
 # --- CẤU HÌNH THANH TOÁN (VIETQR) ---
 BANK_ID = "VietinBank"   
-BANK_ACC = "107878907329"  # Thầy nhớ thay số này nếu cần
+BANK_ACC = "107878907329"  # [ĐÃ SỬA] Số tài khoản kết nối SePay
 BANK_NAME = "TRAN THANH TUAN" 
 PRICE_VIP = 50000        
 
@@ -591,7 +591,6 @@ def main_app():
                 else: st.error("Lỗi kết nối.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- TAB 2: XEM & XUẤT (CLASS paper-view ĐÃ CHUẨN HÓA FONT) ---
     with tabs[1]:
         if not st.session_state['dossier']: st.info("👈 Chưa có dữ liệu.")
         else:
@@ -649,7 +648,8 @@ def main_app():
             ref_code_input = st.text_input("Mã giới thiệu (Để tặng lượt khi mua Pro):")
             
         current_price = PRICE_VIP
-        final_content_ck = f"NAP VIP {user.get('email')}"
+        # [QUAN TRỌNG] THÊM TIỀN TỐ "SEVQR" VÀO NỘI DUNG ĐỂ SEPAY NHẬN DIỆN
+        final_content_ck = f"SEVQR NAP VIP {user.get('email')}"
         show_qr = True
         
         # [LOGIC MỚI] CHECK MÃ GIỚI THIỆU ĐỂ ẨN/HIỆN QR (KHÔNG GIẢM GIÁ)
@@ -659,7 +659,7 @@ def main_app():
                 check_ref = client.table('users_pro').select("*").eq('username', ref_code_input).execute()
                 if check_ref.data and ref_code_input != user.get('email'):
                     st.success(f"✅ Mã hợp lệ! Bạn sẽ được tặng thêm {BONUS_PRO_REF} lượt khi kích hoạt Pro.")
-                    final_content_ck = f"NAP VIP {user.get('email')} REF {ref_code_input}"
+                    final_content_ck = f"SEVQR NAP VIP {user.get('email')} REF {ref_code_input}"
                     show_qr = True
                 elif ref_code_input == user.get('email'):
                     st.warning("Bạn không thể tự giới thiệu chính mình.")
@@ -737,7 +737,7 @@ def main_app():
                     df_ref = pd.DataFrame(ref_res.data)
                     if not df_ref.empty:
                         st.dataframe(df_ref[['username', 'fullname', 'role', 'created_at']], use_container_width=True)
-                else: st.info("Bạn chưa giới thiệu được ai.")
+                else: st.info("Bạn chưa giới thiệu được ai. Hãy chia sẻ Mã giới thiệu ngay!")
             except: st.error("Lỗi tải dữ liệu đối tác.")
 
     # --- TAB 7: HỒ SƠ ---
