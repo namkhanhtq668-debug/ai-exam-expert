@@ -9,7 +9,7 @@ import re
 import io
 import time
 import datetime
-import requests # [THÊM] Thư viện kiểm tra tiền SePay
+import requests # [THÊM] Thư viện kết nối SePay
 
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
@@ -18,15 +18,15 @@ import requests # [THÊM] Thư viện kiểm tra tiền SePay
 MAX_FREE_USAGE = 3   # Tài khoản Free: 3 đề
 MAX_PRO_USAGE = 15   # Tài khoản Pro: 15 đề
 
-# --- [BỔ SUNG] CẤU HÌNH KHUYẾN MẠI & HOA HỒNG ---
+# --- [CẬP NHẬT] CẤU HÌNH KHUYẾN MẠI & HOA HỒNG ---
 BONUS_PER_REF = 0    # Đăng ký mới: Không tặng lượt (Chỉ lưu mã)
 BONUS_PRO_REF = 3    # Mua Pro lần đầu có mã: Tặng 3 lượt
 DISCOUNT_AMT = 0     # Không giảm giá tiền (Giữ nguyên giá gốc)
 COMMISSION_AMT = 10000 # Hoa hồng cho người giới thiệu
 
-# --- CẤU HÌNH THANH TOÁN (VIETQR) ---
+# --- [CẬP NHẬT] CẤU HÌNH THANH TOÁN (SEPAY - VIETQR) ---
 BANK_ID = "VietinBank"   
-BANK_ACC = "107878907329"  # [ĐÃ SỬA] Số tài khoản kết nối SePay
+BANK_ACC = "107878907329"  # [ĐÃ SỬA ĐÚNG SỐ TÀI KHOẢN CỦA THẦY]
 BANK_NAME = "TRAN THANH TUAN" 
 PRICE_VIP = 50000        
 
@@ -57,20 +57,7 @@ APP_CONFIG = {
     "role": "Trợ lý chuyên môn Cấp Sở: Ra đề - Thẩm định - Quản trị hồ sơ.",
     "context": """🎯 1. VAI TRÒ VÀ SỨ MỆNH:
     Bạn là Trợ lý AI Chuyên môn Cấp Sở, tuân thủ tuyệt đối các quy định mới nhất của Bộ GD&ĐT.
-
-    🟦 2. QUY ĐỊNH PHÁP LÝ (BẮT BUỘC):
-    2.1. CẤP TIỂU HỌC (Thông tư 27/2020):
-       - Đề thi thiết kế theo 3 MỨC ĐỘ: M1 (Nhận biết - 40%), M2 (Kết nối - 30%), M3 (Vận dụng - 30%).
-       - Điểm số: Thang 10, làm tròn thành số nguyên (0.5 -> 1).
-       - Môn TIẾNG VIỆT: Phần Đọc hiểu phải dùng văn bản MỚI (ngoài SGK). Phần Viết có Chính tả & TLV.
-
-    2.2. CẤP TRUNG HỌC (Thông tư 22/2021 & QĐ 764):
-       - Ma trận 4 MỨC ĐỘ: NB (40%) - TH (30%) - VD (20%) - VDC (10%).
-       - THPT từ 2025: Cấu trúc 3 phần (TN Nhiều lựa chọn, TN Đúng/Sai, Trả lời ngắn).
-
-    🟦 3. NGUYÊN TẮC:
-    - Không trùng lại nội dung SGK (đối với ngữ liệu đọc hiểu).
-    - Hình ảnh minh họa phải được mô tả chi tiết."""
+    """
 }
 
 # B. DANH SÁCH MÔN THỰC HÀNH
@@ -499,48 +486,87 @@ def main_app():
                                         
                                         # [NÂNG CẤP] XỬ LÝ ĐẶC BIỆT CHO TIẾNG VIỆT TIỂU HỌC (TÁCH 2 BÀI)
                                         special_prompt = ""
-                                        if subject == "Tiếng Việt" and curr_lvl == "tieu_hoc":
-                                            special_prompt = f"""
-                                            ⚠️ YÊU CẦU ĐẶC BIỆT CHO MÔN TIẾNG VIỆT (Theo Thông tư 27/2020):
-                                            BẮT BUỘC TÁCH ĐỀ THI THÀNH 2 BÀI KIỂM TRA RIÊNG BIỆT (A và B):
-                                            
-                                            -------- BÀI A: KIỂM TRA ĐỌC (10 điểm) --------
-                                            1. Đọc thành tiếng: (Chỉ cần ghi hướng dẫn chung: "GV cho HS bốc thăm văn bản...").
-                                            2. Đọc hiểu: Cung cấp 1 văn bản mới (ngoài SGK) và soạn {num_choice} câu hỏi (Trắc nghiệm hoặc Tự luận ngắn) để kiểm tra.
-                                            
-                                            -------- BÀI B: KIỂM TRA VIẾT (10 điểm) --------
-                                            1. Chính tả: Cung cấp 1 đoạn văn/thơ để nghe-viết (khoảng 50-80 chữ).
-                                            2. Tập làm văn: Soạn {num_essay} câu đề bài yêu cầu viết đoạn văn/bài văn theo chủ điểm.
-                                            
-                                            TUYỆT ĐỐI KHÔNG TRỘN LẪN CÂU HỎI. PHẢI TÁCH RÕ BÀI A VÀ BÀI B.
-                                            """
                                         
-                                        # [NÂNG CẤP] XỬ LÝ ĐẶC BIỆT CHO MÔN TIN HỌC (Theo CTGDPT 2018)
-                                        elif (subject == "Tin học" or subject == "Tin học và Công nghệ") and curr_lvl == "tieu_hoc":
+                                        # 1. NẾU LÀ CẤP TIỂU HỌC (Áp dụng Instruction Gốc Chuyên gia Khảo thí)
+                                        if curr_lvl == "tieu_hoc":
                                             special_prompt = f"""
-                                            ⚠️ YÊU CẦU ĐẶC BIỆT CHO MÔN TIN HỌC (Theo CT GDPT 2018):
-                                            - Bám sát Yêu cầu cần đạt của Lớp {grade}.
-                                            - Cấu trúc đề phải bao gồm:
-                                              + Phần 1: Trắc nghiệm ({num_choice} câu) - Kiểm tra kiến thức lý thuyết (Chủ đề A, B, C, D).
-                                              + Phần 2: Thực hành/Tự luận ({num_essay} câu) - Kiểm tra kỹ năng ứng dụng (Chủ đề E, F - Soạn thảo, Trình chiếu, Lập trình trực quan).
-                                            - Nội dung trọng tâm theo lớp:
-                                              + Lớp 3: Các bộ phận máy tính, tư thế ngồi, bàn phím, chuột, thư mục cơ bản.
-                                              + Lớp 4: Phần cứng/mềm, tìm kiếm Internet, soạn thảo văn bản, trình chiếu cơ bản.
-                                              + Lớp 5: Sử dụng Internet an toàn, cây thư mục, định dạng văn bản nâng cao, lập trình trực quan (Scratch).
+                                            🔥 VAI TRÒ BẮT BUỘC: CHUYÊN GIA KHẢO THÍ GIÁO DỤC TIỂU HỌC (Tuân thủ Thông tư 27/2020 & CV 7791).
+                                            
+                                            ⛔ CÁC ĐIỀU CẤM KỴ (VI PHẠM LÀ SAI LUẬT):
+                                            1. TUYỆT ĐỐI KHÔNG dùng mức độ "Vận dụng cao".
+                                            2. TUYỆT ĐỐI KHÔNG dùng các thuật ngữ: Phân tích, Đánh giá, Sáng tạo (của cấp 2,3).
+                                            3. CHỈ SỬ DỤNG 3 MỨC: M1 (Nhận biết), M2 (Thông hiểu), M3 (Vận dụng).
+                                            
+                                            ✅ CẤU TRÚC PHÂN BỐ ĐIỂM BẮT BUỘC (Tổng 10đ):
+                                            - Mức 1 (Nhận biết): 40% - 50%.
+                                            - Mức 2 (Thông hiểu): 30% - 40%.
+                                            - Mức 3 (Vận dụng): 20% - 30%.
+                                            👉 KHÔNG ĐƯỢC ra đề quá khó hoặc đánh đố học sinh.
                                             """
+                                            
+                                            # Logic riêng từng môn Tiểu học
+                                            if subject == "Toán":
+                                                special_prompt += """
+                                                - MÔN TOÁN: Nội dung số và phép tính, đại lượng, hình học, giải toán có lời văn.
+                                                - KHÔNG dùng toán mẹo, toán Olympic, Violympic. Vận dụng gắn với tình huống quen thuộc.
+                                                """
+                                            elif subject == "Tiếng Việt":
+                                                special_prompt += f"""
+                                                ⚠️ YÊU CẦU MÔN TIẾNG VIỆT (Tách 2 bài kiểm tra riêng biệt A và B):
+                                                A. KIỂM TRA ĐỌC (10 điểm):
+                                                   1. Đọc thành tiếng.
+                                                   2. Đọc hiểu: Sử dụng văn bản MỚI (ngoài SGK) phù hợp lứa tuổi + {num_choice} câu hỏi (M1-M2-M3).
+                                                B. KIỂM TRA VIẾT (10 điểm):
+                                                   1. Chính tả (Nghe-viết đoạn ngắn).
+                                                   2. Tập làm văn: {num_essay} câu (Viết đoạn/bài văn theo chủ điểm đã học).
+                                                """
+                                            elif "Tin học" in subject:
+                                                special_prompt += f"""
+                                                ⚠️ YÊU CẦU MÔN TIN HỌC:
+                                                - Nội dung: máy tính, dữ liệu, an toàn thông tin, phần mềm học tập.
+                                                - Có thể kết hợp lý thuyết ({num_choice} câu) và thực hành ({num_essay} câu).
+                                                - KHÔNG lập trình phức tạp.
+                                                """
+                                            else:
+                                                special_prompt += """
+                                                - CÁC MÔN KHÁC (Khoa học, LS&ĐL, Đạo đức...): Gắn với đời sống, không dùng thuật ngữ hàn lâm.
+                                                """
+
+                                        # 2. NẾU LÀ CẤP 2, 3 (Giữ logic cũ)
+                                        else:
+                                            special_prompt = """
+                                            YÊU CẦU TRUNG HỌC (Theo Thông tư 22 & CV 7791):
+                                            - Ma trận 4 mức độ: Nhận biết (40%) - Thông hiểu (30%) - Vận dụng (20%) - Vận dụng cao (10%).
+                                            """
+                                            if curr_lvl == "thpt":
+                                                special_prompt += """
+                                                - Cấu trúc THPT 2025: Phần I (TN nhiều lựa chọn), Phần II (Đúng/Sai), Phần III (Trả lời ngắn).
+                                                """
 
                                         SYSTEM_PROMPT = f"""
                                         {APP_CONFIG['context']}
+                                        
                                         I. THÔNG TIN ĐẦU VÀO:
-                                        - Năm học: {school_year} | Cấp: {level_key} | Môn: {subject} | Lớp: {grade} | Bộ sách: "{book}"
+                                        - Năm học: {school_year} | Cấp: {level_key} | Môn: {subject} | Lớp: {grade} 
+                                        - Bộ sách: "{book}" | Phạm vi: {scope}
                                         - {knowledge_context}
-                                        II. LUẬT RA ĐỀ:
-                                        - Tiểu học: 3 mức độ. - Trung học: 4 mức độ.
-                                        III. AUTO-DETECT: { "TỰ XÂY DỰNG MA TRẬN & ĐẶC TẢ" if auto_mode else "TUÂN THỦ FILE UPLOAD" }
+                                        
+                                        II. QUY ĐỊNH CHUYÊN MÔN (TUÂN THỦ TUYỆT ĐỐI):
                                         {special_prompt}
-                                        IV. OUTPUT JSON: {{ "title": "...", "content": "HTML...", "matrixHtml": "...", "specHtml": "...", "answers": "HTML..." }}
-                                        V. LIST FILE: De_Kiem_Tra_[CODE].docx, Ma_Tran_[CODE].docx, Ban_Dac_Ta_[CODE].docx, Dap_An_[CODE].docx
-                                        V. IMPORTANT: OUTPUT RAW JSON ONLY. NO EXTRA TEXT. NO COMMENTS.
+                                        
+                                        III. CƠ CHẾ TỰ KIỂM TRA & TỪ CHỐI (SELF-REFLECTION):
+                                        - Trước khi xuất kết quả, hãy tự kiểm tra: Tổng điểm có đúng 10 không? Có xuất hiện mức độ sai quy định không?
+                                        - Nếu người dùng yêu cầu ra đề vượt chuẩn (Ví dụ: Lớp 3 mà đòi Vận dụng cao) -> HÃY TỪ CHỐI LỊCH SỰ và đề xuất phương án đúng luật.
+                                        
+                                        IV. ĐỊNH DẠNG OUTPUT (JSON RAW):
+                                        {{
+                                            "title": "Tên đề thi",
+                                            "content": "Nội dung đề thi HTML (Trình bày đẹp, chuẩn font)",
+                                            "matrixHtml": "Bảng ma trận HTML (Phải khớp 100% với đề)",
+                                            "specHtml": "Bảng đặc tả HTML",
+                                            "answers": "Đáp án & Hướng dẫn chấm HTML"
+                                        }}
+                                        V. QUAN TRỌNG: CHỈ TRẢ VỀ JSON. KHÔNG GIẢI THÍCH GÌ THÊM.
                                         """
 
                                         try:
@@ -591,6 +617,7 @@ def main_app():
                 else: st.error("Lỗi kết nối.")
         st.markdown('</div>', unsafe_allow_html=True)
 
+    # --- TAB 2: XEM & XUẤT (CLASS paper-view ĐÃ CHUẨN HÓA FONT) ---
     with tabs[1]:
         if not st.session_state['dossier']: st.info("👈 Chưa có dữ liệu.")
         else:
@@ -675,7 +702,7 @@ def main_app():
             with c_qr2: 
                 st.info(f"**Nội dung chuyển khoản:** `{final_content_ck}`\n\n1. Quét mã QR.\n2. Bấm nút **'KÍCH HOẠT NGAY'** bên dưới sau khi chuyển khoản.")
                 
-                # [BỔ SUNG] NÚT KÍCH HOẠT TỰ ĐỘNG (CHECK SEPAY)
+                # [NÂNG CẤP] NÚT KÍCH HOẠT TỰ ĐỘNG (CHECK SEPAY)
                 if st.button("🚀 KÍCH HOẠT NGAY (Sau khi đã CK)", type="primary"):
                     if check_sepay_transaction(current_price, final_content_ck):
                         client = init_supabase()
@@ -711,7 +738,7 @@ def main_app():
                     else:
                         st.error("⚠️ Hệ thống chưa nhận được tiền. Vui lòng thử lại sau 30s.")
 
-    # --- [BỔ SUNG] TAB 6: ĐỐI TÁC (AFFILIATE) ---
+    # --- [NÂNG CẤP] TAB 6: ĐỐI TÁC (AFFILIATE) ---
     with tabs[5]:
         st.subheader("💰 CHƯƠNG TRÌNH ĐỐI TÁC (AFFILIATE)")
         st.info(f"Mã giới thiệu của bạn chính là tên đăng nhập: **{user.get('email')}**")
@@ -740,7 +767,7 @@ def main_app():
                 else: st.info("Bạn chưa giới thiệu được ai. Hãy chia sẻ Mã giới thiệu ngay!")
             except: st.error("Lỗi tải dữ liệu đối tác.")
 
-    # --- TAB 7: HỒ SƠ ---
+    # --- TAB 7: HỒ SƠ & LỊCH SỬ ---
     with tabs[6]:
         c1, c2 = st.columns([2, 1])
         with c1: 
@@ -748,7 +775,6 @@ def main_app():
             st.write("---")
             st.subheader("🗂️ KHO ĐỀ CỦA BẠN (Đã lưu vĩnh viễn)")
             
-            # [BỔ SUNG] Nút tải lại lịch sử từ Supabase
             if st.button("🔄 Tải lại danh sách đề đã lưu"):
                 client = init_supabase()
                 if client:
@@ -804,7 +830,7 @@ def login_screen():
             new_u = st.text_input("Tên đăng nhập mới", key="s_user")
             new_p = st.text_input("Mật khẩu mới", type="password", key="s_pass")
             new_name = st.text_input("Họ và tên", key="s_name")
-            # [BỔ SUNG] Thêm ô nhập mã giới thiệu khi đăng ký
+            # [NÂNG CẤP] Thêm ô nhập mã giới thiệu khi đăng ký
             ref_code = st.text_input("Mã người giới thiệu (Nếu có)", key="s_ref")
             
             if st.button("TẠO TÀI KHOẢN", use_container_width=True):
@@ -814,7 +840,7 @@ def login_screen():
                         check = client.table('users_pro').select("*").eq('username', new_u).execute()
                         if check.data: st.warning("Tên này đã có người dùng!")
                         else:
-                            # [BỔ SUNG] Đăng ký mới không tặng lượt, chỉ lưu mã giới thiệu
+                            # [NÂNG CẤP] Đăng ký mới không tặng lượt, chỉ lưu mã giới thiệu
                             valid_ref = None
                             if ref_code:
                                 check_ref = client.table('users_pro').select("*").eq('username', ref_code).execute()
