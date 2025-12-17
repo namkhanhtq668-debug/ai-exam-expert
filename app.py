@@ -26,7 +26,7 @@ COMMISSION_AMT = 10000 # Hoa hồng cho người giới thiệu
 
 # --- CẤU HÌNH THANH TOÁN (VIETQR) ---
 BANK_ID = "VietinBank"   
-BANK_ACC = "0918198687"  
+BANK_ACC = "107878907329"  
 BANK_NAME = "TRAN THANH TUAN" 
 PRICE_VIP = 50000        
 
@@ -827,3 +827,4 @@ def login_screen():
 
 if 'user' not in st.session_state: login_screen()
 else: main_app()
+
