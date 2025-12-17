@@ -9,7 +9,7 @@ import re
 import io
 import time
 import datetime
-import requests # [THÊM] Thư viện kiểm tra tiền
+import requests # [THÊM] Thư viện để gọi API SePay kiểm tra tiền
 
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
@@ -18,14 +18,14 @@ import requests # [THÊM] Thư viện kiểm tra tiền
 MAX_FREE_USAGE = 3   # Tài khoản Free: 3 đề
 MAX_PRO_USAGE = 15   # Tài khoản Pro: 15 đề
 
-# --- [BỔ SUNG] CẤU HÌNH KHUYẾN MẠI & THANH TOÁN ---
+# --- [BỔ SUNG] CẤU HÌNH KHUYẾN MẠI & HOA HỒNG ---
 BONUS_PER_REF = 0    # Đăng ký mới: Không tặng lượt (Chỉ lưu mã)
 BONUS_PRO_REF = 3    # Mua Pro lần đầu có mã: Tặng 3 lượt
-DISCOUNT_AMT = 0     # Không giảm giá tiền
-COMMISSION_AMT = 10000 # Hoa hồng người giới thiệu
+DISCOUNT_AMT = 0     # Không giảm giá tiền (Giữ nguyên giá gốc)
+COMMISSION_AMT = 10000 # Hoa hồng cho người giới thiệu
 
 # --- CẤU HÌNH THANH TOÁN (VIETQR) ---
-BANK_ID = "VietinBank"   # Đã sửa lỗi chính tả VietinBabk -> VietinBank
+BANK_ID = "VietinBank"   
 BANK_ACC = "0918198687"  
 BANK_NAME = "TRAN THANH TUAN" 
 PRICE_VIP = 50000        
@@ -36,7 +36,7 @@ try:
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     # Tự động lấy Key Gemini của Admin (để khách không phải nhập)
     SYSTEM_GOOGLE_KEY = st.secrets.get("GOOGLE_API_KEY", "")
-    # [THÊM] Token SePay
+    # [THÊM] Token SePay để check tiền tự động
     SEPAY_API_TOKEN = st.secrets.get("SEPAY_API_TOKEN", "") 
 except:
     SUPABASE_URL = ""
@@ -227,7 +227,7 @@ st.markdown("""
     }
     .struct-label { font-weight: 600; color: #334155; font-size: 0.9em; }
 
-    /* 8. PAPER VIEW - FIX FONT WEB APP (CẬP NHẬT FONT TIMES) */
+    /* 8. PAPER VIEW - FIX FONT WEB APP */
     @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
     
     .paper-view {
@@ -333,11 +333,7 @@ def create_word_doc(html, title):
             td, th {{ border: 1px solid black; padding: 5px; }}
         </style>
     </head>
-    <body>
-        <div class="WordSection1">
-            {html}
-        </div>
-    </body>
+    <body><div class="WordSection1">{html}</div></body>
     </html>
     """
     return "\ufeff" + doc_content
@@ -476,7 +472,7 @@ def main_app():
                             db_role = user_data['role']
                             usage_count = user_data.get('usage_count', 0)
                             
-                            # [BỔ SUNG] TÍNH TỔNG LƯỢT DÙNG (CÓ BONUS)
+                            # [NÂNG CẤP] TÍNH TỔNG LƯỢT DÙNG (CÓ BONUS)
                             bonus_turns = user_data.get('bonus_turns', 0)
                             limit_check = MAX_PRO_USAGE if db_role == 'pro' else (MAX_FREE_USAGE + bonus_turns)
 
@@ -484,10 +480,7 @@ def main_app():
                                 st.error(f"🔒 HẾT LƯỢT! (Bạn đã dùng {usage_count}/{limit_check}). Vui lòng gia hạn hoặc giới thiệu bạn bè.")
                                 st.info("💎 Vào tab 'NÂNG CẤP VIP' để gia hạn.")
                             else:
-                                # 3. NẾU ĐƯỢC PHÉP -> CHẠY AI
                                 api_key = st.session_state.get('api_key', '')
-                                
-                                # [QUAN TRỌNG] Tự động lấy Key của Admin nếu user không nhập
                                 if not api_key: api_key = SYSTEM_GOOGLE_KEY 
                                 
                                 if not api_key: st.toast("⚠️ Vui lòng nhập API Key ở Tab Hồ Sơ!", icon="❌")
@@ -497,33 +490,38 @@ def main_app():
                                         txt_dt = read_file_content(dt_file, 'spec')
                                         knowledge_context = get_knowledge_context(subject, grade, book, scope)
                                         
-                                        # [BỔ SUNG] XỬ LÝ LOGIC ĐẶC BIỆT CHO MÔN HỌC
+                                        # [NÂNG CẤP] XỬ LÝ ĐẶC BIỆT CHO TIẾNG VIỆT TIỂU HỌC (TÁCH 2 BÀI)
                                         special_prompt = ""
-                                        
-                                        # Môn Tiếng Việt (Tiểu học)
                                         if subject == "Tiếng Việt" and curr_lvl == "tieu_hoc":
                                             special_prompt = f"""
-                                            ⚠️ YÊU CẦU ĐẶC BIỆT CHO MÔN TIẾNG VIỆT (Theo Thông tư 27):
+                                            ⚠️ YÊU CẦU ĐẶC BIỆT CHO MÔN TIẾNG VIỆT (Theo Thông tư 27/2020):
                                             BẮT BUỘC TÁCH ĐỀ THI THÀNH 2 BÀI KIỂM TRA RIÊNG BIỆT (A và B):
                                             
                                             -------- BÀI A: KIỂM TRA ĐỌC (10 điểm) --------
-                                            1. Đọc thành tiếng.
-                                            2. Đọc hiểu: Cung cấp 1 văn bản mới (ngoài SGK) và soạn {num_choice} câu hỏi.
+                                            1. Đọc thành tiếng: (Chỉ cần ghi hướng dẫn chung: "GV cho HS bốc thăm văn bản...").
+                                            2. Đọc hiểu: Cung cấp 1 văn bản mới (ngoài SGK) và soạn {num_choice} câu hỏi (Trắc nghiệm hoặc Tự luận ngắn) để kiểm tra.
                                             
                                             -------- BÀI B: KIỂM TRA VIẾT (10 điểm) --------
-                                            1. Chính tả: Cung cấp 1 đoạn văn/thơ để nghe-viết.
-                                            2. Tập làm văn: Soạn {num_essay} câu đề bài yêu cầu viết đoạn văn.
+                                            1. Chính tả: Cung cấp 1 đoạn văn/thơ để nghe-viết (khoảng 50-80 chữ).
+                                            2. Tập làm văn: Soạn {num_essay} câu đề bài yêu cầu viết đoạn văn/bài văn theo chủ điểm.
+                                            
+                                            TUYỆT ĐỐI KHÔNG TRỘN LẪN CÂU HỎI. PHẢI TÁCH RÕ BÀI A VÀ BÀI B.
                                             """
                                         
-                                        # [BỔ SUNG] Môn Tin học (Tiểu học) - Theo YCCĐ
+                                        # [NÂNG CẤP] XỬ LÝ ĐẶC BIỆT CHO MÔN TIN HỌC (Theo CTGDPT 2018)
                                         elif (subject == "Tin học" or subject == "Tin học và Công nghệ") and curr_lvl == "tieu_hoc":
                                             special_prompt = f"""
-                                            ⚠️ YÊU CẦU ĐẶC BIỆT CHO MÔN TIN HỌC (Theo YCCĐ Chương trình GDPT 2018):
-                                            CẤU TRÚC ĐỀ THI BÁM SÁT 6 CHỦ ĐỀ (A-F) VÀ NĂNG LỰC ĐẶC THÙ:
-                                            1. PHẦN TRẮC NGHIỆM ({num_choice} câu): Kiểm tra kiến thức Máy tính (A), Internet (B), Lưu trữ (C), Đạo đức số (D).
-                                            2. PHẦN THỰC HÀNH ({num_essay} câu): Kiểm tra kỹ năng Ứng dụng (E) và Giải quyết vấn đề (F) - Soạn thảo, Trình chiếu, Lập trình.
+                                            ⚠️ YÊU CẦU ĐẶC BIỆT CHO MÔN TIN HỌC (Theo CT GDPT 2018):
+                                            - Bám sát Yêu cầu cần đạt của Lớp {grade}.
+                                            - Cấu trúc đề phải bao gồm:
+                                              + Phần 1: Trắc nghiệm ({num_choice} câu) - Kiểm tra kiến thức lý thuyết (Chủ đề A, B, C, D).
+                                              + Phần 2: Thực hành/Tự luận ({num_essay} câu) - Kiểm tra kỹ năng ứng dụng (Chủ đề E, F - Soạn thảo, Trình chiếu, Lập trình trực quan).
+                                            - Nội dung trọng tâm theo lớp:
+                                              + Lớp 3: Các bộ phận máy tính, tư thế ngồi, bàn phím, chuột, thư mục cơ bản.
+                                              + Lớp 4: Phần cứng/mềm, tìm kiếm Internet, soạn thảo văn bản, trình chiếu cơ bản.
+                                              + Lớp 5: Sử dụng Internet an toàn, cây thư mục, định dạng văn bản nâng cao, lập trình trực quan (Scratch).
                                             """
-                                        
+
                                         SYSTEM_PROMPT = f"""
                                         {APP_CONFIG['context']}
                                         I. THÔNG TIN ĐẦU VÀO:
@@ -542,7 +540,7 @@ def main_app():
                                             genai.configure(api_key=api_key)
                                             model = genai.GenerativeModel('gemini-3-pro-preview', system_instruction=SYSTEM_PROMPT)
                                             
-                                            # [BỔ SUNG] Thêm Safety Settings để không bị chặn
+                                            # [FIX LỖI] Cấu hình tắt bộ lọc an toàn để AI không chặn đề thi
                                             safe_settings = [
                                                 {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
                                                 {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -556,7 +554,7 @@ def main_app():
                                                 prompt = SYSTEM_PROMPT.replace("[CODE]", str(code))
                                                 req = f"DATA: {txt_mt} {txt_dt}\nNOTE: {user_req}\nSTRUCT: {num_choice} TN, {num_essay} TL, {num_practice} TH\nTASK: Exam {i+1} (Code {code})"
                                                 
-                                                # Gọi AI với Safety Settings
+                                                # Thêm safety_settings vào đây
                                                 res = model.generate_content(
                                                     req, 
                                                     generation_config={"response_mime_type": "application/json"},
@@ -568,7 +566,7 @@ def main_app():
                                                     data = json.loads(clean_text)
                                                     data['id'] = str(code); data['title'] = f"Đề {subject} {grade} - {scope} (Mã {code})"
                                                     
-                                                    # [BỔ SUNG] TỰ ĐỘNG LƯU VÀO KHO LỊCH SỬ
+                                                    # [NÂNG CẤP] TỰ ĐỘNG LƯU VÀO KHO
                                                     save_data = {"username": user.get('email'), "title": data['title'], "exam_data": data}
                                                     client.table('exam_history').insert(save_data).execute()
                                                     
@@ -586,7 +584,6 @@ def main_app():
                 else: st.error("Lỗi kết nối.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- TAB 2: XEM & XUẤT ---
     with tabs[1]:
         if not st.session_state['dossier']: st.info("👈 Chưa có dữ liệu.")
         else:
@@ -611,7 +608,6 @@ def main_app():
                 st.markdown(curr.get('specHtml', '...'), unsafe_allow_html=True)
                 if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Đặc tả", create_word_doc(curr['specHtml'], "DacTa"), f"DacTa_{curr['id']}.doc")
 
-    # --- TAB 3: ĐÁP ÁN ---
     with tabs[2]:
         if st.session_state['dossier']:
             curr = st.session_state['dossier'][sel]
@@ -621,7 +617,6 @@ def main_app():
             else: st.info("🔒 Nâng cấp PRO để xem và tải Đáp án chi tiết.")
         else: st.info("Chưa có dữ liệu.")
 
-    # --- TAB 4: PHÁP LÝ ---
     with tabs[3]:
         for doc in LEGAL_DOCUMENTS:
             cls = "highlight-card" if doc.get('highlight') else "legal-card"
@@ -647,7 +642,7 @@ def main_app():
         final_content_ck = f"NAP VIP {user.get('email')}"
         show_qr = True
         
-        # [LOGIC MỚI] CHECK MÃ GIỚI THIỆU ĐỂ ẨN/HIỆN QR
+        # [LOGIC MỚI] CHECK MÃ GIỚI THIỆU ĐỂ ẨN/HIỆN QR (KHÔNG GIẢM GIÁ)
         if ref_code_input:
             client = init_supabase()
             if client:
@@ -732,7 +727,8 @@ def main_app():
                     df_ref = pd.DataFrame(ref_res.data)
                     if not df_ref.empty:
                         st.dataframe(df_ref[['username', 'fullname', 'role', 'created_at']], use_container_width=True)
-                else: st.info("Bạn chưa giới thiệu được ai.")
+                else:
+                    st.info("Bạn chưa giới thiệu được ai. Hãy chia sẻ Mã giới thiệu ngay!")
             except: st.error("Lỗi tải dữ liệu đối tác.")
 
     # --- TAB 7: HỒ SƠ ---
@@ -809,7 +805,7 @@ def login_screen():
                         check = client.table('users_pro').select("*").eq('username', new_u).execute()
                         if check.data: st.warning("Tên này đã có người dùng!")
                         else:
-                            # Đăng ký mới không tặng lượt, chỉ lưu mã giới thiệu
+                            # [BỔ SUNG] Đăng ký mới không tặng lượt, chỉ lưu mã giới thiệu
                             valid_ref = None
                             if ref_code:
                                 check_ref = client.table('users_pro').select("*").eq('username', ref_code).execute()
