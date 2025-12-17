@@ -26,8 +26,9 @@ COMMISSION_AMT = 10000 # Hoa hồng cho người giới thiệu
 
 # --- CẤU HÌNH THANH TOÁN (VIETQR) ---
 BANK_ID = "VietinBank"   
-BANK_ACC = "107878907329"  # 
-BANK_NAME = "TRAN THANH TUAN"
+BANK_ACC = "107878907329"  # Thầy nhớ thay số này nếu cần
+BANK_NAME = "TRAN THANH TUAN" 
+PRICE_VIP = 50000        
 
 # Lấy API Key từ Secrets (Két sắt bảo mật)
 try:
@@ -332,7 +333,11 @@ def create_word_doc(html, title):
             td, th {{ border: 1px solid black; padding: 5px; }}
         </style>
     </head>
-    <body><div class="WordSection1">{html}</div></body>
+    <body>
+        <div class="WordSection1">
+            {html}
+        </div>
+    </body>
     </html>
     """
     return "\ufeff" + doc_content
@@ -479,7 +484,10 @@ def main_app():
                                 st.error(f"🔒 HẾT LƯỢT! (Bạn đã dùng {usage_count}/{limit_check}). Vui lòng gia hạn hoặc giới thiệu bạn bè.")
                                 st.info("💎 Vào tab 'NÂNG CẤP VIP' để gia hạn.")
                             else:
+                                # 3. NẾU ĐƯỢC PHÉP -> CHẠY AI
                                 api_key = st.session_state.get('api_key', '')
+                                
+                                # [QUAN TRỌNG] Tự động lấy Key của Admin nếu user không nhập
                                 if not api_key: api_key = SYSTEM_GOOGLE_KEY 
                                 
                                 if not api_key: st.toast("⚠️ Vui lòng nhập API Key ở Tab Hồ Sơ!", icon="❌")
@@ -583,6 +591,7 @@ def main_app():
                 else: st.error("Lỗi kết nối.")
         st.markdown('</div>', unsafe_allow_html=True)
 
+    # --- TAB 2: XEM & XUẤT (CLASS paper-view ĐÃ CHUẨN HÓA FONT) ---
     with tabs[1]:
         if not st.session_state['dossier']: st.info("👈 Chưa có dữ liệu.")
         else:
@@ -600,28 +609,30 @@ def main_app():
                 else: st.warning("🔒 Nâng cấp PRO để tải file Word")
             
             with st2:
-                st.markdown(curr.get('matrixHtml', '...'), unsafe_allow_html=True)
+                st.markdown(curr.get('matrixHtml', 'Không có dữ liệu ma trận'), unsafe_allow_html=True)
                 if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Ma trận", create_word_doc(curr['matrixHtml'], "MaTran"), f"MaTran_{curr['id']}.doc")
 
             with st3:
-                st.markdown(curr.get('specHtml', '...'), unsafe_allow_html=True)
+                st.markdown(curr.get('specHtml', 'Không có dữ liệu đặc tả'), unsafe_allow_html=True)
                 if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Đặc tả", create_word_doc(curr['specHtml'], "DacTa"), f"DacTa_{curr['id']}.doc")
 
+    # --- TAB 3: ĐÁP ÁN ---
     with tabs[2]:
         if st.session_state['dossier']:
             curr = st.session_state['dossier'][sel]
             if is_admin or user.get('role') == 'pro':
-                st.markdown(f"""<div class="paper-view">{curr.get('answers','...')}</div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="paper-view">{curr.get('answers','Chưa có đáp án')}</div>""", unsafe_allow_html=True)
                 st.download_button("⬇️ Tải Đáp án (.doc)", create_word_doc(curr.get('answers',''), "DapAn"), f"DA_{curr['id']}.doc")
             else: st.info("🔒 Nâng cấp PRO để xem và tải Đáp án chi tiết.")
         else: st.info("Chưa có dữ liệu.")
 
+    # --- TAB 4: PHÁP LÝ ---
     with tabs[3]:
         for doc in LEGAL_DOCUMENTS:
             cls = "highlight-card" if doc.get('highlight') else "legal-card"
             st.markdown(f"""<div class="{cls}" style="padding:15px; margin-bottom:10px; border-radius:10px;"><span style="background:#1e293b; color:white; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold">{doc['code']}</span><span style="font-weight:bold; color:#334155; margin-left:8px">{doc['title']}</span><p style="font-size:13px; color:#64748b; margin:5px 0 0 0">{doc['summary']}</p></div>""", unsafe_allow_html=True)
     
-    # --- [BỔ SUNG] TAB 5: NÂNG CẤP VIP & THANH TOÁN (LOGIC MỚI) ---
+    # --- [NÂNG CẤP] TAB 5: NÂNG CẤP VIP & THANH TOÁN (LOGIC MỚI) ---
     with tabs[4]:
         st.markdown("<h3 style='text-align: center; color: #1E3A8A;'>🚀 BẢNG GIÁ & NÂNG CẤP VIP</h3>", unsafe_allow_html=True)
         col_free, col_pro = st.columns(2)
@@ -726,8 +737,7 @@ def main_app():
                     df_ref = pd.DataFrame(ref_res.data)
                     if not df_ref.empty:
                         st.dataframe(df_ref[['username', 'fullname', 'role', 'created_at']], use_container_width=True)
-                else:
-                    st.info("Bạn chưa giới thiệu được ai. Hãy chia sẻ Mã giới thiệu ngay!")
+                else: st.info("Bạn chưa giới thiệu được ai.")
             except: st.error("Lỗi tải dữ liệu đối tác.")
 
     # --- TAB 7: HỒ SƠ ---
@@ -826,5 +836,3 @@ def login_screen():
 
 if 'user' not in st.session_state: login_screen()
 else: main_app()
-
-
