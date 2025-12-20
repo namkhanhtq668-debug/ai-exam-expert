@@ -10,6 +10,7 @@ import io
 import time
 import datetime
 import requests # [THÊM] Thư viện để gọi API SePay kiểm tra tiền
+import random   # [MỚI] Thư viện chọn ngẫu nhiên cho YCCĐ
 
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
@@ -373,6 +374,67 @@ def check_sepay_transaction(amount, content_search):
     return False
 
 # ==============================================================================
+# [MỚI] MODULE QUẢN LÝ YÊU CẦU CẦN ĐẠT (YCCĐ) - TỪ FILE DOCX CỦA THẦY
+# ==============================================================================
+class YCCDManager:
+    def __init__(self, json_path="yccd.json"):
+        self.data = []
+        try:
+            with open(json_path, "r", encoding="utf8") as f:
+                self.data = json.load(f)
+        except Exception as e:
+            # Nếu chưa có file yccd.json, in log lỗi nhẹ
+            print(f"Chưa load được yccd.json: {e}")
+
+    # Lấy danh sách các Lớp có trong dữ liệu
+    def get_grades(self):
+        grades = set([item['lop'] for item in self.data])
+        return sorted(list(grades))
+
+    # Lấy Chủ đề theo Lớp
+    def get_topics_by_grade(self, grade):
+        topics = set([item['chu_de'] for item in self.data if item['lop'] == grade])
+        return sorted(list(topics))
+
+    # Lấy danh sách Yêu cầu cần đạt cụ thể
+    def get_yccd_list(self, grade, topic):
+        return [item for item in self.data if item['lop'] == grade and item['chu_de'] == topic]
+
+class QuestionGeneratorYCCD:
+    def __init__(self, api_key):
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel('gemini-1.5-pro')
+
+    def generate(self, yccd_item, muc_do="Thông hiểu"):
+        prompt = f"""
+        VAI TRÒ: Giáo viên Toán Tiểu học (Chương trình GDPT 2018).
+        NHIỆM VỤ: Soạn 01 câu hỏi trắc nghiệm Toán.
+        
+        THÔNG TIN BẮT BUỘC:
+        - Lớp: {yccd_item['lop']} (Câu hỏi phải phù hợp tâm lý lứa tuổi lớp {yccd_item['lop']})
+        - Chủ đề: {yccd_item['chu_de']}
+        - Bài học: {yccd_item['bai']}
+        - YÊU CẦU CẦN ĐẠT: "{yccd_item['yccd']}"
+        - Mức độ: {muc_do}
+        
+        YÊU CẦU ĐẦU RA (JSON format):
+        {{
+            "question": "Nội dung câu hỏi (ngắn gọn, dễ hiểu)",
+            "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+            "answer": "A, B, C hoặc D",
+            "explanation": "Giải thích chi tiết (Dành cho học sinh tự học)"
+        }}
+        """
+        try:
+            res = self.model.generate_content(
+                prompt, 
+                generation_config={"response_mime_type": "application/json"}
+            )
+            return json.loads(res.text)
+        except Exception as e:
+            return None
+
+# ==============================================================================
 # 5. GIAO DIỆN CHÍNH
 # ==============================================================================
 def main_app():
@@ -400,8 +462,8 @@ def main_app():
             st.session_state.pop('user', None)
             st.rerun()
 
-    # --- CẬP NHẬT TAB MỚI: THÊM '💎 NÂNG CẤP VIP' ---
-    tabs = st.tabs(["🚀 THIẾT LẬP", "📄 XEM ĐỀ", "✅ ĐÁP ÁN", "⚖️ PHÁP LÝ", "💎 NÂNG CẤP VIP", "💰 ĐỐI TÁC", "📂 HỒ SƠ"])
+    # --- CẬP NHẬT TAB MỚI: THÊM '🎯 ĐỀ CHUẨN YCCĐ' ---
+    tabs = st.tabs(["🚀 THIẾT LẬP", "📄 XEM ĐỀ", "✅ ĐÁP ÁN", "⚖️ PHÁP LÝ", "💎 NÂNG CẤP VIP", "💰 ĐỐI TÁC", "📂 HỒ SƠ", "🎯 ĐỀ CHUẨN YCCĐ"])
 
     # --- TAB 1: THIẾT LẬP ---
     with tabs[0]:
@@ -538,11 +600,11 @@ def main_app():
                                                 special_prompt += f"""
                                                 V. MÔN TIẾNG VIỆT (Tách 2 phần):
                                                 A. KIỂM TRA ĐỌC (10đ):
-                                                   1. Đọc thành tiếng.
-                                                   2. Đọc hiểu: Sử dụng văn bản MỚI (ngoài SGK) phù hợp lứa tuổi + {num_choice} câu hỏi (M1-M2-M3).
+                                                    1. Đọc thành tiếng.
+                                                    2. Đọc hiểu: Sử dụng văn bản MỚI (ngoài SGK) phù hợp lứa tuổi + {num_choice} câu hỏi (M1-M2-M3).
                                                 B. KIỂM TRA VIẾT (10đ):
-                                                   1. Chính tả (Nghe-viết đoạn ngắn).
-                                                   2. Tập làm văn: {num_essay} câu (Viết đoạn/bài văn theo chủ điểm đã học).
+                                                    1. Chính tả (Nghe-viết đoạn ngắn).
+                                                    2. Tập làm văn: {num_essay} câu (Viết đoạn/bài văn theo chủ điểm đã học).
                                                 """
                                             elif "Tin học" in subject:
                                                 special_prompt += f"""
@@ -821,6 +883,90 @@ def main_app():
             k = st.text_input("🔑 API Key Gemini (Nếu có)", type="password", key="api_key_in")
             if k: st.session_state['api_key'] = k
 
+    # ==============================================================================
+    # [MỚI] TAB 8: TẠO ĐỀ CHUẨN YCCĐ (DÀNH CHO CẤP TIỂU HỌC)
+    # ==============================================================================
+    with tabs[7]:
+        st.title("🎯 Ngân hàng đề Toán Tiểu học (Chuẩn GDPT 2018)")
+        st.caption("Dữ liệu bám sát Yêu cầu cần đạt - Bộ GD&ĐT")
+        
+        # Khởi tạo quản lý dữ liệu
+        mgr = YCCDManager()
+        # Lấy Key từ session hoặc system
+        current_api_key = st.session_state.get('api_key', '')
+        if not current_api_key: current_api_key = SYSTEM_GOOGLE_KEY
+        
+        gen = QuestionGeneratorYCCD(current_api_key)
+
+        # --- KHU VỰC CẤU HÌNH ĐỀ ---
+        with st.container():
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                # 1. Chọn Lớp (Tự động lấy từ file json)
+                grades = mgr.get_grades()
+                if not grades:
+                    st.warning("⚠️ Chưa tải được dữ liệu chuẩn (yccd.json). Vui lòng upload file.")
+                    selected_grade = None
+                else:
+                    selected_grade = st.selectbox("1️⃣ Chọn Khối Lớp:", grades, index=len(grades)-1) # Mặc định chọn lớp 5
+
+            with col2:
+                # 2. Chọn Chủ đề tương ứng với Lớp
+                if selected_grade:
+                    topics = mgr.get_topics_by_grade(selected_grade)
+                    selected_topic = st.selectbox("2️⃣ Mạch kiến thức:", topics)
+                else: selected_topic = None
+
+            with col3:
+                # 3. Cấu hình số lượng
+                num_q = st.number_input("Số câu hỏi:", 1, 20, 5, key="num_q_yccd")
+
+        # 4. Chọn Yêu cầu cần đạt chi tiết
+        if selected_topic:
+            yccd_list = mgr.get_yccd_list(selected_grade, selected_topic)
+            yccd_map = {f"{item['bai']}": item for item in yccd_list}
+            
+            selected_bai = st.selectbox("3️⃣ Chọn Bài học / Yêu cầu cụ thể:", list(yccd_map.keys()))
+            target_item = yccd_map[selected_bai]
+            
+            # Hiển thị nội dung YCCĐ để giáo viên kiểm tra
+            st.info(f"📌 **Chuẩn kiến thức cần đạt:** {target_item['yccd']}")
+            
+            muc_do = st.select_slider("Độ khó:", options=["Nhận biết", "Thông hiểu", "Vận dụng"])
+
+            # --- NÚT TẠO ĐỀ ---
+            if st.button("🚀 BẮT ĐẦU SOẠN ĐỀ", type="primary", use_container_width=True, key="btn_yccd"):
+                if not current_api_key:
+                    st.error("Chưa có API Key.")
+                else:
+                    st.divider()
+                    my_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    for i in range(num_q):
+                        status_text.markdown(f"**⏳ AI đang tư duy câu {i+1}/{num_q}...**")
+                        data = gen.generate(target_item, muc_do)
+                        my_bar.progress((i + 1) / num_q)
+                        
+                        if data:
+                            with st.expander(f"✅ Câu {i+1}: {data.get('question', '...')}", expanded=True):
+                                st.write(f"**Đề bài:** {data.get('question','')}")
+                                if 'options' in data and len(data['options']) >= 4:
+                                    cols = st.columns(4)
+                                    cols[0].write(data['options'][0])
+                                    cols[1].write(data['options'][1])
+                                    cols[2].write(data['options'][2])
+                                    cols[3].write(data['options'][3])
+                                
+                                st.success(f"**Đáp án đúng:** {data.get('answer','')}")
+                                st.warning(f"💡 **Hướng dẫn giải:** {data.get('explanation','')}")
+                        else:
+                            st.error(f"Câu {i+1}: AI gặp lỗi, đang thử lại...")
+                    
+                    status_text.success("🎉 Đã hoàn thành bộ đề thi!")
+                    my_bar.empty()
+    
     st.markdown("---")
     st.markdown("""<div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;"><strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>SĐT: 0918198687</div>""", unsafe_allow_html=True)
 
