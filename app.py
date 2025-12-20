@@ -417,8 +417,8 @@ class YCCDManager:
 class QuestionGeneratorYCCD:
     def __init__(self, api_key):
         genai.configure(api_key=api_key)
-        # [SỬA LỖI 404] Dùng gemini-1.5-flash cho ổn định
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        # [SỬA LỖI 404] Dùng gemini-3-pro-preview theo yêu cầu
+        self.model = genai.GenerativeModel('gemini-3-pro-preview')
 
     def generate(self, yccd_item, muc_do="Thông hiểu"):
         prompt = f"""
@@ -681,8 +681,8 @@ def main_app():
 
                                         try:
                                             genai.configure(api_key=api_key)
-                                            # [SỬA LỖI 404] Dùng flash thay vì pro
-                                            model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)
+                                            # [SỬA LỖI 404] Dùng gemini-3-pro-preview
+                                            model = genai.GenerativeModel('gemini-3-pro-preview', system_instruction=SYSTEM_PROMPT)
                                             
                                             # [FIX LỖI] Cấu hình tắt bộ lọc an toàn để AI không chặn đề thi
                                             safe_settings = [
@@ -808,6 +808,7 @@ def main_app():
 
         if show_qr:
             # [FIX LỖI] URL ENCODE CHO NỘI DUNG CHUYỂN KHOẢN ĐỂ TRÁNH LỖI MEDIA STORAGE
+            import urllib.parse
             encoded_content = urllib.parse.quote(final_content_ck)
             qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_ACC}-compact.png?amount={current_price}&addInfo={encoded_content}&accountName={BANK_NAME}"
             
