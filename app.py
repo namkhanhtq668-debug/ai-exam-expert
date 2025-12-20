@@ -9,7 +9,7 @@ import io
 import time
 import requests 
 import random
-import urllib.parse # [BẮT BUỘC] Thư viện sửa lỗi hình ảnh QR Code
+import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
@@ -251,7 +251,7 @@ st.markdown("""
     .struct-label { font-weight: 600; color: #334155; font-size: 0.9em; }
 
     /* 8. PAPER VIEW - FIX FONT WEB APP */
-    @import url('[https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap](https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap)');
+    @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
     
     .paper-view {
         font-family: 'Times New Roman', Times, serif !important;
@@ -337,7 +337,7 @@ def clean_json(text):
 # [CẬP NHẬT] Hàm tạo File Word chuẩn Font XML
 def create_word_doc(html, title):
     doc_content = f"""
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='[http://www.w3.org/TR/REC-html40](http://www.w3.org/TR/REC-html40)'>
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
     <head>
         <meta charset='utf-8'>
         <title>{title}</title>
@@ -379,7 +379,7 @@ def check_sepay_transaction(amount, content_search):
     token = st.secrets.get("SEPAY_API_TOKEN", "")
     if not token: return False
     try:
-        url = "[https://my.sepay.vn/userapi/transactions/list](https://my.sepay.vn/userapi/transactions/list)"
+        url = "https://my.sepay.vn/userapi/transactions/list"
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
@@ -417,7 +417,8 @@ class YCCDManager:
 class QuestionGeneratorYCCD:
     def __init__(self, api_key):
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-pro')
+        # [SỬA LỖI 404] Dùng gemini-1.5-flash cho ổn định
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
 
     def generate(self, yccd_item, muc_do="Thông hiểu"):
         prompt = f"""
@@ -452,11 +453,8 @@ class QuestionGeneratorYCCD:
                 generation_config={"response_mime_type": "application/json"},
                 safety_settings=safe_settings
             )
-            # [QUAN TRỌNG] Dùng clean_json để tránh lỗi định dạng và xử lý JSONDecodeError
-            try:
-                return json.loads(clean_json(res.text))
-            except json.JSONDecodeError:
-                return None
+            # Dùng clean_json để tránh lỗi định dạng
+            return json.loads(clean_json(res.text))
         except Exception as e:
             return None
 
@@ -683,7 +681,8 @@ def main_app():
 
                                         try:
                                             genai.configure(api_key=api_key)
-                                            model = genai.GenerativeModel('gemini-1.5-pro', system_instruction=SYSTEM_PROMPT)
+                                            # [SỬA LỖI 404] Dùng flash thay vì pro
+                                            model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)
                                             
                                             # [FIX LỖI] Cấu hình tắt bộ lọc an toàn để AI không chặn đề thi
                                             safe_settings = [
@@ -809,9 +808,8 @@ def main_app():
 
         if show_qr:
             # [FIX LỖI] URL ENCODE CHO NỘI DUNG CHUYỂN KHOẢN ĐỂ TRÁNH LỖI MEDIA STORAGE
-            import urllib.parse
             encoded_content = urllib.parse.quote(final_content_ck)
-            qr_url = f"[https://img.vietqr.io/image/](https://img.vietqr.io/image/){BANK_ID}-{BANK_ACC}-compact.png?amount={current_price}&addInfo={encoded_content}&accountName={BANK_NAME}"
+            qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_ACC}-compact.png?amount={current_price}&addInfo={encoded_content}&accountName={BANK_NAME}"
             
             c_qr1, c_qr2 = st.columns([1, 2])
             with c_qr1: 
