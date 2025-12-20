@@ -9,8 +9,8 @@ import re
 import io
 import time
 import datetime
-import requests # [THÊM] Thư viện để gọi API SePay kiểm tra tiền
-import random   # [MỚI] Thư viện chọn ngẫu nhiên cho YCCĐ
+import requests 
+import random   # [MỚI] Thư viện hỗ trợ chọn ngẫu nhiên
 
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
@@ -19,15 +19,15 @@ import random   # [MỚI] Thư viện chọn ngẫu nhiên cho YCCĐ
 MAX_FREE_USAGE = 3   # Tài khoản Free: 3 đề
 MAX_PRO_USAGE = 15   # Tài khoản Pro: 15 đề
 
-# --- [BỔ SUNG] CẤU HÌNH KHUYẾN MẠI & HOA HỒNG ---
+# --- CẤU HÌNH KHUYẾN MẠI & HOA HỒNG ---
 BONUS_PER_REF = 0    # Đăng ký mới: Không tặng lượt (Chỉ lưu mã)
 BONUS_PRO_REF = 3    # Mua Pro lần đầu có mã: Tặng 3 lượt
 DISCOUNT_AMT = 0     # Không giảm giá tiền (Giữ nguyên giá gốc)
 COMMISSION_AMT = 10000 # Hoa hồng cho người giới thiệu
 
-# --- [CẬP NHẬT] CẤU HÌNH THANH TOÁN (SEPAY - VIETQR) ---
+# --- CẤU HÌNH THANH TOÁN (SEPAY - VIETQR) ---
 BANK_ID = "VietinBank"   
-BANK_ACC = "107878907329"  # [ĐÃ SỬA ĐÚNG THEO YÊU CẦU]
+BANK_ACC = "107878907329"  
 BANK_NAME = "TRAN THANH TUAN" 
 PRICE_VIP = 50000        
 
@@ -37,7 +37,7 @@ try:
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     # Tự động lấy Key Gemini của Admin (để khách không phải nhập)
     SYSTEM_GOOGLE_KEY = st.secrets.get("GOOGLE_API_KEY", "")
-    # [THÊM] Token SePay để check tiền tự động
+    # Token SePay để check tiền tự động
     SEPAY_API_TOKEN = st.secrets.get("SEPAY_API_TOKEN", "") 
 except:
     SUPABASE_URL = ""
@@ -49,7 +49,49 @@ except:
 st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="collapsed")
 
 # ==============================================================================
-# 2. KHO DỮ LIỆU TRI THỨC
+# [MỚI - QUAN TRỌNG] DỮ LIỆU YCCĐ TỪ FILE DOCX ĐƯỢC NHÚNG TRỰC TIẾP
+# (Giúp code chạy ngay không cần upload file json)
+# ==============================================================================
+FULL_YCCD_DATA = [
+  # --- LỚP 1 ---
+  {"id": "L1-SO-01", "mon": "Toán", "lop": 1, "chu_de": "Số và Phép tính", "bai": "Các số đến 100", "yccd": "Đếm, đọc, viết được các số trong phạm vi 100. Nhận biết chục và đơn vị."},
+  {"id": "L1-SO-02", "mon": "Toán", "lop": 1, "chu_de": "Số và Phép tính", "bai": "So sánh số", "yccd": "Nhận biết cách so sánh, xếp thứ tự các số trong phạm vi 100."},
+  {"id": "L1-PT-01", "mon": "Toán", "lop": 1, "chu_de": "Số và Phép tính", "bai": "Phép cộng, phép trừ", "yccd": "Thực hiện được phép cộng, phép trừ (không nhớ) các số trong phạm vi 100."},
+  {"id": "L1-HH-01", "mon": "Toán", "lop": 1, "chu_de": "Hình học", "bai": "Hình phẳng và hình khối", "yccd": "Nhận dạng hình vuông, tròn, tam giác, chữ nhật; khối lập phương, khối hộp chữ nhật."},
+  {"id": "L1-DL-01", "mon": "Toán", "lop": 1, "chu_de": "Đo lường", "bai": "Độ dài và Thời gian", "yccd": "Đo độ dài bằng đơn vị cm. Đọc giờ đúng trên đồng hồ. Xem lịch hàng ngày."},
+  
+  # --- LỚP 2 ---
+  {"id": "L2-SO-01", "mon": "Toán", "lop": 2, "chu_de": "Số và Phép tính", "bai": "Các số đến 1000", "yccd": "Đọc, viết, so sánh các số trong phạm vi 1000. Số tròn trăm, số liền trước, liền sau."},
+  {"id": "L2-PT-01", "mon": "Toán", "lop": 2, "chu_de": "Số và Phép tính", "bai": "Phép cộng, phép trừ (có nhớ)", "yccd": "Thực hiện cộng, trừ (có nhớ) trong phạm vi 1000. Tính toán trường hợp có 2 dấu phép tính."},
+  {"id": "L2-PT-02", "mon": "Toán", "lop": 2, "chu_de": "Số và Phép tính", "bai": "Phép nhân, phép chia", "yccd": "Vận dụng bảng nhân 2, 5 và bảng chia 2, 5. Hiểu ý nghĩa phép nhân, chia."},
+  {"id": "L2-HH-01", "mon": "Toán", "lop": 2, "chu_de": "Hình học", "bai": "Hình phẳng và hình khối", "yccd": "Nhận biết đường thẳng, đường cong, 3 điểm thẳng hàng. Nhận dạng khối trụ, khối cầu."},
+  {"id": "L2-DL-01", "mon": "Toán", "lop": 2, "chu_de": "Đo lường", "bai": "Đơn vị đo lường", "yccd": "Nhận biết kg, lít, m, km, dm. Xem đồng hồ (kim phút chỉ số 3, 6)."},
+
+  # --- LỚP 3 ---
+  {"id": "L3-SO-01", "mon": "Toán", "lop": 3, "chu_de": "Số và Phép tính", "bai": "Các số đến 100.000", "yccd": "Đọc, viết, so sánh số trong phạm vi 100.000. Làm tròn số đến hàng nghìn, chục nghìn."},
+  {"id": "L3-PT-01", "mon": "Toán", "lop": 3, "chu_de": "Số và Phép tính", "bai": "Phép cộng, trừ", "yccd": "Cộng trừ các số có đến 5 chữ số (có nhớ không quá 2 lượt)."},
+  {"id": "L3-PT-02", "mon": "Toán", "lop": 3, "chu_de": "Số và Phép tính", "bai": "Phép nhân, chia", "yccd": "Nhân chia số có nhiều chữ số với số có 1 chữ số. Tính giá trị biểu thức."},
+  {"id": "L3-HH-01", "mon": "Toán", "lop": 3, "chu_de": "Hình học", "bai": "Góc và Hình phẳng", "yccd": "Nhận biết góc vuông, không vuông. Tính chu vi tam giác, tứ giác, hình chữ nhật, hình vuông."},
+  {"id": "L3-DL-01", "mon": "Toán", "lop": 3, "chu_de": "Đo lường", "bai": "Diện tích", "yccd": "Làm quen diện tích. Đơn vị cm2. Tính diện tích hình chữ nhật, hình vuông."},
+
+  # --- LỚP 4 ---
+  {"id": "L4-SO-01", "mon": "Toán", "lop": 4, "chu_de": "Số tự nhiên", "bai": "Số lớp triệu", "yccd": "Đọc, viết, so sánh số đến lớp triệu. Nhận biết giá trị theo vị trí."},
+  {"id": "L4-PT-01", "mon": "Toán", "lop": 4, "chu_de": "Số tự nhiên", "bai": "4 Phép tính", "yccd": "Nhân chia với số có 2 chữ số. Tính trung bình cộng."},
+  {"id": "L4-PS-01", "mon": "Toán", "lop": 4, "chu_de": "Phân số", "bai": "Khái niệm Phân số", "yccd": "Đọc viết phân số. Rút gọn, quy đồng mẫu số. So sánh phân số."},
+  {"id": "L4-PS-02", "mon": "Toán", "lop": 4, "chu_de": "Phân số", "bai": "Phép tính Phân số", "yccd": "Cộng, trừ, nhân, chia hai phân số. Giải toán tìm phân số của một số."},
+  {"id": "L4-HH-01", "mon": "Toán", "lop": 4, "chu_de": "Hình học", "bai": "Góc và đường thẳng", "yccd": "Góc nhọn, tù, bẹt. Hai đường thẳng vuông góc, song song."},
+  {"id": "L4-HH-02", "mon": "Toán", "lop": 4, "chu_de": "Hình học", "bai": "Hình bình hành, Hình thoi", "yccd": "Nhận biết và tính diện tích hình bình hành, hình thoi."},
+
+  # --- LỚP 5 ---
+  {"id": "L5-STP-01", "mon": "Toán", "lop": 5, "chu_de": "Số thập phân", "bai": "Khái niệm Số thập phân", "yccd": "Đọc, viết, so sánh số thập phân. Viết số đo đại lượng dưới dạng số thập phân."},
+  {"id": "L5-STP-02", "mon": "Toán", "lop": 5, "chu_de": "Số thập phân", "bai": "Phép tính Số thập phân", "yccd": "Cộng, trừ, nhân, chia số thập phân. Giải toán liên quan tỉ số phần trăm."},
+  {"id": "L5-HH-01", "mon": "Toán", "lop": 5, "chu_de": "Hình học", "bai": "Tam giác, Hình thang, Hình tròn", "yccd": "Tính diện tích hình tam giác, hình thang. Chu vi và diện tích hình tròn."},
+  {"id": "L5-HH-02", "mon": "Toán", "lop": 5, "chu_de": "Hình học", "bai": "Hình hộp", "yccd": "Tính diện tích xung quanh, toàn phần, thể tích hình hộp chữ nhật, hình lập phương."},
+  {"id": "L5-DL-01", "mon": "Toán", "lop": 5, "chu_de": "Đo lường", "bai": "Toán chuyển động", "yccd": "Giải bài toán về vận tốc, quãng đường, thời gian (chuyển động đều)."}
+]
+
+# ==============================================================================
+# 2. KHO DỮ LIỆU TRI THỨC (CODE CŨ CỦA THẦY)
 # ==============================================================================
 
 # A. APP CONFIG & CONTEXT
@@ -374,29 +416,21 @@ def check_sepay_transaction(amount, content_search):
     return False
 
 # ==============================================================================
-# [MỚI] MODULE QUẢN LÝ YÊU CẦU CẦN ĐẠT (YCCĐ) - TỪ FILE DOCX CỦA THẦY
+# [MỚI - QUAN TRỌNG] MODULE QUẢN LÝ YÊU CẦU CẦN ĐẠT (KHÔNG CẦN FILE JSON)
 # ==============================================================================
 class YCCDManager:
-    def __init__(self, json_path="yccd.json"):
-        self.data = []
-        try:
-            with open(json_path, "r", encoding="utf8") as f:
-                self.data = json.load(f)
-        except Exception as e:
-            # Nếu chưa có file yccd.json, in log lỗi nhẹ
-            print(f"Chưa load được yccd.json: {e}")
+    def __init__(self):
+        # Đọc trực tiếp từ biến trong code, không đọc file nữa
+        self.data = FULL_YCCD_DATA 
 
-    # Lấy danh sách các Lớp có trong dữ liệu
     def get_grades(self):
         grades = set([item['lop'] for item in self.data])
         return sorted(list(grades))
 
-    # Lấy Chủ đề theo Lớp
     def get_topics_by_grade(self, grade):
         topics = set([item['chu_de'] for item in self.data if item['lop'] == grade])
         return sorted(list(topics))
 
-    # Lấy danh sách Yêu cầu cần đạt cụ thể
     def get_yccd_list(self, grade, topic):
         return [item for item in self.data if item['lop'] == grade and item['chu_de'] == topic]
 
@@ -462,7 +496,7 @@ def main_app():
             st.session_state.pop('user', None)
             st.rerun()
 
-    # --- CẬP NHẬT TAB MỚI: THÊM '🎯 ĐỀ CHUẨN YCCĐ' ---
+    # --- CẬP NHẬT TAB MỚI: THÊM '🎯 ĐỀ CHUẨN YCCĐ' (TAB SỐ 8) ---
     tabs = st.tabs(["🚀 THIẾT LẬP", "📄 XEM ĐỀ", "✅ ĐÁP ÁN", "⚖️ PHÁP LÝ", "💎 NÂNG CẤP VIP", "💰 ĐỐI TÁC", "📂 HỒ SƠ", "🎯 ĐỀ CHUẨN YCCĐ"])
 
     # --- TAB 1: THIẾT LẬP ---
@@ -657,7 +691,7 @@ def main_app():
 
                                         try:
                                             genai.configure(api_key=api_key)
-                                            model = genai.GenerativeModel('gemini-3-pro-preview', system_instruction=SYSTEM_PROMPT)
+                                            model = genai.GenerativeModel('gemini-1.5-pro', system_instruction=SYSTEM_PROMPT)
                                             
                                             # [FIX LỖI] Cấu hình tắt bộ lọc an toàn để AI không chặn đề thi
                                             safe_settings = [
@@ -884,39 +918,28 @@ def main_app():
             if k: st.session_state['api_key'] = k
 
     # ==============================================================================
-    # [MỚI] TAB 8: TẠO ĐỀ CHUẨN YCCĐ (DÀNH CHO CẤP TIỂU HỌC)
+    # [MỚI - ĐÃ SỬA] TAB 8: TẠO ĐỀ CHUẨN YCCĐ (DÙNG DỮ LIỆU NHÚNG)
     # ==============================================================================
     with tabs[7]:
         st.title("🎯 Ngân hàng đề Toán Tiểu học (Chuẩn GDPT 2018)")
-        st.caption("Dữ liệu bám sát Yêu cầu cần đạt - Bộ GD&ĐT")
+        st.caption("Dữ liệu bám sát Yêu cầu cần đạt - Đã tích hợp sẵn.")
         
-        # Khởi tạo quản lý dữ liệu
         mgr = YCCDManager()
-        # Lấy Key từ session hoặc system
         current_api_key = st.session_state.get('api_key', '')
         if not current_api_key: current_api_key = SYSTEM_GOOGLE_KEY
-        
         gen = QuestionGeneratorYCCD(current_api_key)
 
-        # --- KHU VỰC CẤU HÌNH ĐỀ ---
         with st.container():
             col1, col2, col3 = st.columns(3)
-            
             with col1:
                 # 1. Chọn Lớp (Tự động lấy từ file json)
                 grades = mgr.get_grades()
-                if not grades:
-                    st.warning("⚠️ Chưa tải được dữ liệu chuẩn (yccd.json). Vui lòng upload file.")
-                    selected_grade = None
-                else:
-                    selected_grade = st.selectbox("1️⃣ Chọn Khối Lớp:", grades, index=len(grades)-1) # Mặc định chọn lớp 5
+                selected_grade = st.selectbox("1️⃣ Chọn Khối Lớp:", grades, index=len(grades)-1) # Mặc định chọn lớp 5
 
             with col2:
                 # 2. Chọn Chủ đề tương ứng với Lớp
-                if selected_grade:
-                    topics = mgr.get_topics_by_grade(selected_grade)
-                    selected_topic = st.selectbox("2️⃣ Mạch kiến thức:", topics)
-                else: selected_topic = None
+                topics = mgr.get_topics_by_grade(selected_grade)
+                selected_topic = st.selectbox("2️⃣ Mạch kiến thức:", topics)
 
             with col3:
                 # 3. Cấu hình số lượng
@@ -930,13 +953,12 @@ def main_app():
             selected_bai = st.selectbox("3️⃣ Chọn Bài học / Yêu cầu cụ thể:", list(yccd_map.keys()))
             target_item = yccd_map[selected_bai]
             
-            # Hiển thị nội dung YCCĐ để giáo viên kiểm tra
-            st.info(f"📌 **Chuẩn kiến thức cần đạt:** {target_item['yccd']}")
+            st.info(f"📌 **Chuẩn kiến thức:** {target_item['yccd']}")
             
             muc_do = st.select_slider("Độ khó:", options=["Nhận biết", "Thông hiểu", "Vận dụng"])
 
             # --- NÚT TẠO ĐỀ ---
-            if st.button("🚀 BẮT ĐẦU SOẠN ĐỀ", type="primary", use_container_width=True, key="btn_yccd"):
+            if st.button("🚀 BẮT ĐẦU SOẠN ĐỀ", type="primary", key="btn_yccd"):
                 if not current_api_key:
                     st.error("Chưa có API Key.")
                 else:
@@ -952,19 +974,17 @@ def main_app():
                         if data:
                             with st.expander(f"✅ Câu {i+1}: {data.get('question', '...')}", expanded=True):
                                 st.write(f"**Đề bài:** {data.get('question','')}")
-                                if 'options' in data and len(data['options']) >= 4:
+                                if 'options' in data:
                                     cols = st.columns(4)
-                                    cols[0].write(data['options'][0])
-                                    cols[1].write(data['options'][1])
-                                    cols[2].write(data['options'][2])
-                                    cols[3].write(data['options'][3])
+                                    for idx, opt in enumerate(data['options'][:4]):
+                                        cols[idx].write(opt)
                                 
-                                st.success(f"**Đáp án đúng:** {data.get('answer','')}")
-                                st.warning(f"💡 **Hướng dẫn giải:** {data.get('explanation','')}")
+                                st.success(f"**Đáp án:** {data.get('answer','')}")
+                                st.warning(f"💡 **HD:** {data.get('explanation','')}")
                         else:
                             st.error(f"Câu {i+1}: AI gặp lỗi, đang thử lại...")
                     
-                    status_text.success("🎉 Đã hoàn thành bộ đề thi!")
+                    status_text.success("🎉 Hoàn thành!")
                     my_bar.empty()
     
     st.markdown("---")
