@@ -1,29 +1,27 @@
 import streamlit as st
 import google.generativeai as genai
 from supabase import create_client, Client
-from flask import Flask, render_template, request, jsonify 
 import pandas as pd
 import docx
 import json
 import re
 import io
 import time
-import datetime
 import requests 
-import random   # [MỚI] Thư viện hỗ trợ chọn ngẫu nhiên
+import random
 
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
 # ==============================================================================
 # --- CẤU HÌNH GIỚI HẠN SỬ DỤNG ---
-MAX_FREE_USAGE = 3   # Tài khoản Free: 3 đề
-MAX_PRO_USAGE = 15   # Tài khoản Pro: 15 đề
+MAX_FREE_USAGE = 3   
+MAX_PRO_USAGE = 15   
 
 # --- CẤU HÌNH KHUYẾN MẠI & HOA HỒNG ---
-BONUS_PER_REF = 0    # Đăng ký mới: Không tặng lượt (Chỉ lưu mã)
-BONUS_PRO_REF = 3    # Mua Pro lần đầu có mã: Tặng 3 lượt
-DISCOUNT_AMT = 0     # Không giảm giá tiền (Giữ nguyên giá gốc)
-COMMISSION_AMT = 10000 # Hoa hồng cho người giới thiệu
+BONUS_PER_REF = 0    
+BONUS_PRO_REF = 3    
+DISCOUNT_AMT = 0     
+COMMISSION_AMT = 10000 
 
 # --- CẤU HÌNH THANH TOÁN (SEPAY - VIETQR) ---
 BANK_ID = "VietinBank"   
@@ -31,13 +29,11 @@ BANK_ACC = "107878907329"
 BANK_NAME = "TRAN THANH TUAN" 
 PRICE_VIP = 50000        
 
-# Lấy API Key từ Secrets (Két sắt bảo mật)
+# Lấy API Key từ Secrets
 try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-    # Tự động lấy Key Gemini của Admin (để khách không phải nhập)
     SYSTEM_GOOGLE_KEY = st.secrets.get("GOOGLE_API_KEY", "")
-    # Token SePay để check tiền tự động
     SEPAY_API_TOKEN = st.secrets.get("SEPAY_API_TOKEN", "") 
 except:
     SUPABASE_URL = ""
@@ -45,12 +41,10 @@ except:
     SYSTEM_GOOGLE_KEY = ""
     SEPAY_API_TOKEN = ""
 
-# Cấu hình trang
 st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="collapsed")
 
 # ==============================================================================
-# [MỚI - QUAN TRỌNG] DỮ LIỆU YCCĐ TỪ FILE DOCX ĐƯỢC NHÚNG TRỰC TIẾP
-# (Giúp code chạy ngay không cần upload file json)
+# [QUAN TRỌNG] DỮ LIỆU YCCĐ ĐƯỢC NHÚNG TRỰC TIẾP (KHÔNG CẦN FILE JSON)
 # ==============================================================================
 FULL_YCCD_DATA = [
   # --- LỚP 1 ---
@@ -91,10 +85,8 @@ FULL_YCCD_DATA = [
 ]
 
 # ==============================================================================
-# 2. KHO DỮ LIỆU TRI THỨC (CODE CŨ CỦA THẦY)
+# 2. KHO DỮ LIỆU TRI THỨC (GIỮ NGUYÊN)
 # ==============================================================================
-
-# A. APP CONFIG & CONTEXT
 APP_CONFIG = {
     "name": "AI EXAM EXPERT v10 – 2026",
     "role": "Trợ lý chuyên môn Cấp Sở: Ra đề - Thẩm định - Quản trị hồ sơ.",
@@ -109,19 +101,11 @@ APP_CONFIG = {
 
     2.2. CẤP TRUNG HỌC (Thông tư 22/2021 & QĐ 764):
        - Ma trận 4 MỨC ĐỘ: NB (40%) - TH (30%) - VD (20%) - VDC (10%).
-       - THPT từ 2025: Cấu trúc 3 phần (TN Nhiều lựa chọn, TN Đúng/Sai, Trả lời ngắn).
-
-    🟦 3. NGUYÊN TẮC:
-    - Không trùng lại nội dung SGK (đối với ngữ liệu đọc hiểu).
-    - Hình ảnh minh họa phải được mô tả chi tiết."""
+       - THPT từ 2025: Cấu trúc 3 phần (TN Nhiều lựa chọn, TN Đúng/Sai, Trả lời ngắn)."""
 }
 
-# B. DANH SÁCH MÔN THỰC HÀNH
-PRACTICAL_SUBJECTS = [
-    "Tin học", "Công nghệ", "Mĩ thuật", "Âm nhạc", "Khoa học", "Khoa học tự nhiên", "Vật lí", "Hóa học", "Sinh học", "Tin học và Công nghệ"
-]
+PRACTICAL_SUBJECTS = ["Tin học", "Công nghệ", "Mĩ thuật", "Âm nhạc", "Khoa học", "Khoa học tự nhiên", "Vật lí", "Hóa học", "Sinh học", "Tin học và Công nghệ"]
 
-# C. CẤU TRÚC ĐỀ THI
 SUBJECT_STRUCTURE_DATA = {
     "THPT_2025": "Phần I: TN Nhiều lựa chọn (0.25đ) | Phần II: TN Đúng/Sai (Max 1đ) | Phần III: Trả lời ngắn (0.5đ)",
     "TieuHoc_TV": "A. Kiểm tra Đọc (10đ) [Đọc tiếng + Đọc hiểu văn bản mới] + B. Kiểm tra Viết (10đ) [Chính tả + TLV].",
@@ -132,7 +116,6 @@ SUBJECT_STRUCTURE_DATA = {
     "Mặc định": "NB (40%) - TH (30%) - VD (20%) - VDC (10%)"
 }
 
-# D. MENU GIÁO DỤC
 EDUCATION_DATA = {
     "tieu_hoc": {
         "label": "Tiểu học",
@@ -154,7 +137,6 @@ EDUCATION_DATA = {
     }
 }
 
-# E. DANH SÁCH BỘ SÁCH
 BOOKS_LIST = [
     "Kết nối tri thức với cuộc sống", "Chân trời sáng tạo", "Cánh Diều", "Cùng khám phá",
     "Vì sự bình đẳng và dân chủ trong giáo dục", "Tin học: Đại học Vinh (Tiểu học)",
@@ -164,7 +146,6 @@ BOOKS_LIST = [
     "Tài liệu Giáo dục địa phương tỉnh Tuyên Quang", "Chuyên đề học tập (THPT)"
 ]
 
-# F. DANH SÁCH KỲ THI
 FULL_SCOPE_LIST = ["Khảo sát chất lượng đầu năm", "Kiểm tra giữa kì 1", "Kiểm tra cuối kì 1", "Kiểm tra giữa kì 2", "Kiểm tra cuối kì 2", "Thi thử Tốt nghiệp THPT", "Thi học sinh giỏi cấp Trường", "Thi học sinh giỏi cấp Huyện/Tỉnh"]
 LIMITED_SCOPE_LIST = ["Khảo sát chất lượng đầu năm", "Kiểm tra cuối kì 1", "Kiểm tra cuối kì 2"]
 
@@ -179,7 +160,6 @@ SCOPE_MAPPING = {
     "Thi học sinh giỏi cấp Huyện/Tỉnh": "Chuyên sâu"
 }
 
-# G. PHÂN PHỐI CHƯƠNG TRÌNH
 CURRICULUM_DATA = {
     "Toán": {
         "Lớp 6": {"Kiểm tra giữa kì 1": "Tập hợp số tự nhiên; Phép tính; Số nguyên tố."},
@@ -187,7 +167,6 @@ CURRICULUM_DATA = {
     }
 }
 
-# H. VĂN BẢN PHÁP LÝ
 LEGAL_DOCUMENTS = [
     {"code": "CV 7791/2024", "title": "Công văn 7791 (Mới)", "summary": "Hướng dẫn kỹ thuật xây dựng ma trận, đặc tả.", "highlight": True},
     {"code": "QĐ 764/2024", "title": "Cấu trúc THPT 2025", "summary": "Định dạng đề thi mới: TN nhiều lựa chọn, Đúng/Sai, Trả lời ngắn.", "highlight": True},
@@ -199,7 +178,7 @@ LEGAL_DOCUMENTS = [
 ]
 
 # ==============================================================================
-# 3. GIAO DIỆN (THEME PRO INDIGO & ADVANCED FONT FIX)
+# 3. GIAO DIỆN & CSS
 # ==============================================================================
 st.markdown("""
 <style>
@@ -271,7 +250,7 @@ st.markdown("""
     .struct-label { font-weight: 600; color: #334155; font-size: 0.9em; }
 
     /* 8. PAPER VIEW - FIX FONT WEB APP */
-    @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
+    @import url('[https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap](https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap)');
     
     .paper-view {
         font-family: 'Times New Roman', Times, serif !important;
@@ -334,7 +313,7 @@ def read_file_content(uploaded_file, file_type):
     except: return ""
     return content
 
-# [CẬP NHẬT] Hàm làm sạch JSON mạnh mẽ hơn để tránh lỗi Extra Data
+# [FIX] HÀM LÀM SẠCH JSON CHUẨN (KHÔNG ĐƯỢC XÓA)
 def clean_json(text):
     text = text.strip()
     if "```" in text:
@@ -357,7 +336,7 @@ def clean_json(text):
 # [CẬP NHẬT] Hàm tạo File Word chuẩn Font XML
 def create_word_doc(html, title):
     doc_content = f"""
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='[http://www.w3.org/TR/REC-html40](http://www.w3.org/TR/REC-html40)'>
     <head>
         <meta charset='utf-8'>
         <title>{title}</title>
@@ -399,7 +378,7 @@ def check_sepay_transaction(amount, content_search):
     token = st.secrets.get("SEPAY_API_TOKEN", "")
     if not token: return False
     try:
-        url = "https://my.sepay.vn/userapi/transactions/list"
+        url = "[https://my.sepay.vn/userapi/transactions/list](https://my.sepay.vn/userapi/transactions/list)"
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
@@ -416,7 +395,7 @@ def check_sepay_transaction(amount, content_search):
     return False
 
 # ==============================================================================
-# [MỚI - QUAN TRỌNG] MODULE QUẢN LÝ YÊU CẦU CẦN ĐẠT (KHÔNG CẦN FILE JSON)
+# [MỚI - ĐÃ SỬA LỖI] MODULE QUẢN LÝ YÊU CẦU CẦN ĐẠT (KHÔNG CẦN FILE JSON)
 # ==============================================================================
 class YCCDManager:
     def __init__(self):
@@ -443,7 +422,6 @@ class QuestionGeneratorYCCD:
         prompt = f"""
         VAI TRÒ: Giáo viên Toán Tiểu học (Chương trình GDPT 2018).
         NHIỆM VỤ: Soạn 01 câu hỏi trắc nghiệm Toán.
-        
         THÔNG TIN BẮT BUỘC:
         - Lớp: {yccd_item['lop']} (Câu hỏi phải phù hợp tâm lý lứa tuổi lớp {yccd_item['lop']})
         - Chủ đề: {yccd_item['chu_de']}
@@ -460,11 +438,21 @@ class QuestionGeneratorYCCD:
         }}
         """
         try:
+            # [FIX LỖI] Tắt bộ lọc an toàn để tránh AI chặn nội dung đề thi
+            safe_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+            ]
+            
             res = self.model.generate_content(
                 prompt, 
-                generation_config={"response_mime_type": "application/json"}
+                generation_config={"response_mime_type": "application/json"},
+                safety_settings=safe_settings
             )
-            return json.loads(res.text)
+            # Dùng clean_json để tránh lỗi định dạng
+            return json.loads(clean_json(res.text))
         except Exception as e:
             return None
 
@@ -816,7 +804,7 @@ def main_app():
                     show_qr = False # Ẩn QR
 
         if show_qr:
-            qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_ACC}-compact.png?amount={current_price}&addInfo={final_content_ck}&accountName={BANK_NAME}"
+            qr_url = f"[https://img.vietqr.io/image/](https://img.vietqr.io/image/){BANK_ID}-{BANK_ACC}-compact.png?amount={current_price}&addInfo={final_content_ck}&accountName={BANK_NAME}"
             c_qr1, c_qr2 = st.columns([1, 2])
             with c_qr1: st.image(qr_url, caption=f"Mã QR ({current_price:,.0f}đ)", width=300)
             with c_qr2: 
