@@ -1005,88 +1005,40 @@ def login_screen():
 # 7. DASHBOARD + ROUTER (FIX TRÙNG ID – AN TOÀN TUYỆT ĐỐI)
 # ==============================================================================
 
-def set_page(page_name):
+# ==============================================================================
+# 7. DASHBOARD + ROUTER (ỔN ĐỊNH - KHÔNG TRÙNG ID)
+# ==============================================================================
+
+def set_page(page_name: str):
     st.session_state["current_page"] = page_name
 
-def get_page():
+def get_page() -> str:
     return st.session_state.get("current_page", "dashboard")
-
 
 # ---------------- DASHBOARD ----------------
 def dashboard_screen():
     st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 🏠 Dashboard – Web AI Nhà trường")
-    st.caption("Chọn mô-đun để bắt đầu. Hệ thống giữ nguyên mô-đun ra đề hiện có.")
+    st.markdown("## 🏠 Dashboard")
+    st.write("Chọn mô-đun ở menu bên trái để sử dụng.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # KPI mini (an toàn, không phụ thuộc DB)
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown("<div class='kpi-card'><div class='kpi-title'>Tài khoản</div><div class='kpi-value'>"
-                    + str(st.session_state.get('user', {}).get('role', 'guest')).upper()
-                    + "</div><div class='kpi-sub'>Vai trò hiện tại</div></div>", unsafe_allow_html=True)
-    with c2:
-        st.markdown("<div class='kpi-card'><div class='kpi-title'>Trạng thái</div><div class='kpi-value'>ONLINE</div>"
-                    "<div class='kpi-sub'>Ứng dụng đang hoạt động</div></div>", unsafe_allow_html=True)
-    with c3:
-        st.markdown("<div class='kpi-card'><div class='kpi-title'>Mô-đun</div><div class='kpi-value'>4</div>"
-                    "<div class='kpi-sub'>Theo cấu trúc AIEXAM</div></div>", unsafe_allow_html=True)
-    with c4:
-        st.markdown("<div class='kpi-card'><div class='kpi-title'>Phiên</div><div class='kpi-value'>OK</div>"
-                    "<div class='kpi-sub'>Session ổn định</div></div>", unsafe_allow_html=True)
+def module_lesson():
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    st.markdown("## 📘 Trợ lý Soạn bài – Đổi mới phương pháp")
+    st.info("Module đang phát triển. (Sẽ tích hợp sau)")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("---")
-    st.markdown("### 🚀 Mô-đun chính")
+def module_digital():
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    st.markdown("## 💻 AI EXAM – Soạn giáo án Năng lực số")
+    st.info("Module đang phát triển. (Sẽ tích hợp sau)")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    # 4 CARD MODULE
-    colA, colB = st.columns(2)
-    with colA:
-        st.markdown("""
-        <div class="module-card">
-            <div class="module-badge">MODULE 01</div>
-            <div class="module-title">📘 Trợ lý Soạn bài – Đổi mới phương pháp</div>
-            <div class="module-desc">Soạn KHBD, hoạt động dạy học, học liệu, phân hoá và kiểm tra nhanh theo bài.</div>
-            <div class="module-meta">Mục tiêu: chuẩn GDPT 2018 + đổi mới PPDH</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.button("VÀO MÔ-ĐUN", key="go_module_lesson", on_click=set_page, args=("lesson",), use_container_width=True)
-
-    with colB:
-        st.markdown("""
-        <div class="module-card">
-            <div class="module-badge">MODULE 02</div>
-            <div class="module-title">💻 AI EXAM – Soạn giáo án Năng lực số</div>
-            <div class="module-desc">Tích hợp Năng lực số vào kế hoạch dạy học, nhiệm vụ số, công cụ số và tiêu chí đánh giá.</div>
-            <div class="module-meta">Mục tiêu: dạy học gắn chuyển đổi số</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.button("VÀO MÔ-ĐUN", key="go_module_digital", on_click=set_page, args=("digital",), use_container_width=True)
-
-    colC, colD = st.columns(2)
-    with colC:
-        st.markdown("""
-        <div class="module-card highlight">
-            <div class="module-badge">MODULE 03</div>
-            <div class="module-title">📝 Ra đề – Kiểm tra – Đánh giá (ĐANG CÓ)</div>
-            <div class="module-desc">Tạo đề + ma trận + đặc tả + đáp án, xuất Word chuẩn. Giữ nguyên logic hiện tại.</div>
-            <div class="module-meta">Mục tiêu: chuẩn pháp lý + chuẩn trình bày</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.button("VÀO MÔ-ĐUN", key="go_module_exam", on_click=set_page, args=("exam",), use_container_width=True)
-
-    with colD:
-        st.markdown("""
-        <div class="module-card">
-            <div class="module-badge">MODULE 04</div>
-            <div class="module-title">🧠 AI EDU Advisor – Nhận xét, Tư vấn</div>
-            <div class="module-desc">Nhận xét học sinh theo tiêu chí, tư vấn chuyên môn, đề xuất điều chỉnh dạy học.</div>
-            <div class="module-meta">Mục tiêu: phản hồi – cải tiến – tối ưu</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.button("VÀO MÔ-ĐUN", key="go_module_advisor", on_click=set_page, args=("advisor",), use_container_width=True)
-
-    st.markdown("---")
-    st.info("Gợi ý: Dùng menu để chuyển mô-đun. Nếu thầy muốn hiển thị lịch sử đề / thống kê lượt dùng ngay trên Dashboard, tôi sẽ gắn Supabase an toàn sau.")
+def module_advisor():
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    st.markdown("## 🧠 AI EDU Advisor – Nhận xét, tư vấn")
+    st.info("Module đang phát triển. (Sẽ tích hợp sau)")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================================================================
 # 8. ENTRY POINT – KHÔNG BAO GIỜ MẤT LOGIN
@@ -1136,6 +1088,7 @@ else:
         main_app()
 if 'user' not in st.session_state: login_screen()
 else: main_app()
+
 
 
 
