@@ -1111,41 +1111,47 @@ def module_advisor():
 # ==============================================================================
 
 if 'user' not in st.session_state:
+    # CHƯA ĐĂNG NHẬP → HIỆN LOGIN
     login_screen()
-else:
-    page = get_page()
 
+else:
+    # ==============================
+    # MENU CHÍNH (KHAI BÁO TRƯỚC)
+    # ==============================
     menu = st.radio(
-    "📌 CHỌN CHỨC NĂNG",
-    [
-        "🏠 Trang chủ",
-        "📘 Trợ lý Soạn bài",
-        "💻 Năng lực số",
-        "📝 Ra đề – Kiểm tra – Đánh giá",
-        "🧠 Nhận xét – Tư vấn"
-    ],
-    horizontal=True,
-    key="top_menu"
-)
+        "📌 CHỌN CHỨC NĂNG",
+        [
+            "🏠 Trang chủ",
+            "📘 Trợ lý Soạn bài",
+            "💻 Năng lực số",
+            "📝 Ra đề – Kiểm tra – Đánh giá",
+            "🧠 Nhận xét – Tư vấn"
+        ],
+        horizontal=True,
+        key="top_menu_main"
+    )
 
-st.markdown("---")
+    st.markdown("---")
 
-if menu == "🏠 Trang chủ":
-    dashboard_screen()
+    # ==============================
+    # ROUTER THEO MENU
+    # ==============================
+    if menu == "🏠 Trang chủ":
+        dashboard_screen()
 
-elif menu == "📘 Trợ lý Soạn bài":
-    module_lesson()
+    elif menu == "📘 Trợ lý Soạn bài":
+        module_lesson()
 
-elif menu == "💻 Năng lực số":
-    module_digital()
+    elif menu == "💻 Năng lực số":
+        module_digital()
 
-elif menu == "🧠 Nhận xét – Tư vấn":
-    module_advisor()
+    elif menu == "🧠 Nhận xét – Tư vấn":
+        module_advisor()
 
-else:
-    # 📝 Ra đề – KTĐG
-    main_app()
-    
+    else:
+        # 📝 Ra đề – Kiểm tra – Đánh giá
+        # 🔥 GIỮ NGUYÊN 100% LOGIC RA ĐỀ
+        main_app()
 
 
 
