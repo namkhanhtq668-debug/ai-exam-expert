@@ -1138,7 +1138,7 @@ def dashboard_screen():
     st.markdown("---")
     st.info("Gợi ý: Dùng menu để chuyển mô-đun. Nếu thầy muốn hiển thị lịch sử đề / thống kê lượt dùng ngay trên Dashboard, tôi sẽ gắn Supabase an toàn sau.")
 
-    /* ===== Dashboard KPI ===== */
+/* ===== Dashboard KPI ===== */
 .kpi-card{
   background:#FFFFFF;
   border:1px solid #E2E8F0;
@@ -1193,7 +1193,7 @@ def dashboard_screen():
   border-top:1px dashed #E2E8F0;
   padding-top:10px;
 }
-
+  
 # ==============================================================================
 # 8. ENTRY POINT – KHÔNG BAO GIỜ MẤT LOGIN
 # ==============================================================================
@@ -1240,6 +1240,7 @@ else:
         # 📝 Ra đề – Kiểm tra – Đánh giá
         # 🔥 GIỮ NGUYÊN 100% LOGIC RA ĐỀ
         main_app()
+
 
 
 
