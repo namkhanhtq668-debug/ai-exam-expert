@@ -946,62 +946,81 @@ def main_app():
 # ==============================================================================
 def login_screen():
     c1, c2, c3 = st.columns([1, 1.5, 1])
+
     with c2:
-        st.markdown("<h2 style='text-align:center'>🔐 ĐĂNG NHẬP</h2>", unsafe_allow_html=True)
+        st.markdown(
+            "<h2 style='text-align:center; color:#1E3A8A'>🔐 HỆ THỐNG ĐĂNG NHẬP</h2>",
+            unsafe_allow_html=True
+        )
 
-        u = st.text_input("Tên đăng nhập", key="login_username")
-        p = st.text_input("Mật khẩu", type="password", key="login_password")
+        # ✅ KHAI BÁO TAB ĐẦY ĐỦ
+        tab_login, tab_signup = st.tabs(["ĐĂNG NHẬP", "ĐĂNG KÝ"])
 
-        if st.button("ĐĂNG NHẬP", key="login_btn", type="primary"):
-            client = init_supabase()
-            if client:
-                res = client.table("users_pro").select("*").eq("username", u).eq("password", p).execute()
-                if res.data:
-                    user_data = res.data[0]
-                    st.session_state["user"] = {
-                        "email": user_data["username"],
-                        "fullname": user_data["fullname"],
-                        "role": user_data["role"],
-                    }
-                    st.success("Đăng nhập thành công!")
-                    st.rerun()
-                else:
-                    st.error("Sai tài khoản hoặc mật khẩu")
+        # ======================
+        # TAB ĐĂNG NHẬP
+        # ======================
+        with tab_login:
+            u = st.text_input("Tên đăng nhập", key="login_username")
+            p = st.text_input("Mật khẩu", type="password", key="login_password")
 
+            if st.button("ĐĂNG NHẬP", type="primary", key="login_btn"):
+                client = init_supabase()
+                if client:
+                    try:
+                        res = (
+                            client.table("users_pro")
+                            .select("*")
+                            .eq("username", u)
+                            .eq("password", p)
+                            .execute()
+                        )
+                        if res.data:
+                            user_data = res.data[0]
+                            st.session_state["user"] = {
+                                "email": user_data["username"],
+                                "fullname": user_data["fullname"],
+                                "role": user_data["role"],
+                            }
+                            st.success("Đăng nhập thành công!")
+                            st.rerun()
+                        else:
+                            st.error("Sai tài khoản hoặc mật khẩu")
+                    except Exception as e:
+                        st.error(f"Lỗi đăng nhập: {e}")
+
+        # ======================
+        # TAB ĐĂNG KÝ
+        # ======================
         with tab_signup:
-            st.write("")
-            new_u = st.text_input("Tên đăng nhập mới", key="s_user")
-            new_p = st.text_input("Mật khẩu mới", type="password", key="s_pass")
-            new_name = st.text_input("Họ và tên", key="s_name")
-            # [NÂNG CẤP] Thêm ô nhập mã giới thiệu khi đăng ký
-            ref_code = st.text_input("Mã người giới thiệu (Nếu có)", key="s_ref")
-            
-            if st.button("TẠO TÀI KHOẢN", use_container_width=True):
+            new_u = st.text_input("Tên đăng nhập mới", key="signup_username")
+            new_p = st.text_input("Mật khẩu mới", type="password", key="signup_password")
+            new_name = st.text_input("Họ và tên", key="signup_fullname")
+
+            if st.button("TẠO TÀI KHOẢN", key="signup_btn"):
                 client = init_supabase()
                 if client and new_u and new_p:
                     try:
-                        check = client.table('users_pro').select("*").eq('username', new_u).execute()
-                        if check.data: st.warning("Tên này đã có người dùng!")
+                        check = (
+                            client.table("users_pro")
+                            .select("*")
+                            .eq("username", new_u)
+                            .execute()
+                        )
+                        if check.data:
+                            st.warning("Tên đăng nhập đã tồn tại!")
                         else:
-                            # [NÂNG CẤP] Đăng ký mới không tặng lượt, chỉ lưu mã giới thiệu
-                            valid_ref = None
-                            if ref_code:
-                                check_ref = client.table('users_pro').select("*").eq('username', ref_code).execute()
-                                if check_ref.data: valid_ref = ref_code
-                                else: st.warning("Mã giới thiệu không tồn tại (Vẫn tạo tài khoản).")
-
-                            client.table('users_pro').insert({
-                                "username": new_u,
-                                "password": new_p,
-                                "fullname": new_name,
-                                "role": "free",
-                                "usage_count": 0,
-                                "expiry_date": None,
-                                "referred_by": valid_ref,
-                                "bonus_turns": 0
-                            }).execute()
+                            client.table("users_pro").insert(
+                                {
+                                    "username": new_u,
+                                    "password": new_p,
+                                    "fullname": new_name,
+                                    "role": "free",
+                                    "usage_count": 0,
+                                }
+                            ).execute()
                             st.success("Đăng ký thành công! Mời đăng nhập.")
-                    except Exception as e: st.error(f"Lỗi đăng ký: {e}")
+                    except Exception as e:
+                        st.error(f"Lỗi đăng ký: {e}")
 
 # ==============================================================================
 # 7. DASHBOARD + ROUTER (FIX TRÙNG ID – AN TOÀN TUYỆT ĐỐI)
@@ -1077,6 +1096,7 @@ else:
         module_advisor()
     elif menu == "exam":
         main_app()
+
 
 
 
