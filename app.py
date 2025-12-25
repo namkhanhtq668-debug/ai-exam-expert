@@ -183,111 +183,61 @@ LEGAL_DOCUMENTS = [
 # ==============================================================================
 st.markdown("""
 <style>
-    /* Ẩn Menu mặc định */
-    #MainMenu {visibility: hidden; display: none;} 
-    header {visibility: hidden; display: none;} 
-    footer {visibility: hidden; display: none;}
-    div[data-testid="stDecoration"] {display: none;}
-    
-    /* 1. NỀN TỔNG THỂ */
-    .stApp { background-color: #F8FAFC; }
-    
-    /* 2. HEADER TEXT */
-    .header-text {
-        background: linear-gradient(90deg, #1E3A8A 0%, #2563EB 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: 800;
-        font-size: 34px;
-        font-family: 'Times New Roman', serif;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    /* 3. BUTTON CHÍNH (Gradient Blue) */
-    div[data-testid="stButton"] button[kind="primary"] {
-        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
-        color: white;
-        border-radius: 8px;
-        height: 50px;
-        border: none;
-        font-weight: 700;
-        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(37, 99, 235, 0.1);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        transition: all 0.2s ease-in-out;
-    }
-    
-    /* 4. CARD */
-    .css-card {
-        background: #FFFFFF;
-        border-radius: 12px;
-        padding: 30px;
-        border: 1px solid #E2E8F0;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        margin-bottom: 25px;
-    }
-    
-    /* 5. CÁC THẺ NHỎ */
-    .auto-tag {
-        background: #EFF6FF; color: #1D4ED8; padding: 6px 12px; border-radius: 20px; 
-        font-size: 11px; font-weight: 700; text-transform: uppercase; border: 1px solid #BFDBFE;
-    }
+    /* ===== Dashboard KPI ===== */
+.kpi-card{
+  background:#FFFFFF;
+  border:1px solid #E2E8F0;
+  border-radius:12px;
+  padding:16px 18px;
+  box-shadow:0 4px 8px rgba(0,0,0,0.04);
+  margin-bottom:12px;
+}
+.kpi-title{ font-size:12px; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:.5px;}
+.kpi-value{ font-size:22px; font-weight:900; color:#0F172A; margin-top:6px;}
+.kpi-sub{ font-size:12px; color:#64748B; margin-top:4px;}
 
-    /* 6. THẺ PHÁP LÝ */
-    .legal-card {
-        background: #FFFFFF; border-radius: 10px; padding: 15px; margin-bottom: 10px;
-        border-left: 4px solid #64748B; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #F1F5F9;
-    }
-    .highlight-card {
-        background: #FEF2F2; border-left: 4px solid #EF4444; padding: 15px; margin-bottom: 10px;
-        border-radius: 10px; border: 1px solid #FEE2E2;
-    }
-
-    /* 7. INPUT & SELECT BOX */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"], .stNumberInput input {
-        border-radius: 8px; border: 1px solid #CBD5E1;
-    }
-    .struct-label { font-weight: 600; color: #334155; font-size: 0.9em; }
-
-    /* 8. PAPER VIEW - FIX FONT WEB APP */
-    @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
-    
-    .paper-view {
-        font-family: 'Times New Roman', Times, serif !important;
-        font-size: 14pt !important;
-        line-height: 1.5 !important;
-        color: #000000 !important;
-        background-color: #ffffff !important;
-        padding: 50px !important;
-        border: 1px solid #d1d5db;
-        border-radius: 4px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        text-align: justify;
-    }
-    .paper-view * {
-        font-family: 'Times New Roman', Times, serif !important;
-        color: #000000 !important;
-    }
-    .paper-view h1, .paper-view h2, .paper-view h3, .paper-view strong, .paper-view b {
-        font-weight: bold !important;
-        font-family: 'Times New Roman', Times, serif !important;
-    }
-    .paper-view table {
-        width: 100% !important; border-collapse: collapse !important; margin: 10px 0 !important;
-    }
-    .paper-view td, .paper-view th {
-        border: 1px solid #000000 !important; padding: 8px !important; font-size: 13pt !important;
-    }
-    
-    /* 9. PRICING CARD (MỚI THÊM) */
-    .pricing-card {
-        background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 25px;
-        text-align: center; transition: all 0.3s;
-    }
-    .pricing-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(37,99,235,0.15); border-color: #2563EB; }
-    .price-tag { font-size: 28px; font-weight: 800; color: #1E3A8A; margin: 15px 0; }
-    .feature-list { text-align: left; margin: 20px 0; color: #475569; line-height: 1.8; }
+/* ===== Module Cards ===== */
+.module-card{
+  background:#FFFFFF;
+  border:1px solid #E2E8F0;
+  border-radius:14px;
+  padding:18px 18px 14px 18px;
+  box-shadow:0 10px 18px rgba(2,6,23,0.05);
+  margin-bottom:12px;
+}
+.module-card.highlight{
+  border:1px solid #BFDBFE;
+  box-shadow:0 14px 24px rgba(37,99,235,0.12);
+}
+.module-badge{
+  display:inline-block;
+  font-size:11px;
+  font-weight:800;
+  padding:4px 10px;
+  border-radius:999px;
+  background:#EFF6FF;
+  border:1px solid #BFDBFE;
+  color:#1D4ED8;
+  margin-bottom:10px;
+}
+.module-title{
+  font-size:18px;
+  font-weight:900;
+  color:#0F172A;
+  margin:4px 0 6px 0;
+}
+.module-desc{
+  font-size:13px;
+  color:#334155;
+  line-height:1.55;
+  margin-bottom:8px;
+}
+.module-meta{
+  font-size:12px;
+  color:#64748B;
+  border-top:1px dashed #E2E8F0;
+  padding-top:10px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1138,62 +1088,6 @@ def dashboard_screen():
     st.markdown("---")
     st.info("Gợi ý: Dùng menu để chuyển mô-đun. Nếu thầy muốn hiển thị lịch sử đề / thống kê lượt dùng ngay trên Dashboard, tôi sẽ gắn Supabase an toàn sau.")
 
-/* ===== Dashboard KPI ===== */
-.kpi-card{
-  background:#FFFFFF;
-  border:1px solid #E2E8F0;
-  border-radius:12px;
-  padding:16px 18px;
-  box-shadow:0 4px 8px rgba(0,0,0,0.04);
-  margin-bottom:12px;
-}
-.kpi-title{ font-size:12px; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:.5px;}
-.kpi-value{ font-size:22px; font-weight:900; color:#0F172A; margin-top:6px;}
-.kpi-sub{ font-size:12px; color:#64748B; margin-top:4px;}
-
-/* ===== Module Cards ===== */
-.module-card{
-  background:#FFFFFF;
-  border:1px solid #E2E8F0;
-  border-radius:14px;
-  padding:18px 18px 14px 18px;
-  box-shadow:0 10px 18px rgba(2,6,23,0.05);
-  margin-bottom:12px;
-}
-.module-card.highlight{
-  border:1px solid #BFDBFE;
-  box-shadow:0 14px 24px rgba(37,99,235,0.12);
-}
-.module-badge{
-  display:inline-block;
-  font-size:11px;
-  font-weight:800;
-  padding:4px 10px;
-  border-radius:999px;
-  background:#EFF6FF;
-  border:1px solid #BFDBFE;
-  color:#1D4ED8;
-  margin-bottom:10px;
-}
-.module-title{
-  font-size:18px;
-  font-weight:900;
-  color:#0F172A;
-  margin:4px 0 6px 0;
-}
-.module-desc{
-  font-size:13px;
-  color:#334155;
-  line-height:1.55;
-  margin-bottom:8px;
-}
-.module-meta{
-  font-size:12px;
-  color:#64748B;
-  border-top:1px dashed #E2E8F0;
-  padding-top:10px;
-}
-  
 # ==============================================================================
 # 8. ENTRY POINT – KHÔNG BAO GIỜ MẤT LOGIN
 # ==============================================================================
@@ -1240,6 +1134,7 @@ else:
         # 📝 Ra đề – Kiểm tra – Đánh giá
         # 🔥 GIỮ NGUYÊN 100% LOGIC RA ĐỀ
         main_app()
+
 
 
 
