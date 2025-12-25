@@ -1115,24 +1115,39 @@ if 'user' not in st.session_state:
 else:
     page = get_page()
 
-    # Sidebar điều hướng (FIX KEY ĐẦY ĐỦ)
-    with st.sidebar:
-        st.markdown("### 📌 ĐIỀU HƯỚNG")
-        if st.button("🏠 Dashboard", key="sb_dashboard"): set_page("dashboard")
-        if st.button("📘 Soạn bài", key="sb_lesson"): set_page("lesson")
-        if st.button("💻 Năng lực số", key="sb_digital"): set_page("digital")
-        if st.button("📝 Ra đề – KTĐG", key="sb_exam"): set_page("exam")
-        if st.button("🧠 Nhận xét", key="sb_advisor"): set_page("advisor")
+    menu = st.radio(
+    "📌 CHỌN CHỨC NĂNG",
+    [
+        "🏠 Trang chủ",
+        "📘 Trợ lý Soạn bài",
+        "💻 Năng lực số",
+        "📝 Ra đề – Kiểm tra – Đánh giá",
+        "🧠 Nhận xét – Tư vấn"
+    ],
+    horizontal=True,
+    key="top_menu"
+)
 
-    if page == "dashboard":
-        dashboard_screen()
-    elif page == "lesson":
-        module_lesson()
-    elif page == "digital":
-        module_digital()
-    elif page == "advisor":
-        module_advisor()
+st.markdown("---")
+
+if menu == "🏠 Trang chủ":
+    dashboard_screen()
+
+elif menu == "📘 Trợ lý Soạn bài":
+    module_lesson()
+
+elif menu == "💻 Năng lực số":
+    module_digital()
+
+elif menu == "🧠 Nhận xét – Tư vấn":
+    module_advisor()
+
+else:
+    # 📝 Ra đề – KTĐG
+    main_app()
+    
     else:
         # 🔥 GIỮ NGUYÊN 100% LOGIC RA ĐỀ
         main_app()
+
 
