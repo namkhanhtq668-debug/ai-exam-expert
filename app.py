@@ -1146,8 +1146,6 @@ else:
     # 📝 Ra đề – KTĐG
     main_app()
     
-    else:
-        # 🔥 GIỮ NGUYÊN 100% LOGIC RA ĐỀ
-        main_app()
+
 
 
