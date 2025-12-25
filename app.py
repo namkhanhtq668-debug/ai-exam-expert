@@ -1048,46 +1048,32 @@ if 'user' not in st.session_state:
     # CHƯA ĐĂNG NHẬP → HIỆN LOGIN
     login_screen()
 
-else:
-    # ==============================
-    # MENU CHÍNH (KHAI BÁO TRƯỚC)
-    # ==============================
+with st.sidebar:
+    st.markdown("## 🏫 AIEXAM.VN")
+    st.caption("Web AI Nhà trường")
+
     menu = st.radio(
-        "📌 CHỌN CHỨC NĂNG",
-        [
-            "🏠 Trang chủ",
-            "📘 Trợ lý Soạn bài",
-            "💻 Năng lực số",
-            "📝 Ra đề – Kiểm tra – Đánh giá",
-            "🧠 Nhận xét – Tư vấn"
+        "📌 Chọn mô-đun",
+        options=[
+            "dashboard",
+            "lesson",
+            "digital",
+            "exam",
+            "advisor",
         ],
-        horizontal=True,
-        key="top_menu_main"
+        format_func=lambda x: {
+            "dashboard": "🏠 Dashboard",
+            "lesson": "📘 Trợ lý Soạn bài",
+            "digital": "💻 Soạn bài Năng lực số",
+            "exam": "📝 Ra đề – KTĐG",
+            "advisor": "🧠 Nhận xét – Tư vấn",
+        }[x],
+        key="main_menu_sidebar"
     )
 
-    st.markdown("---")
-
-    # ==============================
-    # ROUTER THEO MENU
-    # ==============================
-    if menu == "🏠 Trang chủ":
-        dashboard_screen()
-
-    elif menu == "📘 Trợ lý Soạn bài":
-        module_lesson()
-
-    elif menu == "💻 Năng lực số":
-        module_digital()
-
-    elif menu == "🧠 Nhận xét – Tư vấn":
-        module_advisor()
-
-    else:
-        # 📝 Ra đề – Kiểm tra – Đánh giá
-        # 🔥 GIỮ NGUYÊN 100% LOGIC RA ĐỀ
-        main_app()
 if 'user' not in st.session_state: login_screen()
 else: main_app()
+
 
 
 
