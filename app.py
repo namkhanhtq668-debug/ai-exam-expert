@@ -947,25 +947,27 @@ def main_app():
 def login_screen():
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
-        st.markdown("<br><h2 style='text-align:center; color: #1E3A8A;'>🔐 HỆ THỐNG ĐĂNG NHẬP</h2>", unsafe_allow_html=True)
-        tab_login, tab_signup = st.tabs(["ĐĂNG NHẬP", "ĐĂNG KÝ MỚI"])
-        
-        with tab_login:
-            st.write("")
-            u = st.text_input("Tên đăng nhập", key="l_user")
-            p = st.text_input("Mật khẩu", type="password", key="l_pass")
-            if st.button("ĐĂNG NHẬP NGAY", type="primary", use_container_width=True):
-                client = init_supabase()
-                if client:
-                    try:
-                        res = client.table('users_pro').select("*").eq('username', u).eq('password', p).execute()
-                        if res.data:
-                            user_data = res.data[0]
-                            st.session_state['user'] = {"email": user_data['username'], "fullname": user_data['fullname'], "role": user_data['role']}
-                            st.toast(f"Xin chào {user_data['fullname']}!", icon="🎉"); time.sleep(0.5); st.rerun()
-                        else: st.error("Sai thông tin đăng nhập.")
-                    except Exception as e: st.error(f"Lỗi: {e}")
-        
+        st.markdown("<h2 style='text-align:center'>🔐 ĐĂNG NHẬP</h2>", unsafe_allow_html=True)
+
+        u = st.text_input("Tên đăng nhập", key="login_username")
+        p = st.text_input("Mật khẩu", type="password", key="login_password")
+
+        if st.button("ĐĂNG NHẬP", key="login_btn", type="primary"):
+            client = init_supabase()
+            if client:
+                res = client.table("users_pro").select("*").eq("username", u).eq("password", p).execute()
+                if res.data:
+                    user_data = res.data[0]
+                    st.session_state["user"] = {
+                        "email": user_data["username"],
+                        "fullname": user_data["fullname"],
+                        "role": user_data["role"],
+                    }
+                    st.success("Đăng nhập thành công!")
+                    st.rerun()
+                else:
+                    st.error("Sai tài khoản hoặc mật khẩu")
+
         with tab_signup:
             st.write("")
             new_u = st.text_input("Tên đăng nhập mới", key="s_user")
@@ -1075,6 +1077,7 @@ else:
         module_advisor()
     elif menu == "exam":
         main_app()
+
 
 
 
