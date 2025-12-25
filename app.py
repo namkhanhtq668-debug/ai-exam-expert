@@ -1052,7 +1052,7 @@ def login_screen():
                     except Exception as e: st.error(f"Lỗi đăng ký: {e}")
 
 # ==============================================================================
-# 7. DASHBOARD + ROUTER (CHUẨN HÓA WEB AI NHÀ TRƯỜNG)
+# 7. DASHBOARD + ROUTER (FIX TRÙNG ID – AN TOÀN TUYỆT ĐỐI)
 # ==============================================================================
 
 def set_page(page_name):
@@ -1060,6 +1060,7 @@ def set_page(page_name):
 
 def get_page():
     return st.session_state.get("current_page", "dashboard")
+
 
 # ---------------- DASHBOARD ----------------
 def dashboard_screen():
@@ -1072,7 +1073,7 @@ def dashboard_screen():
         st.write("Soạn giáo án – đổi mới phương pháp dạy học")
         st.button(
             "VÀO MÔ-ĐUN",
-            key="btn_lesson",
+            key="dash_btn_lesson",
             use_container_width=True,
             on_click=set_page,
             args=("lesson",)
@@ -1083,7 +1084,7 @@ def dashboard_screen():
         st.write("Soạn bài tích hợp năng lực số cho học sinh")
         st.button(
             "VÀO MÔ-ĐUN",
-            key="btn_digital",
+            key="dash_btn_digital",
             use_container_width=True,
             on_click=set_page,
             args=("digital",)
@@ -1095,7 +1096,7 @@ def dashboard_screen():
         st.write("Ra đề – Ma trận – Đặc tả – Đáp án")
         st.button(
             "VÀO MÔ-ĐUN",
-            key="btn_exam",
+            key="dash_btn_exam",
             type="primary",
             use_container_width=True,
             on_click=set_page,
@@ -1107,8 +1108,58 @@ def dashboard_screen():
         st.write("Nhận xét – tư vấn chuyên môn")
         st.button(
             "VÀO MÔ-ĐUN",
-            key="btn_advisor",
+            key="dash_btn_advisor",
             use_container_width=True,
             on_click=set_page,
             args=("advisor",)
         )
+
+
+# ---------------- MODULE KHUNG ----------------
+def module_lesson():
+    st.header("📘 Trợ lý Soạn bài – Đổi mới phương pháp")
+    st.info("Mô-đun đang hoàn thiện.")
+    st.button("⬅ Quay lại Dashboard", key="back_lesson", on_click=set_page, args=("dashboard",))
+
+
+def module_digital():
+    st.header("💻 AI EXAM – Soạn giáo án Năng lực số")
+    st.info("Mô-đun đang hoàn thiện.")
+    st.button("⬅ Quay lại Dashboard", key="back_digital", on_click=set_page, args=("dashboard",))
+
+
+def module_advisor():
+    st.header("🧠 AI EDU Advisor – Nhận xét & Tư vấn")
+    st.info("Mô-đun đang hoàn thiện.")
+    st.button("⬅ Quay lại Dashboard", key="back_advisor", on_click=set_page, args=("dashboard",))
+
+
+# ==============================================================================
+# 8. ENTRY POINT – KHÔNG BAO GIỜ MẤT LOGIN
+# ==============================================================================
+
+if 'user' not in st.session_state:
+    login_screen()
+else:
+    page = get_page()
+
+    # Sidebar điều hướng (FIX KEY ĐẦY ĐỦ)
+    with st.sidebar:
+        st.markdown("### 📌 ĐIỀU HƯỚNG")
+        if st.button("🏠 Dashboard", key="sb_dashboard"): set_page("dashboard")
+        if st.button("📘 Soạn bài", key="sb_lesson"): set_page("lesson")
+        if st.button("💻 Năng lực số", key="sb_digital"): set_page("digital")
+        if st.button("📝 Ra đề – KTĐG", key="sb_exam"): set_page("exam")
+        if st.button("🧠 Nhận xét", key="sb_advisor"): set_page("advisor")
+
+    if page == "dashboard":
+        dashboard_screen()
+    elif page == "lesson":
+        module_lesson()
+    elif page == "digital":
+        module_digital()
+    elif page == "advisor":
+        module_advisor()
+    else:
+        # 🔥 GIỮ NGUYÊN 100% LOGIC RA ĐỀ
+        main_app()
