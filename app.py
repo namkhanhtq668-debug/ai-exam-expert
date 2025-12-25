@@ -1044,40 +1044,37 @@ def module_advisor():
 # 8. ENTRY POINT – KHÔNG BAO GIỜ MẤT LOGIN
 # ==============================================================================
 
-if 'user' not in st.session_state:
-    # CHƯA ĐĂNG NHẬP → HIỆN LOGIN
+if "user" not in st.session_state:
     login_screen()
+else:
+    # Sidebar + router
+    with st.sidebar:
+        st.markdown("## 🏫 AIEXAM.VN")
+        st.caption("Web AI Nhà trường")
 
-with st.sidebar:
-    st.markdown("## 🏫 AIEXAM.VN")
-    st.caption("Web AI Nhà trường")
+        menu = st.radio(
+            "📌 Chọn mô-đun",
+            options=["dashboard", "lesson", "digital", "exam", "advisor"],
+            format_func=lambda x: {
+                "dashboard": "🏠 Dashboard",
+                "lesson": "📘 Trợ lý Soạn bài",
+                "digital": "💻 Soạn bài Năng lực số",
+                "exam": "📝 Ra đề – KTĐG",
+                "advisor": "🧠 Nhận xét – Tư vấn",
+            }[x],
+            key="main_menu_sidebar",
+        )
 
-    menu = st.radio(
-        "📌 Chọn mô-đun",
-        options=[
-            "dashboard",
-            "lesson",
-            "digital",
-            "exam",
-            "advisor",
-        ],
-        format_func=lambda x: {
-            "dashboard": "🏠 Dashboard",
-            "lesson": "📘 Trợ lý Soạn bài",
-            "digital": "💻 Soạn bài Năng lực số",
-            "exam": "📝 Ra đề – KTĐG",
-            "advisor": "🧠 Nhận xét – Tư vấn",
-        }[x],
-        key="main_menu_sidebar"
-    )
-
-if 'user' not in st.session_state: login_screen()
-else: main_app()
-
-
-
-
-
+    if menu == "dashboard":
+        dashboard_screen()
+    elif menu == "lesson":
+        module_lesson()
+    elif menu == "digital":
+        module_digital()
+    elif menu == "advisor":
+        module_advisor()
+    elif menu == "exam":
+        main_app()
 
 
 
