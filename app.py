@@ -1134,6 +1134,8 @@ else:
         # 📝 Ra đề – Kiểm tra – Đánh giá
         # 🔥 GIỮ NGUYÊN 100% LOGIC RA ĐỀ
         main_app()
+if 'user' not in st.session_state: login_screen()
+else: main_app()
 
 
 
