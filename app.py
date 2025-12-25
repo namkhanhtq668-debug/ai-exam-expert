@@ -1064,56 +1064,28 @@ def get_page():
 
 # ---------------- DASHBOARD ----------------
 def dashboard_screen():
-    st.markdown("<h2 style='color:#1E3A8A'>🏫 WEB AI NHÀ TRƯỜNG</h2>", unsafe_allow_html=True)
-    st.caption("Hệ thống Web AI hỗ trợ giáo viên Tiểu học theo CTGDPT 2018")
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    st.markdown("## 🏠 Dashboard")
+    st.write("Chọn mô-đun ở menu bên trái để sử dụng.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("### 📘 Trợ lý Soạn bài")
-        st.write("Soạn giáo án – đổi mới phương pháp dạy học")
-        st.button(
-            "VÀO MÔ-ĐUN",
-            key="dash_btn_lesson",
-            use_container_width=True,
-            on_click=set_page,
-            args=("lesson",)
-        )
+def module_lesson():
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    st.markdown("## 📘 Trợ lý Soạn bài – Đổi mới phương pháp")
+    st.info("Module đang phát triển. (Sẽ tích hợp sau)")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    with c2:
-        st.markdown("### 💻 AI EXAM – Năng lực số")
-        st.write("Soạn bài tích hợp năng lực số cho học sinh")
-        st.button(
-            "VÀO MÔ-ĐUN",
-            key="dash_btn_digital",
-            use_container_width=True,
-            on_click=set_page,
-            args=("digital",)
-        )
+def module_digital():
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    st.markdown("## 💻 AI EXAM – Soạn giáo án Năng lực số")
+    st.info("Module đang phát triển. (Sẽ tích hợp sau)")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    c3, c4 = st.columns(2)
-    with c3:
-        st.markdown("### 📝 AI EXAM EXPERT")
-        st.write("Ra đề – Ma trận – Đặc tả – Đáp án")
-        st.button(
-            "VÀO MÔ-ĐUN",
-            key="dash_btn_exam",
-            type="primary",
-            use_container_width=True,
-            on_click=set_page,
-            args=("exam",)
-        )
-
-    with c4:
-        st.markdown("### 🧠 AI EDU Advisor")
-        st.write("Nhận xét – tư vấn chuyên môn")
-        st.button(
-            "VÀO MÔ-ĐUN",
-            key="dash_btn_advisor",
-            use_container_width=True,
-            on_click=set_page,
-            args=("advisor",)
-        )
-
+def module_advisor():
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    st.markdown("## 🧠 AI EDU Advisor – Nhận xét, tư vấn")
+    st.info("Module đang phát triển. (Sẽ tích hợp sau)")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------------- MODULE KHUNG ----------------
 def module_lesson():
@@ -1163,3 +1135,4 @@ else:
     else:
         # 🔥 GIỮ NGUYÊN 100% LOGIC RA ĐỀ
         main_app()
+
