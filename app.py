@@ -1561,8 +1561,7 @@ YÊU CẦU CHỐT:
             st.session_state[_lp_key("last_html")] = wrapped_html
 
             # 6) TỰ NHẢY SANG "Xem trước & Xuất"
-            # Yêu cầu nhảy sang trang xem trước ở LẦN RERUN TIẾP THEO
-st.session_state[_lp_key("jump_to_page")] = "6) Xem trước & Xuất"
+           st.session_state[_lp_key("jump_to_page")] = "6) Xem trước & Xuất"
 st.rerun()
 
             st.success("✅ Tạo giáo án thành công (đúng mẫu chuẩn)!")
@@ -1773,5 +1772,6 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
