@@ -1205,6 +1205,25 @@ def module_lesson_plan():
         with r2c2:
             scope = st.selectbox("Thời điểm/Phạm vi", FULL_SCOPE_LIST, key=_lp_key("scope"))
 
+            # =========================
+    # PPCT (Bước A - nhanh): Chọn tuần/tiết bằng số
+    # =========================
+    r2c3, r2c4 = st.columns([1, 1])
+    with r2c3:
+        ppct_week = st.number_input(
+            "Tuần (PPCT)",
+            min_value=1, max_value=40,
+            value=1, step=1,
+            key=_lp_key("ppct_week")
+        )
+    with r2c4:
+        ppct_period = st.number_input(
+            "Tiết (PPCT)",
+            min_value=1, max_value=10,
+            value=1, step=1,
+            key=_lp_key("ppct_period")
+        )
+    
         r3c1, r3c2, r3c3 = st.columns([1.6, 1.0, 1.0])
         with r3c1:
             template = st.selectbox(
@@ -1257,6 +1276,12 @@ def module_lesson_plan():
             clear_btn = st.form_submit_button("🧹 XÓA DS GIÁO ÁN", use_container_width=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # Hiển thị tóm tắt PPCT đã chọn (để user nhìn thấy ngay)
+ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
+ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
+ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
+st.caption(ppct_text)
 
     # Xử lý Clear
     if clear_btn:
@@ -1442,6 +1467,11 @@ def module_lesson_plan():
         objectives = st.session_state.get(_lp_key("objectives"), "").strip()
         yccd = st.session_state.get(_lp_key("yccd"), "").strip()
 
+      # Lấy PPCT từ session
+ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
+ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
+ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
+
         a1 = st.session_state.get(_lp_key("a1"), "").strip()
         a2 = st.session_state.get(_lp_key("a2"), "").strip()
         a3 = st.session_state.get(_lp_key("a3"), "").strip()
@@ -1465,6 +1495,7 @@ THÔNG TIN:
 - Môn: {subject}
 - Bộ sách: {book}
 - Thời điểm/Phạm vi: {scope}
+- {ppct_text}
 - Thời lượng: {duration} phút
 - Sĩ số: {class_size}
 - Mẫu giáo án: {template}
@@ -1496,6 +1527,8 @@ Học liệu:
 
 YÊU CẦU ĐẦU RA:
 - Trả về HTML (không markdown), trình bày theo chuẩn giáo án.
+- Giáo án phải bám theo {ppct_text}. Nếu chưa xác định được chính xác tên bài trong SGK, hãy ghi rõ: "Bài/Chủ đề: theo PPCT (Tuần..., Tiết...) của bộ sách {book}" và vẫn phải soạn đúng tiến trình.
+- Phần "Tiến trình dạy học" phải chia thời gian hợp lý theo thời lượng {duration} phút và phù hợp nội dung của Tuần/Tiết đã chọn.
 - Bắt buộc có các mục:
   1) I. MỤC TIÊU (phẩm chất/năng lực/kiến thức-kĩ năng)
   2) II. CHUẨN BỊ (GV/HS)
@@ -1716,6 +1749,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
