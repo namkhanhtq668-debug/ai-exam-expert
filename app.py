@@ -1602,7 +1602,7 @@ if "user" not in st.session_state:
 else:
     with st.sidebar:
         st.markdown("## 🏫 AIEXAM.VN")
-        st.caption("WEB AI NHÀ TRƯỜNG")
+        st.caption("WEB AI GIÁO VIÊN")
         st.divider()
 
         page_map = {
@@ -1645,6 +1645,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
