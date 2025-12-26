@@ -1335,7 +1335,7 @@ pages = [
 if "lp_active_page_admin_state" not in st.session_state:
     st.session_state["lp_active_page_admin_state"] = pages[0]
 
-    def _lp_set_active(page: str):
+def _lp_set_active(page: str):
     st.session_state["lp_active_page_admin_state"] = page
 
 def _lp_get_active(default: str):
@@ -1759,6 +1759,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
