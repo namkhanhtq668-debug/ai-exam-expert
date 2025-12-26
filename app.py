@@ -1331,6 +1331,18 @@ def module_lesson_plan():
     if _lp_key("active_page") not in st.session_state:
         st.session_state[_lp_key("active_page")] = "1) Thiết lập & Mục tiêu"
 
+            # ===== FIX: cơ chế "nhảy trang" an toàn (không sửa key widget sau khi instantiate) =====
+    jump_key = _lp_key("jump_to_page")  # cờ nhảy trang
+    active_key = _lp_key("active_page")  # key của radio
+
+    if active_key not in st.session_state:
+        st.session_state[active_key] = "1) Thiết lập & Mục tiêu"
+
+    # Nếu có yêu cầu nhảy trang từ lần chạy trước, thực hiện TRƯỚC khi tạo widget radio
+    if jump_key in st.session_state and st.session_state[jump_key]:
+        st.session_state[active_key] = st.session_state[jump_key]
+        del st.session_state[jump_key]
+
     active_page = st.radio(
         "📌 Quy trình soạn giáo án",
         pages,
@@ -1549,7 +1561,9 @@ YÊU CẦU CHỐT:
             st.session_state[_lp_key("last_html")] = wrapped_html
 
             # 6) TỰ NHẢY SANG "Xem trước & Xuất"
-            st.session_state[_lp_key("active_page")] = "6) Xem trước & Xuất"
+            # Yêu cầu nhảy sang trang xem trước ở LẦN RERUN TIẾP THEO
+st.session_state[_lp_key("jump_to_page")] = "6) Xem trước & Xuất"
+st.rerun()
 
             st.success("✅ Tạo giáo án thành công (đúng mẫu chuẩn)!")
             st.rerun()
@@ -1759,4 +1773,5 @@ else:
         module_advisor()
     else:
         main_app()
+
 
