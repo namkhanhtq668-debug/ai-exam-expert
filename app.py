@@ -1110,6 +1110,12 @@ def _lp_init_state():
     if _lp_key("last_title") not in st.session_state:
         st.session_state[_lp_key("last_title")] = "GiaoAn"
 
+        def _lp_set_active(page: str):
+    st.session_state["lp_active_page_admin_state"] = page
+
+def _lp_get_active(default: str):
+    return st.session_state.get("lp_active_page_admin_state", default)
+
 def module_lesson_plan():
     _lp_init_state()
 
@@ -1753,6 +1759,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
