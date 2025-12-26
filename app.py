@@ -1165,7 +1165,7 @@ def module_lesson_plan():
     </div>
     """, unsafe_allow_html=True)
 
-   # =========================
+# =========================
 # THIẾT LẬP TRÊN TRANG (KHÔNG DÙNG SIDEBAR)
 # =========================
 st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
@@ -1699,6 +1699,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
