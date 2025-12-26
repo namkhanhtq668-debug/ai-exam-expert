@@ -1284,7 +1284,7 @@ ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
 st.caption(ppct_text)
 
     # Xử lý Clear
-if clear_btn:
+    if clear_btn:
         st.session_state[_lp_key("history")] = []
         st.session_state[_lp_key("last_html")] = ""
         st.session_state[_lp_key("last_title")] = "GiaoAn"
@@ -1707,6 +1707,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
