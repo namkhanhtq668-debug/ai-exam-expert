@@ -1656,7 +1656,7 @@ def login_screen():
 def dashboard_screen():
     # Dashboard 4 thẻ card, an toàn (CSS đã có sẵn .css-card)
     st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 🏠 Dashboard – WEB AI GIÁO VIÊN")
+    st.markdown("## 🏠 Dashboard – WEB AI GIÁO VIÊN - BẢN QUYỀN THẦY TUẤN PHÁT TRIỂN. SĐT: 0918198687")
     st.caption("Chọn mô-đun ở thanh bên trái để sử dụng.")
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1760,3 +1760,4 @@ else:
         module_advisor()
     else:
         main_app()
+
