@@ -1015,145 +1015,370 @@ HÃY TRẢ VỀ JSON THEO ĐÚNG SCHEMA.
     data = json.loads(clean_json(res.text))
     return data
 
+# ==============================================================================
+# MODULE: TRỢ LÝ SOẠN BÀI – TẠO GIÁO ÁN TỰ ĐỘNG (UI PRO + ANTI DUP KEY)
+# ==============================================================================
+
+def _lp_uid():
+    return st.session_state.get("user", {}).get("email", "guest")
+
+def _lp_key(name: str) -> str:
+    # key duy nhất theo user + module để chống DuplicateElementKey
+    return f"lp_{name}_{_lp_uid()}"
+
+def _lp_api_key():
+    return st.session_state.get("api_key") or SYSTEM_GOOGLE_KEY
+
+def _lp_init_state():
+    if _lp_key("history") not in st.session_state:
+        st.session_state[_lp_key("history")] = []   # lưu nhiều giáo án
+    if _lp_key("last_html") not in st.session_state:
+        st.session_state[_lp_key("last_html")] = ""
+    if _lp_key("last_title") not in st.session_state:
+        st.session_state[_lp_key("last_title")] = "GiaoAn"
+
 def module_lesson_plan():
-    """
-    Module chính hiển thị UI + sinh + lưu + tải Word.
-    An toàn key: tất cả widget đều có prefix riêng.
-    """
-    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 📘 Trợ lý Soạn bài – Tạo Giáo án tự động")
-    st.caption("Soạn giáo án theo CT GDPT 2018, theo cấp học – môn – bộ sách. Xuất Word in ấn được.")
-    st.markdown("</div>", unsafe_allow_html=True)
+    _lp_init_state()
 
-    # Session store riêng cho module
-    store_key = _lp_safe_key("lesson_store")
-    if store_key not in st.session_state:
-        st.session_state[store_key] = []
+    # ---------- CSS bổ sung cho module (không làm hỏng CSS hiện có) ----------
+    st.markdown("""
+    <style>
+      .lp-hero{
+        background: linear-gradient(135deg, #0F172A 0%, #1D4ED8 55%, #60A5FA 100%);
+        border-radius: 14px;
+        padding: 22px 22px 18px 22px;
+        color: white;
+        border: 1px solid rgba(255,255,255,.18);
+        box-shadow: 0 10px 18px rgba(2,6,23,.18);
+        margin-bottom: 18px;
+      }
+      .lp-hero h2{margin:0; font-weight:800;}
+      .lp-hero p{margin:6px 0 0 0; opacity:.9}
+      .lp-kpi{
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 6px rgba(15,23,42,.06);
+      }
+      .lp-card{
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: 0 2px 6px rgba(15,23,42,.06);
+        margin-bottom: 14px;
+      }
+      .lp-label{font-weight:700; color:#0F172A;}
+      .lp-hint{color:#64748B; font-size:13px; margin-top:4px;}
+      .lp-pill{
+        display:inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid #BFDBFE;
+        background: #EFF6FF;
+        color: #1D4ED8;
+        font-size: 12px;
+        font-weight: 800;
+      }
+    </style>
+    """, unsafe_allow_html=True)
 
-    # ====== Thiết lập thông tin giống module ra đề ======
-    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    col_year, col_lvl = st.columns(2)
-    with col_year:
-        school_year = st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=1, key=_lp_safe_key("lp_year"))
-    with col_lvl:
-        level_key = st.radio("Cấp học", ["Tiểu học", "THCS", "THPT"], horizontal=True, key=_lp_safe_key("lp_level"))
+    # ---------- HERO ----------
+    st.markdown("""
+    <div class="lp-hero">
+      <h2>📘 Trợ lý Soạn bài – Tạo Giáo án tự động</h2>
+      <p>Soạn giáo án theo CTGDPT 2018, đúng cấu trúc hồ sơ chuyên môn, có tuỳ chọn mức chi tiết và phương pháp dạy học.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    curr_lvl = "tieu_hoc" if level_key == "Tiểu học" else "thcs" if level_key == "THCS" else "thpt"
-    edu = EDUCATION_DATA[curr_lvl]
+    # ---------- Sidebar Wizard ----------
+    with st.sidebar:
+        st.markdown("## 📘 Soạn giáo án")
+        st.caption("Thiết lập nhanh theo quy trình")
 
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        grade = st.selectbox("Khối lớp", edu["grades"], key=_lp_safe_key("lp_grade"))
-    with c2:
-        subject = st.selectbox("Môn học", edu["subjects"], key=_lp_safe_key("lp_subject"))
-    with c3:
-        # Ưu tiên Kết nối tri thức lên đầu
-        books_sorted = sorted(BOOKS_LIST, key=lambda x: (0 if "Kết nối" in x else 1, x))
-        book = st.selectbox("Bộ sách", books_sorted, index=0, key=_lp_safe_key("lp_book"))
-    with c4:
-        available_scopes = FULL_SCOPE_LIST
-        if curr_lvl == "tieu_hoc" and grade in ["Lớp 1", "Lớp 2", "Lớp 3"]:
-            available_scopes = LIMITED_SCOPE_LIST
-        scope = st.selectbox("Thời điểm/Phạm vi", available_scopes, key=_lp_safe_key("lp_scope"))
+        school_year = st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=1, key=_lp_key("year"))
+        level_key = st.radio("Cấp học", ["Tiểu học", "THCS", "THPT"], horizontal=True, key=_lp_key("level"))
 
-    st.info(f"💡 **Pháp lý tham chiếu:** {edu['legal']} | **Môn:** {subject} | **Lớp:** {grade} | **Bộ sách:** {book}")
+        curr_lvl = "tieu_hoc" if level_key == "Tiểu học" else "thcs" if level_key == "THCS" else "thpt"
+        edu = EDUCATION_DATA[curr_lvl]
 
-    # ====== Thông tin bài dạy ======
-    colA, colB, colC = st.columns([2, 1, 1])
-    with colA:
-        lesson_name = st.text_input("Tên bài/Chủ đề (nếu có)", value="", key=_lp_safe_key("lp_lesson_name"))
-    with colB:
-        duration_min = st.number_input("Thời lượng (phút)", min_value=20, max_value=90, value=35 if level_key == "Tiểu học" else 45, step=5, key=_lp_safe_key("lp_duration"))
-    with colC:
-        class_size = st.number_input("Sĩ số lớp", min_value=10, max_value=60, value=40 if level_key == "Tiểu học" else 45, step=1, key=_lp_safe_key("lp_class_size"))
+        grade = st.selectbox("Khối lớp", edu["grades"], key=_lp_key("grade"))
+        subject = st.selectbox("Môn học", edu["subjects"], key=_lp_key("subject"))
+        book = st.selectbox("Bộ sách", BOOKS_LIST, key=_lp_key("book"))
+        scope = st.selectbox("Thời điểm/Phạm vi", FULL_SCOPE_LIST, key=_lp_key("scope"))
 
-    user_note = st.text_area("Ghi chú chuyên môn (phân hóa, hoạt động, đồ dùng…)", value="", height=90, key=_lp_safe_key("lp_note"))
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ====== Nút tạo giáo án ======
-    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    col_btn1, col_btn2 = st.columns([1, 1])
-    with col_btn1:
-        if st.button("⚡ TẠO GIÁO ÁN", type="primary", use_container_width=True, key=_lp_safe_key("lp_generate_btn")):
-            api_key = _lp_get_api_key()
-            if not api_key:
-                st.error("⚠️ Chưa có API Key. Vào tab 'HỒ SƠ' của hệ thống để nhập API Key Gemini.")
-            else:
-                sys_prompt = _lp_build_lesson_system_prompt(level_key, subject, grade, book, scope, school_year)
-                with st.spinner("🔮 AI đang soạn giáo án..."):
-                    try:
-                        data = _lp_generate_lesson_plan(
-                            api_key=api_key,
-                            system_prompt=sys_prompt,
-                            user_note=user_note,
-                            lesson_name=lesson_name,
-                            duration_min=int(duration_min),
-                            class_size=int(class_size),
-                        )
-                        # Chuẩn hóa title
-                        if not data.get("title"):
-                            data["title"] = f"Giáo án {subject} {grade} - {scope}"
-                        # Lưu vào store
-                        data["_meta"] = {
-                            "level": level_key, "subject": subject, "grade": grade, "book": book, "scope": scope,
-                            "school_year": school_year
-                        }
-                        st.session_state[store_key] = [data] + st.session_state[store_key]
-                        st.success("✅ Đã tạo giáo án thành công!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Lỗi AI: {e}")
-
-    with col_btn2:
-        if st.button("🧹 XÓA DANH SÁCH GIÁO ÁN", use_container_width=True, key=_lp_safe_key("lp_clear_btn")):
-            st.session_state[store_key] = []
-            st.toast("Đã xóa danh sách giáo án.", icon="🧹")
-            st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ====== Hiển thị danh sách + xem + tải ======
-    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    plans = st.session_state[store_key]
-    if not plans:
-        st.info("Chưa có giáo án. Hãy bấm **TẠO GIÁO ÁN**.")
-        st.markdown("</div>", unsafe_allow_html=True)
-        return
-
-    idx = st.selectbox(
-        "Chọn giáo án đã tạo:",
-        options=list(range(len(plans))),
-        format_func=lambda i: plans[i].get("title", f"Giáo án {i+1}"),
-        key=_lp_safe_key("lp_select_plan")
-    )
-    curr = plans[idx]
-
-    st.markdown("### 📄 Xem giáo án")
-    plan_html = curr.get("planHtml", "")
-    if not plan_html:
-        st.warning("Giáo án không có nội dung planHtml.")
-    else:
-        st.markdown(f"<div class='paper-view'>{plan_html}</div>", unsafe_allow_html=True)
-
-    st.markdown("---")
-    cdl1, cdl2 = st.columns([1, 1])
-    with cdl1:
-        footer = f"<br/><center><p>{APP_CONFIG['name']}</p></center>"
-        st.download_button(
-            "⬇️ Tải Giáo án (.doc)",
-            create_word_doc(plan_html + footer, curr.get("title", "GiaoAn")),
-            file_name=f"GiaoAn_{re.sub(r'[^A-Za-z0-9_-]+','_', curr.get('title','GiaoAn'))}.doc",
-            mime="application/msword",
-            type="primary",
-            key=_lp_safe_key("lp_download_doc")
+        st.divider()
+        template = st.selectbox(
+            "Mẫu giáo án",
+            [
+                "Chuẩn hồ sơ (35’ – 4 hoạt động)",
+                "Chi tiết (2–3 trang)",
+                "Thi GV dạy giỏi (kèm phân hoá & rubric)",
+                "Dạy học hợp tác (nhóm/góc)",
+                "Flipped classroom (giao nhiệm vụ trước)",
+                "Trải nghiệm – trò chơi hoá"
+            ],
+            key=_lp_key("template")
         )
-    with cdl2:
-        with st.expander("✅ Checklist tự kiểm", expanded=False):
-            for item in curr.get("checklist", []):
-                st.write(f"- {item}")
-            if curr.get("notes"):
-                st.info(curr["notes"])
 
-    st.markdown("</div>", unsafe_allow_html=True)            
+        detail_level = st.select_slider(
+            "Mức chi tiết",
+            options=["Ngắn gọn", "Chuẩn", "Rất chi tiết"],
+            value="Chuẩn",
+            key=_lp_key("detail")
+        )
+
+        method_focus = st.multiselect(
+            "Ưu tiên phương pháp",
+            ["Hoạt động nhóm", "Trò chơi hoá", "Nêu vấn đề", "Trải nghiệm", "Dự án nhỏ", "CNTT/Năng lực số"],
+            default=["Hoạt động nhóm"],
+            key=_lp_key("method")
+        )
+
+        duration = st.number_input("Thời lượng (phút)", 30, 90, 35, step=5, key=_lp_key("duration"))
+        class_size = st.number_input("Sĩ số lớp", 10, 60, 40, step=1, key=_lp_key("class_size"))
+
+        st.divider()
+        generate_btn = st.button("⚡ TẠO GIÁO ÁN", type="primary", use_container_width=True, key=_lp_key("btn_generate"))
+        regen_btn = st.button("🔁 TẠO LẠI (giữ thiết lập)", use_container_width=True, key=_lp_key("btn_regen"))
+        clear_btn = st.button("🧹 XÓA DANH SÁCH GIÁO ÁN", use_container_width=True, key=_lp_key("btn_clear"))
+
+    if clear_btn:
+        st.session_state[_lp_key("history")] = []
+        st.session_state[_lp_key("last_html")] = ""
+        st.toast("Đã xoá danh sách giáo án!", icon="🧹")
+        st.rerun()
+
+    # ---------- KPI Row ----------
+    k1, k2, k3, k4 = st.columns(4)
+    with k1: st.markdown(f"<div class='lp-kpi'><div class='lp-label'>Cấp/Lớp</div><div class='lp-hint'>{level_key} – {grade}</div></div>", unsafe_allow_html=True)
+    with k2: st.markdown(f"<div class='lp-kpi'><div class='lp-label'>Môn/Bộ sách</div><div class='lp-hint'>{subject} – {book}</div></div>", unsafe_allow_html=True)
+    with k3: st.markdown(f"<div class='lp-kpi'><div class='lp-label'>Thời lượng/Sĩ số</div><div class='lp-hint'>{duration} phút – {class_size} HS</div></div>", unsafe_allow_html=True)
+    with k4: st.markdown(f"<div class='lp-kpi'><div class='lp-label'>Mẫu</div><div class='lp-hint'>{template}</div></div>", unsafe_allow_html=True)
+
+    st.write("")
+
+    # ---------- Tabs: chuẩn quy trình soạn giáo án ----------
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "1) Thiết lập & Mục tiêu",
+        "2) Kế hoạch hoạt động",
+        "3) Phân hoá",
+        "4) Đánh giá",
+        "5) Học liệu",
+        "6) Xem trước & Xuất"
+    ])
+
+    with tab1:
+        st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
+        lesson_title = st.text_input("Tên bài/Chủ đề", key=_lp_key("lesson_title"), placeholder="Ví dụ: Các số đến 10 / Luyện từ và câu / Bài 5 ...")
+        objectives = st.text_area(
+            "Mục tiêu (AI sẽ chuẩn hoá theo CTGDPT 2018)",
+            key=_lp_key("objectives"),
+            height=120,
+            placeholder="Gợi ý: phẩm chất/năng lực, kiến thức, kĩ năng..."
+        )
+        yccd_hint = st.text_area(
+            "Chuẩn đầu ra / Yêu cầu cần đạt (nếu có)",
+            key=_lp_key("yccd"),
+            height=120,
+            placeholder="Dán YCCĐ hoặc mô tả ngắn (nếu chưa có sẽ để AI tự suy luận theo bộ sách/phạm vi)."
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with tab2:
+        st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
+        st.markdown("**Khung 4 hoạt động** (AI sẽ bám đúng thời lượng và chia pha hợp lý)")
+        a1 = st.text_area("Hoạt động 1 – Khởi động (ý tưởng, trò chơi, dẫn nhập)", key=_lp_key("a1"), height=90)
+        a2 = st.text_area("Hoạt động 2 – Hình thành kiến thức/Khám phá", key=_lp_key("a2"), height=90)
+        a3 = st.text_area("Hoạt động 3 – Luyện tập", key=_lp_key("a3"), height=90)
+        a4 = st.text_area("Hoạt động 4 – Vận dụng/Mở rộng", key=_lp_key("a4"), height=90)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with tab3:
+        st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
+        diff = st.text_area(
+            "Phân hoá (HS yếu – TB – khá/giỏi)",
+            key=_lp_key("diff"),
+            height=150,
+            placeholder="Ví dụ: HS yếu làm câu 1-2; khá/giỏi làm câu nâng cao; hỗ trợ theo cặp..."
+        )
+        support = st.text_area("Hỗ trợ đặc thù (nếu có)", key=_lp_key("support"), height=90)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with tab4:
+        st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
+        assess = st.text_area(
+            "Đánh giá trong giờ (câu hỏi nhanh/phiếu quan sát/tiêu chí)",
+            key=_lp_key("assess"),
+            height=160
+        )
+        rubric = st.text_area(
+            "Rubric/Thang tiêu chí (nếu cần)",
+            key=_lp_key("rubric"),
+            height=120,
+            placeholder="Ví dụ: Hoàn thành tốt/Hoàn thành/Chưa hoàn thành; tiêu chí cụ thể..."
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with tab5:
+        st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
+        materials = st.text_area("Đồ dùng dạy học", key=_lp_key("materials"), height=120)
+        digital = st.text_area(
+            "Học liệu số/CNTT (nếu dùng)",
+            key=_lp_key("digital"),
+            height=120,
+            placeholder="Ví dụ: trình chiếu, phiếu học tập điện tử, trò chơi Quiz..."
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with tab6:
+        st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
+        last_html = st.session_state.get(_lp_key("last_html"), "")
+        if not last_html:
+            st.info("Chưa có giáo án. Hãy bấm ⚡ TẠO GIÁO ÁN ở sidebar.")
+        else:
+            st.markdown(f"<div class='paper-view'>{last_html}</div>", unsafe_allow_html=True)
+
+            cdl1, cdl2 = st.columns([1, 1])
+            with cdl1:
+                st.download_button(
+                    "⬇️ Tải Word giáo án",
+                    create_word_doc(last_html, st.session_state.get(_lp_key("last_title"), "GiaoAn")),
+                    file_name="GiaoAn.doc",
+                    mime="application/msword",
+                    type="primary",
+                    key=_lp_key("dl_word")
+                )
+            with cdl2:
+                if st.button("📌 Lưu vào danh sách", key=_lp_key("btn_save")):
+                    st.session_state[_lp_key("history")].insert(0, {
+                        "title": st.session_state.get(_lp_key("last_title"), "GiaoAn"),
+                        "html": last_html
+                    })
+                    st.toast("Đã lưu!", icon="✅")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ---------- Lịch sử giáo án ----------
+    history = st.session_state.get(_lp_key("history"), [])
+    if history:
+        st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
+        st.markdown("### 🗂️ Danh sách giáo án đã tạo")
+        pick = st.selectbox(
+            "Chọn giáo án đã lưu",
+            range(len(history)),
+            format_func=lambda i: history[i]["title"],
+            key=_lp_key("pick_history")
+        )
+        colA, colB = st.columns([1, 1])
+        with colA:
+            if st.button("📄 Mở giáo án", key=_lp_key("btn_open_hist")):
+                st.session_state[_lp_key("last_title")] = history[pick]["title"]
+                st.session_state[_lp_key("last_html")] = history[pick]["html"]
+                st.rerun()
+        with colB:
+            if st.button("🗑️ Xoá giáo án này", key=_lp_key("btn_del_hist")):
+                history.pop(pick)
+                st.session_state[_lp_key("history")] = history
+                st.toast("Đã xoá!", icon="🗑️")
+                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ---------- Generate / Regenerate logic ----------
+    if generate_btn or regen_btn:
+        api_key = _lp_api_key()
+        if not api_key:
+            st.error("❌ Chưa có API Key (Gemini). Vào tab Hồ sơ nhập API key hoặc cấu hình SYSTEM_GOOGLE_KEY.")
+            return
+
+        # Thu thập input
+        lesson_title = st.session_state.get(_lp_key("lesson_title"), "").strip()
+        objectives = st.session_state.get(_lp_key("objectives"), "").strip()
+        yccd = st.session_state.get(_lp_key("yccd"), "").strip()
+
+        a1 = st.session_state.get(_lp_key("a1"), "").strip()
+        a2 = st.session_state.get(_lp_key("a2"), "").strip()
+        a3 = st.session_state.get(_lp_key("a3"), "").strip()
+        a4 = st.session_state.get(_lp_key("a4"), "").strip()
+
+        diff = st.session_state.get(_lp_key("diff"), "").strip()
+        support = st.session_state.get(_lp_key("support"), "").strip()
+        assess = st.session_state.get(_lp_key("assess"), "").strip()
+        rubric = st.session_state.get(_lp_key("rubric"), "").strip()
+        materials = st.session_state.get(_lp_key("materials"), "").strip()
+        digital = st.session_state.get(_lp_key("digital"), "").strip()
+
+        # Prompt chuẩn hoá (AI làm đúng cấu trúc)
+        prompt = f"""
+VAI TRÒ: Chuyên gia soạn giáo án theo CTGDPT 2018 (Việt Nam).
+NHIỆM VỤ: Soạn 01 GIÁO ÁN hoàn chỉnh, đúng hồ sơ chuyên môn.
+
+THÔNG TIN:
+- Năm học: {school_year}
+- Cấp học: {level_key}
+- Lớp: {grade}
+- Môn: {subject}
+- Bộ sách: {book}
+- Thời điểm/Phạm vi: {scope}
+- Thời lượng: {duration} phút
+- Sĩ số: {class_size}
+- Mẫu giáo án: {template}
+- Mức chi tiết: {detail_level}
+- Phương pháp ưu tiên: {", ".join(method_focus) if method_focus else "Chuẩn"}
+
+DỮ LIỆU GIÁO VIÊN NHẬP:
+- Tên bài/chủ đề: {lesson_title or "AI tự suy luận theo bộ sách/phạm vi"}
+- Mục tiêu (nếu có): {objectives or "AI tự xác định mục tiêu theo CTGDPT 2018"}
+- YCCĐ/Chuẩn đầu ra (nếu có): {yccd or "AI tự suy luận chuẩn đầu ra theo CTGDPT 2018 và bộ sách"}
+
+Khung hoạt động (nếu GV có gợi ý):
+- HĐ1 Khởi động: {a1 or "AI tự thiết kế phù hợp"}
+- HĐ2 Khám phá/Hình thành: {a2 or "AI tự thiết kế phù hợp"}
+- HĐ3 Luyện tập: {a3 or "AI tự thiết kế phù hợp"}
+- HĐ4 Vận dụng/Mở rộng: {a4 or "AI tự thiết kế phù hợp"}
+
+Phân hoá & hỗ trợ:
+- Phân hoá: {diff or "AI tự đề xuất phân hoá 3 mức"}
+- Hỗ trợ đặc thù: {support or "Không"}
+
+Đánh giá:
+- Đánh giá trong giờ: {assess or "AI tự đề xuất câu hỏi/tiêu chí đánh giá nhanh"}
+- Rubric/tiêu chí: {rubric or "AI tự đề xuất thang đánh giá đơn giản phù hợp"}
+
+Học liệu:
+- Đồ dùng: {materials or "AI tự đề xuất"}
+- Học liệu số/CNTT: {digital or "Chỉ đề xuất nếu phù hợp"}
+
+YÊU CẦU ĐẦU RA:
+- Trả về HTML (không markdown), trình bày theo chuẩn giáo án.
+- Bắt buộc có các mục:
+  1) I. MỤC TIÊU (phẩm chất/năng lực/kiến thức-kĩ năng)
+  2) II. CHUẨN BỊ (GV/HS)
+  3) III. TIẾN TRÌNH DẠY HỌC (4 hoạt động: mục tiêu – tổ chức – sản phẩm – đánh giá)
+  4) IV. ĐIỀU CHỈNH SAU BÀI DẠY
+- Font Times New Roman, cỡ 13–14, có bảng nếu cần.
+- Không nêu lý thuyết chung chung; phải cụ thể hoá hoạt động theo lớp/môn.
+
+CHỈ TRẢ VỀ HTML.
+"""
+
+        try:
+            with st.spinner("🔮 AI đang tạo giáo án..."):
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel("gemini-3-pro-preview")
+                res = model.generate_content(prompt)
+                html = res.text
+
+            # Lưu kết quả
+            title = f"Giáo án {subject} {grade} – {lesson_title or scope} ({book})"
+            st.session_state[_lp_key("last_title")] = title
+            st.session_state[_lp_key("last_html")] = html
+
+            st.success("✅ Tạo giáo án thành công. Vào tab 'Xem trước & Xuất' để tải Word.")
+            st.rerun()
+
+        except Exception as e:
+            st.error(f"Lỗi AI: {e}")
 
     # ==============================================================================
     # [MỚI - ĐÃ SỬA] TAB 8: TẠO ĐỀ CHUẨN YCCĐ (DÙNG DỮ LIỆU NHÚNG)
@@ -1465,6 +1690,7 @@ else:
     else:
         # 📝 Ra đề – KTĐG: GIỮ NGUYÊN 100% LOGIC CŨ
         main_app()
+
 
 
 
