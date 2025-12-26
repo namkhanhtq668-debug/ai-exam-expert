@@ -868,6 +868,293 @@ def main_app():
             k = st.text_input("🔑 API Key Gemini (Nếu có)", type="password", key="api_key_in")
             if k: st.session_state['api_key'] = k
 
+# ==============================================================================
+# 7A. MODULE: TRỢ LÝ SOẠN GIÁO ÁN (TỔNG QUÁT TẤT CẢ MÔN/CẤP/BỘ SÁCH)
+# ==============================================================================
+
+def _lp_safe_key(prefix: str) -> str:
+    """Sinh prefix key theo session để tránh trùng key giữa các module."""
+    uid = st.session_state.get("user", {}).get("email", "guest")
+    return f"{prefix}__{uid}"
+
+def _lp_get_api_key():
+    # Ưu tiên key người dùng nhập, fallback key hệ thống
+    k = st.session_state.get("api_key", "")
+    if not k:
+        k = SYSTEM_GOOGLE_KEY
+    return k
+
+def _lp_build_lesson_system_prompt(level_key: str, subject: str, grade: str, book: str, scope: str, school_year: str):
+    """
+    SYSTEM PROMPT "cứng" để giáo án luôn đúng cấu trúc, đúng chuẩn.
+    """
+    # Khung giáo án chuẩn tiểu học/trung học (tối giản nhưng đủ hồ sơ)
+    base_constraints = f"""
+VAI TRÒ: Trợ lý soạn GIÁO ÁN (Kế hoạch bài dạy) theo CT GDPT 2018.
+NGUYÊN TẮC BẮT BUỘC:
+- Viết đúng chuẩn văn phong hồ sơ giáo viên Việt Nam.
+- Nội dung phù hợp cấp học, đúng tâm lý lứa tuổi.
+- Không bịa "văn bản pháp lý" mới. Chỉ viện dẫn chung: CT GDPT 2018; TT 27/2020 (Tiểu học); TT 22/2021 (THCS/THPT) nếu cần.
+- Giáo án phải có đủ các mục: 
+  (1) Thông tin bài dạy
+  (2) Mục tiêu (phẩm chất, năng lực, yêu cầu cần đạt/chuẩn đầu ra)
+  (3) Chuẩn bị (GV/HS)
+  (4) Tiến trình dạy học theo hoạt động (Khởi động – Hình thành – Luyện tập – Vận dụng)
+  (5) Đánh giá (trong giờ + sau giờ)
+- Nếu người dùng không cung cấp tên bài cụ thể, phải soạn theo CHỦ ĐỀ/PHẠM VI (scope) và nêu rõ "Bài/Chủ đề: theo phân phối chương trình".
+- Luôn tạo hoạt động học tập rõ: mục tiêu hoạt động, cách tiến hành, sản phẩm/tiêu chí.
+- Ưu tiên phương pháp: dạy học tích cực, hợp tác nhóm, trò chơi học tập, hỏi đáp gợi mở, phân hóa.
+- Định dạng output: HTML (Times New Roman), có tiêu đề, mục rõ ràng.
+"""
+
+    # Ràng buộc riêng theo cấp
+    if level_key == "Tiểu học":
+        level_constraints = """
+RÀNG BUỘC TIỂU HỌC:
+- Bám Thông tư 27/2020: nhận xét, động viên; đánh giá thường xuyên; không nặng kiến thức hàn lâm.
+- Hoạt động ngắn, rõ, có hỗ trợ học sinh yếu và mở rộng cho học sinh khá giỏi.
+"""
+    else:
+        level_constraints = """
+RÀNG BUỘC TRUNG HỌC:
+- Bám định hướng phát triển phẩm chất, năng lực; có kiểm tra đánh giá quá trình.
+- Hoạt động có sản phẩm học tập; có tiêu chí đánh giá.
+"""
+
+    # Ràng buộc riêng theo môn (có thể mở rộng)
+    subject_constraints = ""
+    if subject == "Tiếng Việt":
+        subject_constraints = """
+RÀNG BUỘC MÔN TIẾNG VIỆT:
+- Nếu là Tiểu học: cấu trúc hoạt động ưu tiên ĐỌC/VIẾT/NGHE-NÓI theo tiết học.
+- Có luyện đọc (đọc đúng, đọc trôi chảy/diễn cảm tùy lớp), đọc hiểu (câu hỏi gợi mở), luyện từ/câu (nếu phù hợp), viết/chính tả (nếu phù hợp).
+- Tuyệt đối tránh thuật ngữ học thuật cao.
+"""
+    elif subject == "Toán":
+        subject_constraints = """
+RÀNG BUỘC MÔN TOÁN:
+- Hoạt động có ví dụ minh họa, bài tập luyện tập, vận dụng gắn thực tế.
+- Có phân hóa: cơ bản – nâng cao nhẹ.
+"""
+    elif "Tin học" in subject:
+        subject_constraints = """
+RÀNG BUỘC MÔN TIN HỌC:
+- Có mục tiêu năng lực số phù hợp.
+- Nếu có thực hành: nêu rõ thiết bị, phần mềm, quy trình thao tác, tiêu chí đánh giá sản phẩm.
+- An toàn thông tin nếu phù hợp chủ đề.
+"""
+    else:
+        subject_constraints = """
+RÀNG BUỘC CHUNG:
+- Hoạt động rõ ràng, có sản phẩm, có đánh giá.
+"""
+
+    # Nội dung nền chương trình (tận dụng mapping hiện có)
+    knowledge_context = get_knowledge_context(subject, grade, book, scope)
+
+    sys_prompt = f"""
+{base_constraints}
+{level_constraints}
+{subject_constraints}
+
+THÔNG TIN ĐẦU VÀO:
+- Năm học: {school_year}
+- Cấp học: {level_key}
+- Môn: {subject}
+- Lớp: {grade}
+- Bộ sách: {book}
+- Phạm vi/Thời điểm: {scope}
+- Gợi ý nội dung: {knowledge_context}
+
+ĐỊNH DẠNG OUTPUT (JSON RAW - CHỈ TRẢ JSON):
+{{
+  "title": "Tên giáo án",
+  "planHtml": "Nội dung giáo án dạng HTML chuẩn Times New Roman (in ấn được)",
+  "checklist": ["Danh sách tự kiểm (đủ mục/đúng cấu trúc/không sai cấp học)"],
+  "notes": "Gợi ý điều chỉnh nhanh cho GV (ngắn gọn)"
+}}
+
+QUAN TRỌNG:
+- planHtml phải đầy đủ các mục 1→5 như yêu cầu.
+- Không trả lời ngoài JSON.
+"""
+    return sys_prompt.strip()
+
+def _lp_generate_lesson_plan(api_key: str, system_prompt: str, user_note: str, lesson_name: str, duration_min: int, class_size: int):
+    """
+    Gọi Gemini để sinh giáo án (JSON).
+    """
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        'gemini-3-pro-preview',
+        system_instruction=system_prompt
+    )
+
+    safe_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    ]
+
+    req = f"""
+YÊU CẦU SOẠN GIÁO ÁN:
+- Tên bài/chủ đề GV nhập: {lesson_name if lesson_name else "(Không cung cấp tên bài cụ thể)"}
+- Thời lượng: {duration_min} phút
+- Sĩ số lớp: {class_size} học sinh
+- Ghi chú GV: {user_note}
+
+HÃY TRẢ VỀ JSON THEO ĐÚNG SCHEMA.
+"""
+
+    res = model.generate_content(
+        req,
+        generation_config={"response_mime_type": "application/json"},
+        safety_settings=safe_settings
+    )
+    data = json.loads(clean_json(res.text))
+    return data
+
+def module_lesson_plan():
+    """
+    Module chính hiển thị UI + sinh + lưu + tải Word.
+    An toàn key: tất cả widget đều có prefix riêng.
+    """
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    st.markdown("## 📘 Trợ lý Soạn bài – Tạo Giáo án tự động")
+    st.caption("Soạn giáo án theo CT GDPT 2018, theo cấp học – môn – bộ sách. Xuất Word in ấn được.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # Session store riêng cho module
+    store_key = _lp_safe_key("lesson_store")
+    if store_key not in st.session_state:
+        st.session_state[store_key] = []
+
+    # ====== Thiết lập thông tin giống module ra đề ======
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    col_year, col_lvl = st.columns(2)
+    with col_year:
+        school_year = st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=1, key=_lp_safe_key("lp_year"))
+    with col_lvl:
+        level_key = st.radio("Cấp học", ["Tiểu học", "THCS", "THPT"], horizontal=True, key=_lp_safe_key("lp_level"))
+
+    curr_lvl = "tieu_hoc" if level_key == "Tiểu học" else "thcs" if level_key == "THCS" else "thpt"
+    edu = EDUCATION_DATA[curr_lvl]
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        grade = st.selectbox("Khối lớp", edu["grades"], key=_lp_safe_key("lp_grade"))
+    with c2:
+        subject = st.selectbox("Môn học", edu["subjects"], key=_lp_safe_key("lp_subject"))
+    with c3:
+        # Ưu tiên Kết nối tri thức lên đầu
+        books_sorted = sorted(BOOKS_LIST, key=lambda x: (0 if "Kết nối" in x else 1, x))
+        book = st.selectbox("Bộ sách", books_sorted, index=0, key=_lp_safe_key("lp_book"))
+    with c4:
+        available_scopes = FULL_SCOPE_LIST
+        if curr_lvl == "tieu_hoc" and grade in ["Lớp 1", "Lớp 2", "Lớp 3"]:
+            available_scopes = LIMITED_SCOPE_LIST
+        scope = st.selectbox("Thời điểm/Phạm vi", available_scopes, key=_lp_safe_key("lp_scope"))
+
+    st.info(f"💡 **Pháp lý tham chiếu:** {edu['legal']} | **Môn:** {subject} | **Lớp:** {grade} | **Bộ sách:** {book}")
+
+    # ====== Thông tin bài dạy ======
+    colA, colB, colC = st.columns([2, 1, 1])
+    with colA:
+        lesson_name = st.text_input("Tên bài/Chủ đề (nếu có)", value="", key=_lp_safe_key("lp_lesson_name"))
+    with colB:
+        duration_min = st.number_input("Thời lượng (phút)", min_value=20, max_value=90, value=35 if level_key == "Tiểu học" else 45, step=5, key=_lp_safe_key("lp_duration"))
+    with colC:
+        class_size = st.number_input("Sĩ số lớp", min_value=10, max_value=60, value=40 if level_key == "Tiểu học" else 45, step=1, key=_lp_safe_key("lp_class_size"))
+
+    user_note = st.text_area("Ghi chú chuyên môn (phân hóa, hoạt động, đồ dùng…)", value="", height=90, key=_lp_safe_key("lp_note"))
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ====== Nút tạo giáo án ======
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    col_btn1, col_btn2 = st.columns([1, 1])
+    with col_btn1:
+        if st.button("⚡ TẠO GIÁO ÁN", type="primary", use_container_width=True, key=_lp_safe_key("lp_generate_btn")):
+            api_key = _lp_get_api_key()
+            if not api_key:
+                st.error("⚠️ Chưa có API Key. Vào tab 'HỒ SƠ' của hệ thống để nhập API Key Gemini.")
+            else:
+                sys_prompt = _lp_build_lesson_system_prompt(level_key, subject, grade, book, scope, school_year)
+                with st.spinner("🔮 AI đang soạn giáo án..."):
+                    try:
+                        data = _lp_generate_lesson_plan(
+                            api_key=api_key,
+                            system_prompt=sys_prompt,
+                            user_note=user_note,
+                            lesson_name=lesson_name,
+                            duration_min=int(duration_min),
+                            class_size=int(class_size),
+                        )
+                        # Chuẩn hóa title
+                        if not data.get("title"):
+                            data["title"] = f"Giáo án {subject} {grade} - {scope}"
+                        # Lưu vào store
+                        data["_meta"] = {
+                            "level": level_key, "subject": subject, "grade": grade, "book": book, "scope": scope,
+                            "school_year": school_year
+                        }
+                        st.session_state[store_key] = [data] + st.session_state[store_key]
+                        st.success("✅ Đã tạo giáo án thành công!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Lỗi AI: {e}")
+
+    with col_btn2:
+        if st.button("🧹 XÓA DANH SÁCH GIÁO ÁN", use_container_width=True, key=_lp_safe_key("lp_clear_btn")):
+            st.session_state[store_key] = []
+            st.toast("Đã xóa danh sách giáo án.", icon="🧹")
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ====== Hiển thị danh sách + xem + tải ======
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    plans = st.session_state[store_key]
+    if not plans:
+        st.info("Chưa có giáo án. Hãy bấm **TẠO GIÁO ÁN**.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        return
+
+    idx = st.selectbox(
+        "Chọn giáo án đã tạo:",
+        options=list(range(len(plans))),
+        format_func=lambda i: plans[i].get("title", f"Giáo án {i+1}"),
+        key=_lp_safe_key("lp_select_plan")
+    )
+    curr = plans[idx]
+
+    st.markdown("### 📄 Xem giáo án")
+    plan_html = curr.get("planHtml", "")
+    if not plan_html:
+        st.warning("Giáo án không có nội dung planHtml.")
+    else:
+        st.markdown(f"<div class='paper-view'>{plan_html}</div>", unsafe_allow_html=True)
+
+    st.markdown("---")
+    cdl1, cdl2 = st.columns([1, 1])
+    with cdl1:
+        footer = f"<br/><center><p>{APP_CONFIG['name']}</p></center>"
+        st.download_button(
+            "⬇️ Tải Giáo án (.doc)",
+            create_word_doc(plan_html + footer, curr.get("title", "GiaoAn")),
+            file_name=f"GiaoAn_{re.sub(r'[^A-Za-z0-9_-]+','_', curr.get('title','GiaoAn'))}.doc",
+            mime="application/msword",
+            type="primary",
+            key=_lp_safe_key("lp_download_doc")
+        )
+    with cdl2:
+        with st.expander("✅ Checklist tự kiểm", expanded=False):
+            for item in curr.get("checklist", []):
+                st.write(f"- {item}")
+            if curr.get("notes"):
+                st.info(curr["notes"])
+
+    st.markdown("</div>", unsafe_allow_html=True)            
+
     # ==============================================================================
     # [MỚI - ĐÃ SỬA] TAB 8: TẠO ĐỀ CHUẨN YCCĐ (DÙNG DỮ LIỆU NHÚNG)
     # ==============================================================================
@@ -1062,40 +1349,124 @@ def module_advisor():
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================================================================
-# 8. ENTRY POINT – KHÔNG BAO GIỜ MẤT LOGIN
+# 8. ROUTER + SIDEBAR MENU (ỔN ĐỊNH, KHÔNG TRÙNG KEY, KHÔNG MẤT LOGIN)
+# ==============================================================================
+
+def set_page(page_name: str):
+    st.session_state["current_page"] = page_name
+
+def get_page() -> str:
+    return st.session_state.get("current_page", "dashboard")
+
+def dashboard_screen():
+    # Dashboard 4 thẻ card, an toàn (CSS đã có sẵn .css-card)
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    st.markdown("## 🏠 Dashboard – WEB AI NHÀ TRƯỜNG")
+    st.caption("Chọn mô-đun ở thanh bên trái để sử dụng.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # 4 cards
+    st.markdown("""
+    <style>
+      .dash-grid {display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px;}
+      .dash-card {background:#fff; border:1px solid #E2E8F0; border-radius:14px; padding:16px;}
+      .dash-title {font-weight:800; font-size:15px; color:#0F172A; margin:0 0 6px 0;}
+      .dash-sub {font-size:13px; color:#64748B; margin:0;}
+      .dash-badge {display:inline-block; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;}
+    </style>
+    <div class="dash-grid">
+      <div class="dash-card">
+        <div class="dash-title">📘 Trợ lý Soạn bài – Đổi mới phương pháp</div>
+        <p class="dash-sub">Tạo giáo án chuẩn CTGDPT 2018 theo môn/lớp/bộ sách.</p>
+        <div style="margin-top:10px"><span class="dash-badge">Lesson Planner</span></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-title">💻 AI EXAM – Soạn giáo án Năng lực số</div>
+        <p class="dash-sub">Khung giáo án tích hợp năng lực số (mở rộng sau).</p>
+        <div style="margin-top:10px"><span class="dash-badge">Digital Competency</span></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-title">📝 AI EXAM EXPERT – Ra đề, KTĐG</div>
+        <p class="dash-sub">Ma trận – Đặc tả – Đề – Đáp án theo đúng pháp lý.</p>
+        <div style="margin-top:10px"><span class="dash-badge">Exam Engine</span></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-title">🧠 AI EDU Advisor – Nhận xét, tư vấn</div>
+        <p class="dash-sub">Nhận xét, tư vấn chuyên môn (mở rộng sau).</p>
+        <div style="margin-top:10px"><span class="dash-badge">Advisor</span></div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# --------- Modules placeholder (thầy có thể thay bằng module thật sau) ----------
+def module_digital():
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    st.markdown("## 💻 AI EXAM – Soạn giáo án Năng lực số")
+    st.info("Mô-đun đang hoàn thiện. (Sẽ tích hợp sau)")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+def module_advisor():
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    st.markdown("## 🧠 AI EDU Advisor – Nhận xét & Tư vấn")
+    st.info("Mô-đun đang hoàn thiện. (Sẽ tích hợp sau)")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ==============================================================================
+# ENTRY POINT
 # ==============================================================================
 
 if "user" not in st.session_state:
+    # CHƯA ĐĂNG NHẬP → LUÔN HIỆN LOGIN
     login_screen()
 else:
-    # Sidebar + router
+    # Sidebar điều hướng
     with st.sidebar:
         st.markdown("## 🏫 AIEXAM.VN")
-        st.caption("Web AI Nhà trường")
+        st.caption("WEB AI NHÀ TRƯỜNG")
+        st.divider()
 
+        # Dùng radio sẽ ổn định hơn button (không lệch state)
         menu = st.radio(
             "📌 Chọn mô-đun",
-            options=["dashboard", "lesson", "digital", "exam", "advisor"],
-            format_func=lambda x: {
-                "dashboard": "🏠 Dashboard",
-                "lesson": "📘 Trợ lý Soạn bài",
-                "digital": "💻 Soạn bài Năng lực số",
-                "exam": "📝 Ra đề – KTĐG",
-                "advisor": "🧠 Nhận xét – Tư vấn",
-            }[x],
-            key="main_menu_sidebar",
+            [
+                "🏠 Dashboard",
+                "📘 Trợ lý Soạn bài",
+                "💻 Soạn bài Năng lực số",
+                "📝 Ra đề – KTĐG",
+                "🧠 Nhận xét – Tư vấn",
+            ],
+            index=0,
+            key="sidebar_menu_main"
         )
 
-    if menu == "dashboard":
+        st.divider()
+        if st.button("🔄 Về Dashboard", use_container_width=True, key="sb_go_dash"):
+            set_page("dashboard")
+
+        if st.button("🚪 Đăng xuất", use_container_width=True, key="sb_logout"):
+            st.session_state.pop("user", None)
+            st.session_state.pop("current_page", None)
+            st.rerun()
+
+    # Router theo menu
+    if menu == "🏠 Dashboard":
         dashboard_screen()
-    elif menu == "lesson":
-        module_lesson()
-    elif menu == "digital":
+
+    elif menu == "📘 Trợ lý Soạn bài":
+        # MODULE GIÁO ÁN (mới)
+        module_lesson_plan()
+
+    elif menu == "💻 Soạn bài Năng lực số":
         module_digital()
-    elif menu == "advisor":
+
+    elif menu == "🧠 Nhận xét – Tư vấn":
         module_advisor()
-    elif menu == "exam":
+
+    else:
+        # 📝 Ra đề – KTĐG: GIỮ NGUYÊN 100% LOGIC CŨ
         main_app()
+
+
 
 
 
