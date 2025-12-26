@@ -1205,25 +1205,25 @@ def module_lesson_plan():
         with r2c2:
             scope = st.selectbox("Thời điểm/Phạm vi", FULL_SCOPE_LIST, key=_lp_key("scope"))
 
-    # =========================
-    # PPCT (Bước A - nhanh): Chọn tuần/tiết bằng số
-    # =========================
-    r2c3, r2c4 = st.columns([1, 1])
-    with r2c3:
-        ppct_week = st.number_input(
-            "Tuần (PPCT)",
-            min_value=1, max_value=40,
-            value=1, step=1,
-            key=_lp_key("ppct_week")
-        )
-    with r2c4:
-        ppct_period = st.number_input(
-            "Tiết (PPCT)",
-            min_value=1, max_value=10,
-            value=1, step=1,
-            key=_lp_key("ppct_period")
-        )
-    
+        # =========================
+        # PPCT (Bước A - nhanh): Chọn tuần/tiết bằng số
+        # =========================
+        r2c3, r2c4 = st.columns([1, 1])
+        with r2c3:
+            ppct_week = st.number_input(
+                "Tuần (PPCT)",
+                min_value=1, max_value=40,
+                value=1, step=1,
+                key=_lp_key("ppct_week")
+            )
+        with r2c4:
+            ppct_period = st.number_input(
+                "Tiết (PPCT)",
+                min_value=1, max_value=10,
+                value=1, step=1,
+                key=_lp_key("ppct_period")
+            )
+        
         r3c1, r3c2, r3c3 = st.columns([1.6, 1.0, 1.0])
         with r3c1:
             template = st.selectbox(
