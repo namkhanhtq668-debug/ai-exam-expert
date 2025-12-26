@@ -868,6 +868,79 @@ def main_app():
             k = st.text_input("🔑 API Key Gemini (Nếu có)", type="password", key="api_key_in")
             if k: st.session_state['api_key'] = k
 
+    # ==============================================================================
+    # [MỚI - ĐÃ SỬA] TAB 8: TẠO ĐỀ CHUẨN YCCĐ (DÙNG DỮ LIỆU NHÚNG)
+    # ==============================================================================
+    with tabs[7]:
+        st.title("🎯 Ngân hàng đề Toán Tiểu học (Chuẩn GDPT 2018)")
+        st.caption("Dữ liệu bám sát Yêu cầu cần đạt - Đã tích hợp sẵn.")
+        
+        mgr = YCCDManager()
+        current_api_key = st.session_state.get('api_key', '')
+        if not current_api_key: current_api_key = SYSTEM_GOOGLE_KEY
+        gen = QuestionGeneratorYCCD(current_api_key)
+
+        with st.container():
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                # 1. Chọn Lớp (Tự động lấy từ file json)
+                grades = mgr.get_grades()
+                selected_grade = st.selectbox("1️⃣ Chọn Khối Lớp:", grades, index=len(grades)-1) # Mặc định chọn lớp 5
+
+            with col2:
+                # 2. Chọn Chủ đề tương ứng với Lớp
+                topics = mgr.get_topics_by_grade(selected_grade)
+                selected_topic = st.selectbox("2️⃣ Mạch kiến thức:", topics)
+
+            with col3:
+                # 3. Cấu hình số lượng
+                num_q = st.number_input("Số câu hỏi:", 1, 20, 5, key="num_q_yccd")
+
+        # 4. Chọn Yêu cầu cần đạt chi tiết
+        if selected_topic:
+            yccd_list = mgr.get_yccd_list(selected_grade, selected_topic)
+            yccd_map = {f"{item['bai']}": item for item in yccd_list}
+            
+            selected_bai = st.selectbox("3️⃣ Chọn Bài học / Yêu cầu cụ thể:", list(yccd_map.keys()))
+            target_item = yccd_map[selected_bai]
+            
+            st.info(f"📌 **Chuẩn kiến thức:** {target_item['yccd']}")
+            
+            muc_do = st.select_slider("Độ khó:", options=["Nhận biết", "Thông hiểu", "Vận dụng"])
+
+            # --- NÚT TẠO ĐỀ ---
+            if st.button("🚀 BẮT ĐẦU SOẠN ĐỀ", type="primary", key="btn_yccd"):
+                if not current_api_key:
+                    st.error("Chưa có API Key.")
+                else:
+                    st.divider()
+                    my_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    for i in range(num_q):
+                        status_text.markdown(f"**⏳ AI đang tư duy câu {i+1}/{num_q}...**")
+                        data = gen.generate(target_item, muc_do)
+                        my_bar.progress((i + 1) / num_q)
+                        
+                        if data:
+                            with st.expander(f"✅ Câu {i+1}: {data.get('question', '...')}", expanded=True):
+                                st.write(f"**Đề bài:** {data.get('question','')}")
+                                if 'options' in data:
+                                    cols = st.columns(4)
+                                    for idx, opt in enumerate(data['options'][:4]):
+                                        cols[idx].write(opt)
+                                
+                                st.success(f"**Đáp án:** {data.get('answer','')}")
+                                st.warning(f"💡 **HD:** {data.get('explanation','')}")
+                        else:
+                            st.error(f"Câu {i+1}: AI gặp lỗi, đang thử lại...")
+                    
+                    status_text.success("🎉 Hoàn thành!")
+                    my_bar.empty()
+    
+    st.markdown("---")
+    st.markdown("""<div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;"><strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>SĐT: 0918198687</div>""", unsafe_allow_html=True)           
+
 # ==============================================================================
 # 7A. MODULE: TRỢ LÝ SOẠN GIÁO ÁN (TỔNG QUÁT TẤT CẢ MÔN/CẤP/BỘ SÁCH)
 # ==============================================================================
@@ -1380,79 +1453,6 @@ CHỈ TRẢ VỀ HTML.
         except Exception as e:
             st.error(f"Lỗi AI: {e}")
 
-    # ==============================================================================
-    # [MỚI - ĐÃ SỬA] TAB 8: TẠO ĐỀ CHUẨN YCCĐ (DÙNG DỮ LIỆU NHÚNG)
-    # ==============================================================================
-    with tabs[7]:
-        st.title("🎯 Ngân hàng đề Toán Tiểu học (Chuẩn GDPT 2018)")
-        st.caption("Dữ liệu bám sát Yêu cầu cần đạt - Đã tích hợp sẵn.")
-        
-        mgr = YCCDManager()
-        current_api_key = st.session_state.get('api_key', '')
-        if not current_api_key: current_api_key = SYSTEM_GOOGLE_KEY
-        gen = QuestionGeneratorYCCD(current_api_key)
-
-        with st.container():
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                # 1. Chọn Lớp (Tự động lấy từ file json)
-                grades = mgr.get_grades()
-                selected_grade = st.selectbox("1️⃣ Chọn Khối Lớp:", grades, index=len(grades)-1) # Mặc định chọn lớp 5
-
-            with col2:
-                # 2. Chọn Chủ đề tương ứng với Lớp
-                topics = mgr.get_topics_by_grade(selected_grade)
-                selected_topic = st.selectbox("2️⃣ Mạch kiến thức:", topics)
-
-            with col3:
-                # 3. Cấu hình số lượng
-                num_q = st.number_input("Số câu hỏi:", 1, 20, 5, key="num_q_yccd")
-
-        # 4. Chọn Yêu cầu cần đạt chi tiết
-        if selected_topic:
-            yccd_list = mgr.get_yccd_list(selected_grade, selected_topic)
-            yccd_map = {f"{item['bai']}": item for item in yccd_list}
-            
-            selected_bai = st.selectbox("3️⃣ Chọn Bài học / Yêu cầu cụ thể:", list(yccd_map.keys()))
-            target_item = yccd_map[selected_bai]
-            
-            st.info(f"📌 **Chuẩn kiến thức:** {target_item['yccd']}")
-            
-            muc_do = st.select_slider("Độ khó:", options=["Nhận biết", "Thông hiểu", "Vận dụng"])
-
-            # --- NÚT TẠO ĐỀ ---
-            if st.button("🚀 BẮT ĐẦU SOẠN ĐỀ", type="primary", key="btn_yccd"):
-                if not current_api_key:
-                    st.error("Chưa có API Key.")
-                else:
-                    st.divider()
-                    my_bar = st.progress(0)
-                    status_text = st.empty()
-                    
-                    for i in range(num_q):
-                        status_text.markdown(f"**⏳ AI đang tư duy câu {i+1}/{num_q}...**")
-                        data = gen.generate(target_item, muc_do)
-                        my_bar.progress((i + 1) / num_q)
-                        
-                        if data:
-                            with st.expander(f"✅ Câu {i+1}: {data.get('question', '...')}", expanded=True):
-                                st.write(f"**Đề bài:** {data.get('question','')}")
-                                if 'options' in data:
-                                    cols = st.columns(4)
-                                    for idx, opt in enumerate(data['options'][:4]):
-                                        cols[idx].write(opt)
-                                
-                                st.success(f"**Đáp án:** {data.get('answer','')}")
-                                st.warning(f"💡 **HD:** {data.get('explanation','')}")
-                        else:
-                            st.error(f"Câu {i+1}: AI gặp lỗi, đang thử lại...")
-                    
-                    status_text.success("🎉 Hoàn thành!")
-                    my_bar.empty()
-    
-    st.markdown("---")
-    st.markdown("""<div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;"><strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>SĐT: 0918198687</div>""", unsafe_allow_html=True)
-
 # ==============================================================================
 # 6. LOGIN
 # ==============================================================================
@@ -1535,58 +1535,13 @@ def login_screen():
                         st.error(f"Lỗi đăng ký: {e}")
 
 # ==============================================================================
-# 7. DASHBOARD + ROUTER (FIX TRÙNG ID – AN TOÀN TUYỆT ĐỐI)
-# ==============================================================================
-
-# ==============================================================================
-# 7. DASHBOARD + ROUTER (ỔN ĐỊNH - KHÔNG TRÙNG ID)
-# ==============================================================================
-
-def set_page(page_name: str):
-    st.session_state["current_page"] = page_name
-
-def get_page() -> str:
-    return st.session_state.get("current_page", "dashboard")
-
-# ---------------- DASHBOARD ----------------
-def dashboard_screen():
-    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 🏠 Dashboard")
-    st.write("Chọn mô-đun ở menu bên trái để sử dụng.")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-def module_lesson():
-    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 📘 Trợ lý Soạn bài – Đổi mới phương pháp")
-    st.info("Module đang phát triển. (Sẽ tích hợp sau)")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-def module_digital():
-    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 💻 AI EXAM – Soạn giáo án Năng lực số")
-    st.info("Module đang phát triển. (Sẽ tích hợp sau)")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-def module_advisor():
-    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 🧠 AI EDU Advisor – Nhận xét, tư vấn")
-    st.info("Module đang phát triển. (Sẽ tích hợp sau)")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# ==============================================================================
 # 8. ROUTER + SIDEBAR MENU (ỔN ĐỊNH, KHÔNG TRÙNG KEY, KHÔNG MẤT LOGIN)
 # ==============================================================================
-
-def set_page(page_name: str):
-    st.session_state["current_page"] = page_name
-
-def get_page() -> str:
-    return st.session_state.get("current_page", "dashboard")
 
 def dashboard_screen():
     # Dashboard 4 thẻ card, an toàn (CSS đã có sẵn .css-card)
     st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 🏠 Dashboard – WEB AI NHÀ TRƯỜNG")
+    st.markdown("## 🏠 Dashboard – WEB AI GIÁO VIÊN")
     st.caption("Chọn mô-đun ở thanh bên trái để sử dụng.")
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1637,59 +1592,60 @@ def module_advisor():
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================================================================
-# ENTRY POINT
+# ENTRY POINT (ỔN ĐỊNH: sidebar + router theo current_page)
 # ==============================================================================
+if "current_page" not in st.session_state:
+    st.session_state["current_page"] = "dashboard"
 
 if "user" not in st.session_state:
-    # CHƯA ĐĂNG NHẬP → LUÔN HIỆN LOGIN
     login_screen()
 else:
-    # Sidebar điều hướng
     with st.sidebar:
         st.markdown("## 🏫 AIEXAM.VN")
         st.caption("WEB AI NHÀ TRƯỜNG")
         st.divider()
 
-        # Dùng radio sẽ ổn định hơn button (không lệch state)
-        menu = st.radio(
+        page_map = {
+            "🏠 Dashboard": "dashboard",
+            "📘 Trợ lý Soạn bài": "lesson_plan",
+            "💻 Soạn bài Năng lực số": "digital",
+            "📝 Ra đề – KTĐG": "exam",
+            "🧠 Nhận xét – Tư vấn": "advisor",
+        }
+
+        # chọn theo current_page (đồng bộ)
+        reverse_map = {v: k for k, v in page_map.items()}
+        current_label = reverse_map.get(st.session_state["current_page"], "🏠 Dashboard")
+
+        menu_label = st.radio(
             "📌 Chọn mô-đun",
-            [
-                "🏠 Dashboard",
-                "📘 Trợ lý Soạn bài",
-                "💻 Soạn bài Năng lực số",
-                "📝 Ra đề – KTĐG",
-                "🧠 Nhận xét – Tư vấn",
-            ],
-            index=0,
+            list(page_map.keys()),
+            index=list(page_map.keys()).index(current_label),
             key="sidebar_menu_main"
         )
 
-        st.divider()
-        if st.button("🔄 Về Dashboard", use_container_width=True, key="sb_go_dash"):
-            set_page("dashboard")
+        st.session_state["current_page"] = page_map[menu_label]
 
+        st.divider()
         if st.button("🚪 Đăng xuất", use_container_width=True, key="sb_logout"):
             st.session_state.pop("user", None)
-            st.session_state.pop("current_page", None)
+            st.session_state["current_page"] = "dashboard"
             st.rerun()
 
-    # Router theo menu
-    if menu == "🏠 Dashboard":
+    # ROUTER
+    page = st.session_state["current_page"]
+
+    if page == "dashboard":
         dashboard_screen()
-
-    elif menu == "📘 Trợ lý Soạn bài":
-        # MODULE GIÁO ÁN (mới)
+    elif page == "lesson_plan":
         module_lesson_plan()
-
-    elif menu == "💻 Soạn bài Năng lực số":
+    elif page == "digital":
         module_digital()
-
-    elif menu == "🧠 Nhận xét – Tư vấn":
+    elif page == "advisor":
         module_advisor()
-
     else:
-        # 📝 Ra đề – KTĐG: GIỮ NGUYÊN 100% LOGIC CŨ
         main_app()
+
 
 
 
