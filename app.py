@@ -1277,8 +1277,8 @@ with k4:
 
 st.write("")
 
-    # ---------- KPI Row ----------
-    k1, k2, k3, k4 = st.columns(4)
+# ---------- KPI Row ----------
+k1, k2, k3, k4 = st.columns(4)
     with k1: st.markdown(f"<div class='lp-kpi'><div class='lp-label'>Cấp/Lớp</div><div class='lp-hint'>{level_key} – {grade}</div></div>", unsafe_allow_html=True)
     with k2: st.markdown(f"<div class='lp-kpi'><div class='lp-label'>Môn/Bộ sách</div><div class='lp-hint'>{subject} – {book}</div></div>", unsafe_allow_html=True)
     with k3: st.markdown(f"<div class='lp-kpi'><div class='lp-label'>Thời lượng/Sĩ số</div><div class='lp-hint'>{duration} phút – {class_size} HS</div></div>", unsafe_allow_html=True)
@@ -1699,6 +1699,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
