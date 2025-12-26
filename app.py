@@ -1165,23 +1165,44 @@ def module_lesson_plan():
     </div>
     """, unsafe_allow_html=True)
 
-    # ---------- Sidebar Wizard ----------
-    with st.sidebar:
-        st.markdown("## 📘 Soạn giáo án")
-        st.caption("Thiết lập nhanh theo quy trình")
+   # =========================
+# THIẾT LẬP TRÊN TRANG (KHÔNG DÙNG SIDEBAR)
+# =========================
+st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
+st.markdown("### ⚙️ Thiết lập tạo giáo án")
 
-        school_year = st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=1, key=_lp_key("year"))
-        level_key = st.radio("Cấp học", ["Tiểu học", "THCS", "THPT"], horizontal=True, key=_lp_key("level"))
+with st.form(key=_lp_key("form_settings"), clear_on_submit=False):
+    r1c1, r1c2, r1c3, r1c4 = st.columns([1.2, 1.0, 1.2, 1.6])
+    with r1c1:
+        school_year = st.selectbox(
+            "Năm học",
+            ["2024-2025", "2025-2026", "2026-2027"],
+            index=1,
+            key=_lp_key("year")
+        )
+    with r1c2:
+        level_key = st.radio(
+            "Cấp học",
+            ["Tiểu học", "THCS", "THPT"],
+            horizontal=True,
+            key=_lp_key("level")
+        )
+    curr_lvl = "tieu_hoc" if level_key == "Tiểu học" else "thcs" if level_key == "THCS" else "thpt"
+    edu = EDUCATION_DATA[curr_lvl]
 
-        curr_lvl = "tieu_hoc" if level_key == "Tiểu học" else "thcs" if level_key == "THCS" else "thpt"
-        edu = EDUCATION_DATA[curr_lvl]
-
+    with r1c3:
         grade = st.selectbox("Khối lớp", edu["grades"], key=_lp_key("grade"))
+    with r1c4:
         subject = st.selectbox("Môn học", edu["subjects"], key=_lp_key("subject"))
+
+    r2c1, r2c2 = st.columns([2.2, 1.2])
+    with r2c1:
         book = st.selectbox("Bộ sách", BOOKS_LIST, key=_lp_key("book"))
+    with r2c2:
         scope = st.selectbox("Thời điểm/Phạm vi", FULL_SCOPE_LIST, key=_lp_key("scope"))
 
-        st.divider()
+    r3c1, r3c2, r3c3 = st.columns([1.6, 1.0, 1.0])
+    with r3c1:
         template = st.selectbox(
             "Mẫu giáo án",
             [
@@ -1194,34 +1215,67 @@ def module_lesson_plan():
             ],
             key=_lp_key("template")
         )
-
+    with r3c2:
         detail_level = st.select_slider(
             "Mức chi tiết",
             options=["Ngắn gọn", "Chuẩn", "Rất chi tiết"],
             value="Chuẩn",
             key=_lp_key("detail")
         )
+    with r3c3:
+        duration = st.number_input(
+            "Thời lượng (phút)",
+            min_value=30, max_value=90, value=35, step=5,
+            key=_lp_key("duration")
+        )
 
+    r4c1, r4c2 = st.columns([2.2, 1.0])
+    with r4c1:
         method_focus = st.multiselect(
             "Ưu tiên phương pháp",
             ["Hoạt động nhóm", "Trò chơi hoá", "Nêu vấn đề", "Trải nghiệm", "Dự án nhỏ", "CNTT/Năng lực số"],
             default=["Hoạt động nhóm"],
             key=_lp_key("method")
         )
+    with r4c2:
+        class_size = st.number_input(
+            "Sĩ số lớp",
+            min_value=10, max_value=60, value=40, step=1,
+            key=_lp_key("class_size")
+        )
 
-        duration = st.number_input("Thời lượng (phút)", 30, 90, 35, step=5, key=_lp_key("duration"))
-        class_size = st.number_input("Sĩ số lớp", 10, 60, 40, step=1, key=_lp_key("class_size"))
+    b1, b2, b3 = st.columns([1.2, 1.2, 1.6])
+    with b1:
+        generate_btn = st.form_submit_button("⚡ TẠO GIÁO ÁN", type="primary", use_container_width=True)
+    with b2:
+        regen_btn = st.form_submit_button("🔁 TẠO LẠI", use_container_width=True)
+    with b3:
+        clear_btn = st.form_submit_button("🧹 XÓA DS GIÁO ÁN", use_container_width=True)
 
-        st.divider()
-        generate_btn = st.button("⚡ TẠO GIÁO ÁN", type="primary", use_container_width=True, key=_lp_key("btn_generate"))
-        regen_btn = st.button("🔁 TẠO LẠI (giữ thiết lập)", use_container_width=True, key=_lp_key("btn_regen"))
-        clear_btn = st.button("🧹 XÓA DANH SÁCH GIÁO ÁN", use_container_width=True, key=_lp_key("btn_clear"))
+st.markdown("</div>", unsafe_allow_html=True)
 
-    if clear_btn:
-        st.session_state[_lp_key("history")] = []
-        st.session_state[_lp_key("last_html")] = ""
-        st.toast("Đã xoá danh sách giáo án!", icon="🧹")
-        st.rerun()
+# Xử lý Clear
+if clear_btn:
+    st.session_state[_lp_key("history")] = []
+    st.session_state[_lp_key("last_html")] = ""
+    st.session_state[_lp_key("last_title")] = "GiaoAn"
+    st.toast("Đã xoá danh sách giáo án!", icon="🧹")
+    st.rerun()
+
+# =========================
+# KPI Row (dùng biến vừa chọn)
+# =========================
+k1, k2, k3, k4 = st.columns(4)
+with k1:
+    st.markdown(f"<div class='lp-kpi'><div class='lp-label'>Cấp/Lớp</div><div class='lp-hint'>{level_key} – {grade}</div></div>", unsafe_allow_html=True)
+with k2:
+    st.markdown(f"<div class='lp-kpi'><div class='lp-label'>Môn/Bộ sách</div><div class='lp-hint'>{subject} – {book}</div></div>", unsafe_allow_html=True)
+with k3:
+    st.markdown(f"<div class='lp-kpi'><div class='lp-label'>Thời lượng/Sĩ số</div><div class='lp-hint'>{duration} phút – {class_size} HS</div></div>", unsafe_allow_html=True)
+with k4:
+    st.markdown(f"<div class='lp-kpi'><div class='lp-label'>Mẫu</div><div class='lp-hint'>{template}</div></div>", unsafe_allow_html=True)
+
+st.write("")
 
     # ---------- KPI Row ----------
     k1, k2, k3, k4 = st.columns(4)
@@ -1645,6 +1699,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
