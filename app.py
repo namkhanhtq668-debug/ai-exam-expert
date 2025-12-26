@@ -1205,7 +1205,7 @@ def module_lesson_plan():
         with r2c2:
             scope = st.selectbox("Thời điểm/Phạm vi", FULL_SCOPE_LIST, key=_lp_key("scope"))
 
-            # =========================
+    # =========================
     # PPCT (Bước A - nhanh): Chọn tuần/tiết bằng số
     # =========================
     r2c3, r2c4 = st.columns([1, 1])
@@ -1455,108 +1455,66 @@ st.caption(ppct_text)
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ---------- Generate / Regenerate logic ----------
-    if generate_btn or regen_btn:
-        api_key = _lp_api_key()
-        if not api_key:
-            st.error("❌ Chưa có API Key (Gemini). Vào tab Hồ sơ nhập API key hoặc cấu hình SYSTEM_GOOGLE_KEY.")
-            return
+ # ===============================
+# XỬ LÝ NÚT BẤM
+# ===============================
+if generate_btn or regen_btn:
+    api_key = _lp_api_key()
+    if not api_key:
+        st.error("❌ Chưa có API Key.")
+        st.stop()
 
-        # Thu thập input
-        lesson_title = st.session_state.get(_lp_key("lesson_title"), "").strip()
-        objectives = st.session_state.get(_lp_key("objectives"), "").strip()
-        yccd = st.session_state.get(_lp_key("yccd"), "").strip()
+    # Lấy dữ liệu từ form
+    lesson_title = st.session_state.get(_lp_key("lesson_title"), "").strip()
+    objectives = st.session_state.get(_lp_key("objectives"), "").strip()
+    yccd = st.session_state.get(_lp_key("yccd"), "").strip()
 
-      # Lấy PPCT từ session
-ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
-ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
-ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
+    ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
+    ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
+    ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
 
-        a1 = st.session_state.get(_lp_key("a1"), "").strip()
-        a2 = st.session_state.get(_lp_key("a2"), "").strip()
-        a3 = st.session_state.get(_lp_key("a3"), "").strip()
-        a4 = st.session_state.get(_lp_key("a4"), "").strip()
-
-        diff = st.session_state.get(_lp_key("diff"), "").strip()
-        support = st.session_state.get(_lp_key("support"), "").strip()
-        assess = st.session_state.get(_lp_key("assess"), "").strip()
-        rubric = st.session_state.get(_lp_key("rubric"), "").strip()
-        materials = st.session_state.get(_lp_key("materials"), "").strip()
-        digital = st.session_state.get(_lp_key("digital"), "").strip()
-
-        prompt = f"""
-VAI TRÒ: Chuyên gia soạn giáo án theo CTGDPT 2018 (Việt Nam).
-NHIỆM VỤ: Soạn 01 GIÁO ÁN hoàn chỉnh, đúng hồ sơ chuyên môn.
+    # ==== GỌI AI ====
+    prompt = f"""
+VAI TRÒ: Chuyên gia soạn giáo án theo CTGDPT 2018.
 
 THÔNG TIN:
-- Năm học: {school_year}
-- Cấp học: {level_key}
-- Lớp: {grade}
-- Môn: {subject}
-- Bộ sách: {book}
-- Thời điểm/Phạm vi: {scope}
 - {ppct_text}
+- Môn: {subject}
+- Lớp: {grade}
+- Bộ sách: {book}
 - Thời lượng: {duration} phút
-- Sĩ số: {class_size}
-- Mẫu giáo án: {template}
-- Mức chi tiết: {detail_level}
-- Phương pháp ưu tiên: {", ".join(method_focus) if method_focus else "Chuẩn"}
 
-DỮ LIỆU GIÁO VIÊN NHẬP:
-- Tên bài/chủ đề: {lesson_title or "AI tự suy luận theo bộ sách/phạm vi"}
-- Mục tiêu (nếu có): {objectives or "AI tự xác định mục tiêu theo CTGDPT 2018"}
-- YCCĐ/Chuẩn đầu ra (nếu có): {yccd or "AI tự suy luận chuẩn đầu ra theo CTGDPT 2018 và bộ sách"}
-
-Khung hoạt động (nếu GV có gợi ý):
-- HĐ1 Khởi động: {a1 or "AI tự thiết kế phù hợp"}
-- HĐ2 Khám phá/Hình thành: {a2 or "AI tự thiết kế phù hợp"}
-- HĐ3 Luyện tập: {a3 or "AI tự thiết kế phù hợp"}
-- HĐ4 Vận dụng/Mở rộng: {a4 or "AI tự thiết kế phù hợp"}
-
-Phân hoá & hỗ trợ:
-- Phân hoá: {diff or "AI tự đề xuất phân hoá 3 mức"}
-- Hỗ trợ đặc thù: {support or "Không"}
-
-Đánh giá:
-- Đánh giá trong giờ: {assess or "AI tự đề xuất câu hỏi/tiêu chí đánh giá nhanh"}
-- Rubric/tiêu chí: {rubric or "AI tự đề xuất thang đánh giá đơn giản phù hợp"}
-
-Học liệu:
-- Đồ dùng: {materials or "AI tự đề xuất"}
-- Học liệu số/CNTT: {digital or "Chỉ đề xuất nếu phù hợp"}
-
-YÊU CẦU ĐẦU RA:
-- Trả về HTML (không markdown), trình bày theo chuẩn giáo án.
-- Giáo án phải bám theo {ppct_text}. Nếu chưa xác định được chính xác tên bài trong SGK, hãy ghi rõ: "Bài/Chủ đề: theo PPCT (Tuần..., Tiết...) của bộ sách {book}" và vẫn phải soạn đúng tiến trình.
-- Phần "Tiến trình dạy học" phải chia thời gian hợp lý theo thời lượng {duration} phút và phù hợp nội dung của Tuần/Tiết đã chọn.
-- Bắt buộc có các mục:
-  1) I. MỤC TIÊU (phẩm chất/năng lực/kiến thức-kĩ năng)
-  2) II. CHUẨN BỊ (GV/HS)
-  3) III. TIẾN TRÌNH DẠY HỌC (4 hoạt động: mục tiêu – tổ chức – sản phẩm – đánh giá)
-  4) IV. ĐIỀU CHỈNH SAU BÀI DẠY
-- Font Times New Roman, cỡ 13–14, có bảng nếu cần.
-- Không nêu lý thuyết chung chung; phải cụ thể hoá hoạt động theo lớp/môn.
-
-CHỈ TRẢ VỀ HTML.
+YÊU CẦU:
+- Soạn giáo án đầy đủ theo CTGDPT 2018.
+- Ghi rõ mục tiêu, hoạt động, đánh giá.
+- Bám sát {ppct_text}.
 """
 
-        try:
-            with st.spinner("🔮 AI đang tạo giáo án..."):
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel("gemini-3-pro-preview")
-                res = model.generate_content(prompt)
-                html = res.text
+    try:
+        with st.spinner("🔄 Đang tạo giáo án..."):
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel("gemini-3-pro-preview")
+            res = model.generate_content(prompt)
 
-            title = f"Giáo án {subject} {grade} – {lesson_title or scope} ({book})"
-            st.session_state[_lp_key("last_title")] = title
-            st.session_state[_lp_key("last_html")] = html
+        st.session_state[_lp_key("last_title")] = f"Giáo án - {ppct_text}"
+        st.session_state[_lp_key("last_html")] = res.text
 
-            st.success("✅ Tạo giáo án thành công. Vào tab 'Xem trước & Xuất' để tải Word.")
-            st.rerun()
+        st.success("✅ Tạo giáo án thành công!")
+        st.rerun()
 
-        except Exception as e:
-            st.error(f"Lỗi AI: {e}")
+    except Exception as e:
+        st.error(f"Lỗi AI: {e}")
 
+# ===============================
+# NÚT XOÁ (PHẢI Ở NGOÀI if TRÊN)
+# ===============================
+if clear_btn:
+    st.session_state[_lp_key("history")] = []
+    st.session_state[_lp_key("last_html")] = ""
+    st.session_state[_lp_key("last_title")] = ""
+    st.toast("🧹 Đã xoá dữ liệu")
+    st.rerun()  
+        
 # ==============================================================================
 # 6. LOGIN
 # ==============================================================================
@@ -1749,6 +1707,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
