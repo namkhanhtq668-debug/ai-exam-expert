@@ -7,7 +7,7 @@ import json
 import re
 import io
 import time
-import requests 
+import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 
@@ -15,27 +15,27 @@ import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
 # ==============================================================================
 # --- CẤU HÌNH GIỚI HẠN SỬ DỤNG ---
-MAX_FREE_USAGE = 3   
-MAX_PRO_USAGE = 15   
+MAX_FREE_USAGE = 3
+MAX_PRO_USAGE = 15
 
 # --- CẤU HÌNH KHUYẾN MẠI & HOA HỒNG ---
-BONUS_PER_REF = 0    
-BONUS_PRO_REF = 3    
-DISCOUNT_AMT = 0     
-COMMISSION_AMT = 10000 
+BONUS_PER_REF = 0
+BONUS_PRO_REF = 3
+DISCOUNT_AMT = 0
+COMMISSION_AMT = 10000
 
 # --- CẤU HÌNH THANH TOÁN (SEPAY - VIETQR) ---
-BANK_ID = "VietinBank"   
-BANK_ACC = "107878907329"  
-BANK_NAME = "TRAN THANH TUAN" 
-PRICE_VIP = 50000        
+BANK_ID = "VietinBank"
+BANK_ACC = "107878907329"
+BANK_NAME = "TRAN THANH TUAN"
+PRICE_VIP = 50000
 
 # Lấy API Key từ Secrets
 try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     SYSTEM_GOOGLE_KEY = st.secrets.get("GOOGLE_API_KEY", "")
-    SEPAY_API_TOKEN = st.secrets.get("SEPAY_API_TOKEN", "") 
+    SEPAY_API_TOKEN = st.secrets.get("SEPAY_API_TOKEN", "")
 except:
     SUPABASE_URL = ""
     SUPABASE_KEY = ""
@@ -939,7 +939,7 @@ def main_app():
                     my_bar.empty()
     
     st.markdown("---")
-    st.markdown("""<div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;"><strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>SĐT: 0918198687</div>""", unsafe_allow_html=True)           
+    st.markdown("""<div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;"><strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>SĐT: 0918198687</div>""", unsafe_allow_html=True)            
 
 # ==============================================================================
 # 7A. MODULE: TRỢ LÝ SOẠN GIÁO ÁN (TỔNG QUÁT TẤT CẢ MÔN/CẤP/BỘ SÁCH)
@@ -1278,18 +1278,10 @@ def module_lesson_plan():
     st.markdown("</div>", unsafe_allow_html=True)
 
     # Hiển thị tóm tắt PPCT đã chọn (để user nhìn thấy ngay)
-ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
-ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
-ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
-st.caption(ppct_text)
-
-    # Xử lý Clear
-    if clear_btn:
-        st.session_state[_lp_key("history")] = []
-        st.session_state[_lp_key("last_html")] = ""
-        st.session_state[_lp_key("last_title")] = "GiaoAn"
-        st.toast("Đã xoá danh sách giáo án!", icon="🧹")
-        st.rerun()
+    ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
+    ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
+    ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
+    st.caption(ppct_text)
 
     # =========================
     # KPI Row
@@ -1455,65 +1447,65 @@ st.caption(ppct_text)
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
- # ===============================
-# XỬ LÝ NÚT BẤM
-# ===============================
-if generate_btn or regen_btn:
-    api_key = _lp_api_key()
-    if not api_key:
-        st.error("❌ Chưa có API Key.")
-        st.stop()
+    # ===============================
+    # XỬ LÝ NÚT BẤM
+    # ===============================
+    if generate_btn or regen_btn:
+        api_key = _lp_api_key()
+        if not api_key:
+            st.error("❌ Chưa có API Key.")
+            st.stop()
 
-    # Lấy dữ liệu từ form
-    lesson_title = st.session_state.get(_lp_key("lesson_title"), "").strip()
-    objectives = st.session_state.get(_lp_key("objectives"), "").strip()
-    yccd = st.session_state.get(_lp_key("yccd"), "").strip()
+        # Lấy dữ liệu từ form
+        lesson_title = st.session_state.get(_lp_key("lesson_title"), "").strip()
+        objectives = st.session_state.get(_lp_key("objectives"), "").strip()
+        yccd = st.session_state.get(_lp_key("yccd"), "").strip()
 
-    ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
-    ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
-    ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
+        ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
+        ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
+        ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
 
-    # ==== GỌI AI ====
-    prompt = f"""
-VAI TRÒ: Chuyên gia soạn giáo án theo CTGDPT 2018.
+        # ==== GỌI AI ====
+        prompt = f"""
+    VAI TRÒ: Chuyên gia soạn giáo án theo CTGDPT 2018.
 
-THÔNG TIN:
-- {ppct_text}
-- Môn: {subject}
-- Lớp: {grade}
-- Bộ sách: {book}
-- Thời lượng: {duration} phút
+    THÔNG TIN:
+    - {ppct_text}
+    - Môn: {subject}
+    - Lớp: {grade}
+    - Bộ sách: {book}
+    - Thời lượng: {duration} phút
 
-YÊU CẦU:
-- Soạn giáo án đầy đủ theo CTGDPT 2018.
-- Ghi rõ mục tiêu, hoạt động, đánh giá.
-- Bám sát {ppct_text}.
-"""
+    YÊU CẦU:
+    - Soạn giáo án đầy đủ theo CTGDPT 2018.
+    - Ghi rõ mục tiêu, hoạt động, đánh giá.
+    - Bám sát {ppct_text}.
+    """
 
-    try:
-        with st.spinner("🔄 Đang tạo giáo án..."):
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-3-pro-preview")
-            res = model.generate_content(prompt)
+        try:
+            with st.spinner("🔄 Đang tạo giáo án..."):
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel("gemini-3-pro-preview")
+                res = model.generate_content(prompt)
 
-        st.session_state[_lp_key("last_title")] = f"Giáo án - {ppct_text}"
-        st.session_state[_lp_key("last_html")] = res.text
+            st.session_state[_lp_key("last_title")] = f"Giáo án - {ppct_text}"
+            st.session_state[_lp_key("last_html")] = res.text
 
-        st.success("✅ Tạo giáo án thành công!")
-        st.rerun()
+            st.success("✅ Tạo giáo án thành công!")
+            st.rerun()
 
-    except Exception as e:
-        st.error(f"Lỗi AI: {e}")
+        except Exception as e:
+            st.error(f"Lỗi AI: {e}")
 
-# ===============================
-# NÚT XOÁ (PHẢI Ở NGOÀI if TRÊN)
-# ===============================
-if clear_btn:
-    st.session_state[_lp_key("history")] = []
-    st.session_state[_lp_key("last_html")] = ""
-    st.session_state[_lp_key("last_title")] = ""
-    st.toast("🧹 Đã xoá dữ liệu")
-    st.rerun()  
+    # ===============================
+    # NÚT XOÁ (PHẢI Ở NGOÀI if TRÊN)
+    # ===============================
+    if clear_btn:
+        st.session_state[_lp_key("history")] = []
+        st.session_state[_lp_key("last_html")] = ""
+        st.session_state[_lp_key("last_title")] = ""
+        st.toast("🧹 Đã xoá dữ liệu")
+        st.rerun()  
         
 # ==============================================================================
 # 6. LOGIN
@@ -1707,23 +1699,3 @@ else:
         module_advisor()
     else:
         main_app()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
