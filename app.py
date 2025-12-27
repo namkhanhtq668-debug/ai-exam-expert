@@ -1988,7 +1988,7 @@ def dashboard_screen():
       </div>
       <div class="dash-card">
         <div class="dash-title">💻 AI EXAM – Soạn giáo án Năng lực số</div>
-        <p class="dash-sub">Khung giáo án tích hợp năng lực số (mở rộng sau).</p>
+        <p class="dash-sub">Khung giáo án tích hợp năng lực số.</p>
         <div style="margin-top:10px"><span class="dash-badge">Digital Competency</span></div>
       </div>
       <div class="dash-card">
@@ -2053,7 +2053,7 @@ def module_digital():
         c1, c2, c3 = st.columns(3)
         with c1: textbook = st.selectbox("Bộ sách", ["Kết nối tri thức", "Chân trời sáng tạo", "Cánh Diều"], key="nls_book")
         with c2: subject = st.selectbox("Môn học", ["Toán", "Ngữ văn", "Tin học", "KHTN", "Lịch sử & Địa lí"], key="nls_sub")
-        with c3: grade = st.selectbox("Khối lớp", [f"Lớp {i}" for i in range(1, 13)], index=6, key="nls_grade") # Mặc định lớp 7
+        with c3: grade = st.selectbox("Khối lớp", [f"Lớp {i}" for i in range(1, 13)], index=6, key="nls_grade") # Mặc định lớp 3
         st.markdown('</div>', unsafe_allow_html=True)
 
         # 2. Tài liệu đầu vào
@@ -2224,4 +2224,5 @@ else:
         module_advisor()
     else:
         main_app()
+
 
