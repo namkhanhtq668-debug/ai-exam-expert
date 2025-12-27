@@ -1284,6 +1284,23 @@ def module_lesson_plan():
             clear_btn = st.form_submit_button("🧹 XÓA DS GIÁO ÁN", use_container_width=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+    # ====== SAFE READ: luôn lấy lại giá trị từ session_state để tránh NameError ======
+level_key = st.session_state.get(_lp_key("level"), "Tiểu học")
+
+curr_lvl = "tieu_hoc" if level_key == "Tiểu học" else "thcs" if level_key == "THCS" else "thpt"
+edu = EDUCATION_DATA[curr_lvl]
+
+grade = st.session_state.get(_lp_key("grade"), edu["grades"][0])
+subject = st.session_state.get(_lp_key("subject"), edu["subjects"][0])
+book = st.session_state.get(_lp_key("book"), BOOKS_LIST[0])
+
+template = st.session_state.get(_lp_key("template"), "Chuẩn hồ sơ (35’ – 4 hoạt động)")
+duration = st.session_state.get(_lp_key("duration"), 35)
+class_size = st.session_state.get(_lp_key("class_size"), 40)
+
+ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
+ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
+ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
 
     # Hiển thị tóm tắt PPCT đã chọn (để user nhìn thấy ngay)
     ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
@@ -1772,6 +1789,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
