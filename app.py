@@ -10,6 +10,95 @@ import time
 import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
+# ==============================================================================
+# [MODULE NLS] DỮ LIỆU & CẤU HÌNH CHO SOẠN GIÁO ÁN NĂNG LỰC SỐ
+# ==============================================================================
+
+# 1. Khung năng lực số (Chuyển từ constants.ts)
+NLS_FRAMEWORK_DATA = """
+KHUNG NĂNG LỰC SỐ (DIGITAL COMPETENCE FRAMEWORK) - CẬP NHẬT MỚI NHẤT
+MÔ TẢ CÁC MIỀN NĂNG LỰC VÀ YÊU CẦU CẦN ĐẠT (YCCĐ):
+
+1. MIỀN 1: KHAI THÁC DỮ LIỆU VÀ THÔNG TIN
+   1.1. Duyệt, tìm kiếm và lọc dữ liệu (CB1, CB2, TC1, NC1).
+   1.2. Đánh giá dữ liệu (CB1, TC1, NC1).
+   1.3. Quản lý dữ liệu (CB1, TC1).
+
+2. MIỀN 2: GIAO TIẾP VÀ HỢP TÁC
+   2.1. Tương tác qua công nghệ.
+   2.4. Hợp tác qua công nghệ.
+   2.5. Văn hóa mạng (Netiquette).
+
+3. MIỀN 3: SÁNG TẠO NỘI DUNG SỐ
+   3.1. Phát triển nội dung.
+   3.3. Bản quyền và giấy phép.
+
+4. MIỀN 4: AN TOÀN SỐ
+   4.2. Bảo vệ dữ liệu cá nhân.
+   4.3. Bảo vệ sức khỏe.
+
+5. MIỀN 5: GIẢI QUYẾT VẤN ĐỀ
+   5.2. Xác định nhu cầu và giải pháp.
+   5.3. Sử dụng sáng tạo.
+
+6. MIỀN 6: ỨNG DỤNG AI
+   6.1. Hiểu biết về AI.
+   6.2. Sử dụng công cụ AI.
+   6.3. Đạo đức AI.
+"""
+
+# 2. Câu lệnh hệ thống cho AI (System Prompt)
+SYSTEM_INSTRUCTION_NLS = f"""
+Bạn là chuyên gia tư vấn giáo dục cao cấp, chuyên về chuyển đổi số và Khung Năng lực số (NLS) tại Việt Nam.
+
+DỮ LIỆU KHUNG NĂNG LỰC SỐ:
+{NLS_FRAMEWORK_DATA}
+
+NHIỆM VỤ CỐT LÕI:
+1. Phân tích sâu sắc nội dung giáo án người dùng cung cấp để tìm ra các "điểm chạm" có thể tích hợp NLS một cách tự nhiên nhất.
+2. Lựa chọn các YCCĐ (Yêu cầu cần đạt) từ Khung NLS phù hợp với trình độ học sinh và đặc thù môn học.
+3. Nếu có file PPCT, bạn phải ưu tiên 100% nội dung NLS trong PPCT đó.
+
+CẤU TRÚC ĐẦU RA (MARKDOWN):
+I. THÔNG TIN CHUNG (Giữ nguyên từ giáo án gốc)
+II. MỤC TIÊU
+   1. Kiến thức, kĩ năng... (Giữ nguyên)
+   2. Năng lực chung... (Giữ nguyên)
+   3. Năng lực đặc thù... (Giữ nguyên)
+   4. Năng lực số (Bổ sung mới): 
+      - [Mã YCCĐ]: Mô tả biểu hiện cụ thể học sinh sẽ đạt được.
+III. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU SỐ (Bổ sung các công cụ cần thiết cho NLS)
+IV. TIẾN TRÌNH DẠY HỌC
+   - Tích hợp nội dung NLS vào các hoạt động bằng thẻ <u>...</u> hoặc in đậm. 
+   - Ví dụ: "HS sử dụng máy tính *thực hiện tra cứu thông tin trên trang web chính thống [1.1.CB2]*".
+
+QUY TẮC KỸ THUẬT:
+- Giữ nguyên các định dạng **Bold**, *Italic* của bản gốc.
+- Không thay đổi nội dung chuyên môn gốc, chỉ làm phong phú thêm.
+"""
+
+# 3. Hàm xử lý AI riêng cho Module này
+def generate_nls_lesson_plan(api_key, lesson_content, distribution_content, textbook, subject, grade, analyze_only):
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_INSTRUCTION_NLS)
+    
+    user_prompt = f"""
+    THÔNG TIN ĐẦU VÀO:
+    - Bộ sách: {textbook} | Môn: {subject} | Lớp: {grade}
+    - Chế độ: {"CHỈ PHÂN TÍCH (Không viết lại bài)" if analyze_only else "VIẾT LẠI GIÁO ÁN TÍCH HỢP NLS"}
+    
+    NỘI DUNG PPCT (Yêu cầu cứng):
+    {distribution_content if distribution_content else "Không có, tự đề xuất theo khung NLS."}
+    
+    NỘI DUNG GIÁO ÁN GỐC:
+    {lesson_content}
+    """
+    
+    try:
+        response = model.generate_content(user_prompt)
+        return response.text
+    except Exception as e:
+        return f"Lỗi AI: {str(e)}"
 from jsonschema import validate, Draft202012Validator # [MỚI] Thư viện Validate Schema
 
 # [MỚI] TÍCH HỢP MODULE SOẠN BÀI HƯỚNG B (Yêu cầu 4 file đi kèm)
@@ -1917,10 +2006,152 @@ def dashboard_screen():
 
 # --------- Modules placeholder (thầy có thể thay bằng module thật sau) ----------
 def module_digital():
-    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 💻 AI EXAM – Soạn giáo án Năng lực số")
-    st.info("Mô-đun đang hoàn thiện. (Sẽ tích hợp sau)")
-    st.markdown("</div>", unsafe_allow_html=True)
+    # --- CSS Tùy chỉnh cho Module NLS (Giống giao diện React) ---
+    st.markdown("""
+    <style>
+        .nls-container { background-color: #F8FAFC; padding: 20px; border-radius: 15px; }
+        .nls-header { 
+            background: linear-gradient(90deg, #1E3A8A 0%, #3B82F6 100%); 
+            color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .nls-card { 
+            background: white; padding: 25px; border-radius: 12px; 
+            border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; 
+        }
+        .nls-title { color: #1E3A8A; font-weight: 700; font-size: 16px; margin-bottom: 15px; border-left: 4px solid #3B82F6; padding-left: 10px; }
+        .nls-upload-box { 
+            border: 2px dashed #93C5FD; background: #EFF6FF; border-radius: 10px; 
+            padding: 20px; text-align: center; color: #1E40AF; font-size: 14px;
+        }
+        .nls-btn {
+            width: 100%; background: linear-gradient(90deg, #2563EB 0%, #1D4ED8 100%);
+            color: white; font-weight: bold; padding: 12px; border-radius: 8px;
+            text-align: center; border: none; cursor: pointer;
+        }
+        .nls-btn:hover { opacity: 0.9; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # --- Header ---
+    st.markdown("""
+    <div class="nls-header">
+        <div>
+            <h2 style="margin:0; font-size: 22px;">💻 AI EXAM - SOẠN GIÁO ÁN NLS</h2>
+            <p style="margin:5px 0 0 0; opacity: 0.9; font-size: 14px;">Hệ thống tích hợp Năng lực số tự động cho Giáo viên</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # --- Layout Chính: 2 Cột (Form bên trái, Hướng dẫn bên phải) ---
+    col_left, col_right = st.columns([2, 1])
+
+    with col_left:
+        # 1. Thông tin bài dạy
+        st.markdown('<div class="nls-card">', unsafe_allow_html=True)
+        st.markdown('<div class="nls-title">1. Thông tin Kế hoạch bài dạy</div>', unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        with c1: textbook = st.selectbox("Bộ sách", ["Kết nối tri thức", "Chân trời sáng tạo", "Cánh Diều"], key="nls_book")
+        with c2: subject = st.selectbox("Môn học", ["Toán", "Ngữ văn", "Tin học", "KHTN", "Lịch sử & Địa lí"], key="nls_sub")
+        with c3: grade = st.selectbox("Khối lớp", [f"Lớp {i}" for i in range(1, 13)], index=6, key="nls_grade") # Mặc định lớp 7
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # 2. Tài liệu đầu vào
+        st.markdown('<div class="nls-card">', unsafe_allow_html=True)
+        st.markdown('<div class="nls-title">2. Tài liệu đầu vào (Upload file Word)</div>', unsafe_allow_html=True)
+        
+        c_up1, c_up2 = st.columns(2)
+        with c_up1:
+            st.markdown('<div class="nls-upload-box">📂 Tải lên Giáo án gốc<br>(Bắt buộc)</div>', unsafe_allow_html=True)
+            file_lesson = st.file_uploader("Chọn file Giáo án", type=['docx'], key="nls_u1", label_visibility="collapsed")
+        
+        with c_up2:
+            st.markdown('<div class="nls-upload-box">📊 Tải lên PPCT<br>(Tùy chọn để AI tham khảo)</div>', unsafe_allow_html=True)
+            file_ppct = st.file_uploader("Chọn file PPCT", type=['docx'], key="nls_u2", label_visibility="collapsed")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # 3. Tùy chọn & Xử lý
+        st.markdown('<div class="nls-card">', unsafe_allow_html=True)
+        st.markdown('<div class="nls-title">3. Tùy chọn xử lý</div>', unsafe_allow_html=True)
+        
+        check_col1, check_col2 = st.columns(2)
+        with check_col1: analyze_only = st.checkbox("Chỉ phân tích (Không sửa nội dung)", key="nls_chk1")
+        with check_col2: detailed_report = st.checkbox("Kèm báo cáo giải trình chi tiết", key="nls_chk2")
+
+        st.write("") # Spacer
+        
+        # Nút bấm xử lý
+        if st.button("✨ BẮT ĐẦU TÍCH HỢP NĂNG LỰC SỐ", type="primary", use_container_width=True):
+            api_key = st.session_state.get("api_key") or SYSTEM_GOOGLE_KEY
+            if not api_key:
+                st.error("⚠️ Vui lòng nhập API Key ở Tab Hồ Sơ trước!")
+            elif not file_lesson:
+                st.error("⚠️ Vui lòng tải lên file Giáo án gốc!")
+            else:
+                with st.spinner("🤖 AI đang phân tích và tích hợp năng lực số... Vui lòng đợi 30s"):
+                    # Đọc nội dung file
+                    lesson_text = read_file_content(file_lesson, 'docx')
+                    ppct_text = read_file_content(file_ppct, 'docx') if file_ppct else ""
+                    
+                    # Gọi hàm xử lý (Đã định nghĩa ở Bước 1)
+                    result_text = generate_nls_lesson_plan(
+                        api_key, lesson_text, ppct_text, textbook, subject, grade, analyze_only
+                    )
+                    
+                    # Lưu kết quả vào session
+                    st.session_state['nls_result'] = result_text
+                    st.success("✅ Đã xử lý xong!")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_right:
+        # Sidebar thông tin (Giống UI React)
+        st.markdown("""
+        <div class="nls-card" style="background:#EFF6FF; border:1px solid #BFDBFE;">
+            <h4 style="color:#1E3A8A; margin-top:0;">💡 Hướng dẫn nhanh</h4>
+            <ol style="font-size:14px; padding-left:15px; color:#334155;">
+                <li>Chọn <b>Bộ sách, Môn, Lớp</b>.</li>
+                <li>Tải lên <b>Giáo án gốc</b> (File Word .docx).</li>
+                <li>Tải lên <b>PPCT</b> (Nếu muốn AI bám sát yêu cầu trường).</li>
+                <li>Bấm <b>Bắt đầu</b> và đợi kết quả.</li>
+            </ol>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="nls-card">
+            <h4 style="color:#1E3A8A; margin-top:0;">🌐 Các miền Năng lực số</h4>
+            <ul style="font-size:13px; padding-left:15px; color:#475569;">
+                <li>Khai thác dữ liệu & thông tin</li>
+                <li>Giao tiếp & Hợp tác số</li>
+                <li>Sáng tạo nội dung số</li>
+                <li>An toàn & An ninh số</li>
+                <li>Giải quyết vấn đề với công nghệ</li>
+                <li><b>Ứng dụng AI (Mới)</b></li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # --- Hiển thị kết quả ---
+    if 'nls_result' in st.session_state and st.session_state['nls_result']:
+        st.markdown("---")
+        st.subheader("📄 KẾT QUẢ GIÁO ÁN NLS")
+        
+        # Tab xem trước và tải về
+        tab_view, tab_download = st.tabs(["Xem trước", "Tải về"])
+        
+        with tab_view:
+            st.markdown(st.session_state['nls_result'])
+            
+        with tab_download:
+            # Tái sử dụng hàm create_word_doc có sẵn trong app.py cũ
+            doc_html = st.session_state['nls_result'].replace("\n", "<br>") # Chuyển đổi sơ bộ sang HTML
+            st.download_button(
+                label="⬇️ Tải Giáo án Word (.doc)",
+                data=create_word_doc(doc_html, "Giao_An_NLS"),
+                file_name=f"Giao_An_NLS_{subject}_{grade}.doc",
+                mime="application/msword",
+                type="primary"
+            )
 
 def module_advisor():
     st.markdown("<div class='css-card'>", unsafe_allow_html=True)
@@ -1993,3 +2224,4 @@ else:
         module_advisor()
     else:
         main_app()
+
