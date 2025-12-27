@@ -1306,7 +1306,7 @@ ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
 # =========================
 # KPI Row
 # =========================
-    k1, k2, k3, k4 = st.columns(4)
+k1, k2, k3, k4 = st.columns(4)
 
     with k1:
         st.markdown(
@@ -1784,6 +1784,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
