@@ -1284,6 +1284,7 @@ def module_lesson_plan():
             clear_btn = st.form_submit_button("🧹 XÓA DS GIÁO ÁN", use_container_width=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+    st.caption(ppct_text)
     # ====== SAFE READ: luôn lấy lại giá trị từ session_state để tránh NameError ======
 level_key = st.session_state.get(_lp_key("level"), "Tiểu học")
 
@@ -1301,7 +1302,6 @@ class_size = st.session_state.get(_lp_key("class_size"), 40)
 ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
 ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
 ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
-    st.caption(ppct_text)
 
     # =========================
     # KPI Row
@@ -1784,6 +1784,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
