@@ -11,8 +11,7 @@ import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 
-# [MỚI] TÍCH HỢP MODULE SOẠN BÀI HƯỚNG B (Yêu cầu 4 file đi kèm: ppct.py, lesson_schema.py, lesson_ai.py, lesson_ui.py)
-# Cơ chế an toàn: Nếu thiếu file thì vẫn chạy web được (nhưng chỉ dùng được bản cũ)
+# [MỚI - CHỈ THÊM VÀO] Tích hợp module mới (Nếu thầy đã tạo file lesson_ui.py)
 try:
     from lesson_ui import module_lesson_plan_B
 except ImportError:
@@ -1760,7 +1759,7 @@ else:
     if page == "dashboard":
         dashboard_screen()
     elif page == "lesson_plan":
-        # [MỚI] CHỌN MODULE: Ưu tiên Hướng B (PPCT thật), nếu lỗi fallback về cũ
+        # [MỚI - SỬA ĐỔI] CHỌN MODULE: Ưu tiên Hướng B (PPCT thật), nếu lỗi fallback về cũ
         if module_lesson_plan_B:
             module_lesson_plan_B(
                 SYSTEM_GOOGLE_KEY=SYSTEM_GOOGLE_KEY,
