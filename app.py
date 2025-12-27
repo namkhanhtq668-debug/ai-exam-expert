@@ -11,8 +11,8 @@ import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 
-# [MỚI] TÍCH HỢP MODULE SOẠN BÀI HƯỚNG B (Yêu cầu 4 file đi kèm)
-# Dùng try-except để không làm sập web nếu thầy chưa kịp tạo file lesson_ui.py
+# [MỚI] TÍCH HỢP MODULE SOẠN BÀI HƯỚNG B (Yêu cầu 4 file đi kèm: ppct.py, lesson_schema.py, lesson_ai.py, lesson_ui.py)
+# Cơ chế an toàn: Nếu thiếu file thì vẫn chạy web được (nhưng chỉ dùng được bản cũ)
 try:
     from lesson_ui import module_lesson_plan_B
 except ImportError:
@@ -1213,16 +1213,11 @@ def module_lesson_plan():
         with r1c4:
             subject = st.selectbox("Môn học", edu["subjects"], key=_lp_key("subject"))
 
-        # =========================
-        # CHỌN BỘ SÁCH (KHÔNG CÓ SCOPE)
-        # =========================
-        r2c1 = st.columns([1])[0]
+        r2c1, r2c2 = st.columns([2.2, 1.2])
         with r2c1:
-            book = st.selectbox(
-                "Bộ sách",
-                BOOKS_LIST,
-                key=_lp_key("book")
-            )
+            book = st.selectbox("Bộ sách", BOOKS_LIST, key=_lp_key("book"))
+        with r2c2:
+            scope = st.selectbox("Thời điểm/Phạm vi", FULL_SCOPE_LIST, key=_lp_key("scope"))
 
         # =========================
         # PPCT (Bước A - nhanh): Chọn tuần/tiết bằng số
@@ -1783,6 +1778,3 @@ else:
         module_advisor()
     else:
         main_app()
-
-
-
