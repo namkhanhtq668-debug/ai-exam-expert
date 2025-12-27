@@ -1654,9 +1654,15 @@ def login_screen():
 # ==============================================================================
 
 def dashboard_screen():
-    # Dashboard 4 thẻ card, an toàn (CSS đã có sẵn .css-card)
     st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 🏠 Dashboard – WEB AI GIÁO VIÊN - BẢN QUYỀN THẦY TUẤN PHÁT TRIỂN. SĐT: 0918198687")
+
+    st.markdown("""
+    <h2>🏠 Dashboard – AIEXAM.VN – Nền tảng AI Giáo dục</h2>
+    <p><b>© Bản quyền phát triển:</b> Thầy Trần Thanh Tuấn</p>
+    <p><b>📞 Liên hệ hỗ trợ:</b> 0918 198 687</p>
+    <p><b>🌐 Website:</b> https://aiexam.vn</p>
+    """, unsafe_allow_html=True)
+
     st.caption("Chọn mô-đun ở thanh bên trái để sử dụng.")
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1760,4 +1766,5 @@ else:
         module_advisor()
     else:
         main_app()
+
 
