@@ -10,6 +10,7 @@ import time
 import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
+from jsonschema import validate, Draft202012Validator # [MỚI] Thư viện Validate Schema
 
 # [MỚI] TÍCH HỢP MODULE SOẠN BÀI HƯỚNG B (Yêu cầu 4 file đi kèm)
 # Dùng try-except để không làm sập web nếu thầy chưa kịp tạo file lesson_ui.py
