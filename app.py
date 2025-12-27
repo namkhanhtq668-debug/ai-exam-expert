@@ -1303,9 +1303,9 @@ ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
 ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
 ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
 
-    # =========================
-    # KPI Row
-    # =========================
+# =========================
+# KPI Row
+# =========================
     k1, k2, k3, k4 = st.columns(4)
 
     with k1:
@@ -1784,6 +1784,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
