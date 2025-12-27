@@ -1301,11 +1301,6 @@ class_size = st.session_state.get(_lp_key("class_size"), 40)
 ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
 ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
 ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
-
-    # Hiển thị tóm tắt PPCT đã chọn (để user nhìn thấy ngay)
-    ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
-    ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
-    ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
     st.caption(ppct_text)
 
     # =========================
@@ -1789,6 +1784,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
