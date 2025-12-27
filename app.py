@@ -1212,19 +1212,26 @@ def module_lesson_plan():
 
         with r1c4:
             subject = st.selectbox("Môn học", edu["subjects"], key=_lp_key("subject"))
-            
+
+        r2c1, r2c2 = st.columns([2.2, 1.2])
+        with r2c1:
+            book = st.selectbox("Bộ sách", BOOKS_LIST, key=_lp_key("book"))
+        
+        # [SỬA ĐỔI THEO YÊU CẦU]: Thay scope bằng nhập Tuần (số)
+        with r2c2:
+             ppct_week = st.number_input(
+                "Tuần (PPCT)",
+                min_value=1, max_value=40, value=1, step=1,
+                key=_lp_key("ppct_week")
+            )
+             # Giữ scope ảo để truyền vào hàm cũ nếu cần, tránh lỗi logic cũ
+             scope = f"Tuần {ppct_week}" 
+
         # =========================
         # PPCT (Bước A - nhanh): Chọn tuần/tiết bằng số
         # =========================
-        r2c3, r2c4 = st.columns([1, 1])
+        r2c3, r2c4 = st.columns([1, 2.2])
         with r2c3:
-            ppct_week = st.number_input(
-                "Tuần (PPCT)",
-                min_value=1, max_value=40,
-                value=1, step=1,
-                key=_lp_key("ppct_week")
-            )
-        with r2c4:
             ppct_period = st.number_input(
                 "Tiết (PPCT)",
                 min_value=1, max_value=10,
@@ -1232,6 +1239,10 @@ def module_lesson_plan():
                 key=_lp_key("ppct_period")
             )
         
+        # [SỬA ĐỔI THEO YÊU CẦU]: Nhập tên bài học
+        with r2c4:
+             lesson_title_input = st.text_input("Tên bài học (PPCT)", key=_lp_key("lesson_title_input"))
+    
         r3c1, r3c2, r3c3 = st.columns([1.6, 1.0, 1.0])
         with r3c1:
             template = st.selectbox(
@@ -1284,29 +1295,17 @@ def module_lesson_plan():
             clear_btn = st.form_submit_button("🧹 XÓA DS GIÁO ÁN", use_container_width=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # Hiển thị tóm tắt PPCT đã chọn (để user nhìn thấy ngay)
+    ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
+    ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
+    ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val} - Bài: {lesson_title_input}"
     st.caption(ppct_text)
-    # ====== SAFE READ: luôn lấy lại giá trị từ session_state để tránh NameError ======
-level_key = st.session_state.get(_lp_key("level"), "Tiểu học")
 
-curr_lvl = "tieu_hoc" if level_key == "Tiểu học" else "thcs" if level_key == "THCS" else "thpt"
-edu = EDUCATION_DATA[curr_lvl]
-
-grade = st.session_state.get(_lp_key("grade"), edu["grades"][0])
-subject = st.session_state.get(_lp_key("subject"), edu["subjects"][0])
-book = st.session_state.get(_lp_key("book"), BOOKS_LIST[0])
-
-template = st.session_state.get(_lp_key("template"), "Chuẩn hồ sơ (35’ – 4 hoạt động)")
-duration = st.session_state.get(_lp_key("duration"), 35)
-class_size = st.session_state.get(_lp_key("class_size"), 40)
-
-ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
-ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
-ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
-
-# =========================
-# KPI Row
-# =========================
-k1, k2, k3, k4 = st.columns(4)
+    # =========================
+    # KPI Row
+    # =========================
+    k1, k2, k3, k4 = st.columns(4)
 
     with k1:
         st.markdown(
@@ -1372,10 +1371,12 @@ k1, k2, k3, k4 = st.columns(4)
     if active_page == "1) Thiết lập & Mục tiêu":
         # (giữ nguyên nội dung của with tab1:)
         st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
+        # [SỬA ĐỔI] Lấy giá trị từ ô nhập ở form trên
         st.text_input(
-            "Tên bài/Chủ đề",
-            key=_lp_key("lesson_title"),
-            placeholder="Ví dụ: Các số đến 10 / Luyện từ và câu / Bài 5 ..."
+            "Tên bài/Chủ đề (Đã nhập ở trên)",
+            value=lesson_title_input,
+            disabled=True, # Khóa lại vì đã nhập ở trên
+            key=_lp_key("lesson_title_display")
         )
         st.text_area(
             "Mục tiêu (AI sẽ chuẩn hoá theo CTGDPT 2018)",
@@ -1498,72 +1499,42 @@ k1, k2, k3, k4 = st.columns(4)
             st.error("❌ Chưa có API Key.")
             st.stop()
 
-        # Lấy dữ liệu người dùng đã nhập (các tab)
-        lesson_title = st.session_state.get(_lp_key("lesson_title"), "").strip()
+        # Lấy dữ liệu từ form
+        # lesson_title = st.session_state.get(_lp_key("lesson_title"), "").strip() <-- Bỏ dòng cũ
+        lesson_title = lesson_title_input.strip() # Lấy từ biến input mới
         objectives = st.session_state.get(_lp_key("objectives"), "").strip()
         yccd = st.session_state.get(_lp_key("yccd"), "").strip()
 
-        # PPCT
         ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
         ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
         ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
 
-        # Gom ghi chú GV để AI bám sát (từ các ô đã có)
-        teacher_note = f"""
-{ppct_text}
-Mẫu: {template} | Mức chi tiết: {detail_level}
-Ưu tiên phương pháp: {", ".join(method_focus) if method_focus else "Chuẩn"}
+        # ==== GỌI AI ====
+        prompt = f"""
+    VAI TRÒ: Chuyên gia soạn giáo án theo CTGDPT 2018.
 
-Mục tiêu GV nhập:
-{objectives if objectives else "(trống)"}
+    THÔNG TIN:
+    - {ppct_text}
+    - Môn: {subject}
+    - Lớp: {grade}
+    - Bộ sách: {book}
+    - Tên bài: {lesson_title}
+    - Thời lượng: {duration} phút
 
-YCCĐ GV nhập:
-{yccd if yccd else "(trống)"}
+    YÊU CẦU:
+    - Soạn giáo án đầy đủ theo CTGDPT 2018.
+    - Ghi rõ mục tiêu, hoạt động, đánh giá.
+    - Bám sát {ppct_text}.
+    """
 
-Gợi ý hoạt động GV:
-- Khởi động: {st.session_state.get(_lp_key("a1"), "")}
-- Hình thành: {st.session_state.get(_lp_key("a2"), "")}
-- Luyện tập: {st.session_state.get(_lp_key("a3"), "")}
-- Vận dụng: {st.session_state.get(_lp_key("a4"), "")}
-
-Phân hoá: {st.session_state.get(_lp_key("diff"), "")}
-Hỗ trợ đặc thù: {st.session_state.get(_lp_key("support"), "")}
-
-Đánh giá trong giờ: {st.session_state.get(_lp_key("assess"), "")}
-Rubric: {st.session_state.get(_lp_key("rubric"), "")}
-
-Đồ dùng: {st.session_state.get(_lp_key("materials"), "")}
-Học liệu số/CNTT: {st.session_state.get(_lp_key("digital"), "")}
-"""
-
-        # 1) Tạo system_prompt CHUẨN MẪU (khóa cấu trúc)
-        system_prompt = _lp_build_lesson_system_prompt(
-            level_key=level_key,
-            subject=subject,
-            grade=grade,
-            book=book,
-            scope=scope,
-            school_year=school_year
-        )
-
-        # 2) Gọi AI theo chuẩn JSON
         try:
-            with st.spinner("🔄 Đang tạo giáo án chuẩn mẫu..."):
-                data = _lp_generate_lesson_plan(
-                    api_key=api_key,
-                    system_prompt=system_prompt,
-                    user_note=teacher_note,
-                    lesson_name=lesson_title if lesson_title else f"{subject} {grade} ({ppct_text})",
-                    duration_min=int(duration),
-                    class_size=int(class_size)
-                )
+            with st.spinner("🔄 Đang tạo giáo án..."):
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel("gemini-3-pro-preview")
+                res = model.generate_content(prompt)
 
-            # 3) Lưu kết quả
-            st.session_state[_lp_key("last_title")] = data.get("title", f"Giáo án - {ppct_text}")
-            st.session_state[_lp_key("last_html")] = data.get("planHtml", "")
-
-            # 4) Tự nhảy sang Xem trước & Xuất (KHÔNG đụng key widget)
-            _lp_set_active("6) Xem trước & Xuất")
+            st.session_state[_lp_key("last_title")] = f"Giáo án - {ppct_text}"
+            st.session_state[_lp_key("last_html")] = res.text
 
             st.success("✅ Tạo giáo án thành công!")
             st.rerun()
@@ -1784,12 +1755,3 @@ else:
         module_advisor()
     else:
         main_app()
-
-
-
-
-
-
-
-
-
