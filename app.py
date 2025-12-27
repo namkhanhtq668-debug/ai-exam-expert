@@ -10,18 +10,13 @@ import time
 import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
-from jsonschema import validate, Draft202012Validator # [MỚI] Thư viện Validate Schema
 
-# ==============================================================================
-# [SỬA LỖI NAME ERROR] KHỞI TẠO BIẾN AN TOÀN TRƯỚC KHI IMPORT
-# ==============================================================================
-module_lesson_plan_B = None # <-- Khởi tạo mặc định là None để tránh lỗi NameError
-
-# Cố gắng import module mới (nếu có file lesson_ui.py)
+# [MỚI] TÍCH HỢP MODULE SOẠN BÀI HƯỚNG B (Yêu cầu 4 file đi kèm)
+# Dùng try-except để không làm sập web nếu thầy chưa kịp tạo file lesson_ui.py
 try:
     from lesson_ui import module_lesson_plan_B
 except ImportError:
-    pass # Nếu lỗi import, biến vẫn là None, web sẽ chạy module cũ
+    module_lesson_plan_B = None
 
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
@@ -1221,23 +1216,21 @@ def module_lesson_plan():
         r2c1, r2c2 = st.columns([2.2, 1.2])
         with r2c1:
             book = st.selectbox("Bộ sách", BOOKS_LIST, key=_lp_key("book"))
-        
-        # [SỬA ĐỔI THEO YÊU CẦU]: Thay scope bằng nhập Tuần (số)
         with r2c2:
-             ppct_week = st.number_input(
+            scope = st.selectbox("Thời điểm/Phạm vi", FULL_SCOPE_LIST, key=_lp_key("scope"))
+
+        # =========================
+        # PPCT (Bước A - nhanh): Chọn tuần/tiết bằng số
+        # =========================
+        r2c3, r2c4 = st.columns([1, 1])
+        with r2c3:
+            ppct_week = st.number_input(
                 "Tuần (PPCT)",
                 min_value=1, max_value=40,
                 value=1, step=1,
                 key=_lp_key("ppct_week")
             )
-             # Giữ scope ảo để truyền vào hàm cũ nếu cần, tránh lỗi logic cũ
-             scope = f"Tuần {ppct_week}"
-
-        # =========================
-        # PPCT (Bước A - nhanh): Chọn tuần/tiết bằng số
-        # =========================
-        r2c3, r2c4 = st.columns([1, 2.2])
-        with r2c3:
+        with r2c4:
             ppct_period = st.number_input(
                 "Tiết (PPCT)",
                 min_value=1, max_value=10,
@@ -1245,10 +1238,6 @@ def module_lesson_plan():
                 key=_lp_key("ppct_period")
             )
         
-        # [SỬA ĐỔI THEO YÊU CẦU]: Nhập tên bài học
-        with r2c4:
-             lesson_title_input = st.text_input("Tên bài học (PPCT)", key=_lp_key("lesson_title_input"))
-    
         r3c1, r3c2, r3c3 = st.columns([1.6, 1.0, 1.0])
         with r3c1:
             template = st.selectbox(
@@ -1305,7 +1294,7 @@ def module_lesson_plan():
     # Hiển thị tóm tắt PPCT đã chọn (để user nhìn thấy ngay)
     ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
     ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
-    ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val} - Bài: {lesson_title_input}"
+    ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
     st.caption(ppct_text)
 
     # =========================
@@ -1354,7 +1343,7 @@ def module_lesson_plan():
     ]
 
     # IMPORTANT: đừng set st.session_state["lp_active_page_admin"] sau khi widget tạo
-    # Ta dùng 2 key: 
+    # Ta dùng 2 key: 
     # - lp_active_page_admin_state: state điều khiển bằng code
     # - lp_active_page_admin: widget key (Streamlit quản lý)
     if "lp_active_page_admin_state" not in st.session_state:
@@ -1377,12 +1366,10 @@ def module_lesson_plan():
     if active_page == "1) Thiết lập & Mục tiêu":
         # (giữ nguyên nội dung của with tab1:)
         st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
-        # [SỬA ĐỔI] Lấy giá trị từ ô nhập ở form trên
         st.text_input(
-            "Tên bài/Chủ đề (Đã nhập ở trên)",
-            value=lesson_title_input,
-            disabled=True, # Khóa lại vì đã nhập ở trên
-            key=_lp_key("lesson_title_display")
+            "Tên bài/Chủ đề",
+            key=_lp_key("lesson_title"),
+            placeholder="Ví dụ: Các số đến 10 / Luyện từ và câu / Bài 5 ..."
         )
         st.text_area(
             "Mục tiêu (AI sẽ chuẩn hoá theo CTGDPT 2018)",
@@ -1444,7 +1431,7 @@ def module_lesson_plan():
         )
         st.markdown("</div>", unsafe_allow_html=True)
 
-    else:  # "6) Xem trước & Xuất"
+    else:  # "6) Xem trước & Xuất"
         st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
         last_html = st.session_state.get(_lp_key("last_html"), "")
         if not last_html:
@@ -1506,8 +1493,7 @@ def module_lesson_plan():
             st.stop()
 
         # Lấy dữ liệu từ form
-        # lesson_title = st.session_state.get(_lp_key("lesson_title"), "").strip() <-- Bỏ dòng cũ
-        lesson_title = lesson_title_input.strip() # Lấy từ biến input mới
+        lesson_title = st.session_state.get(_lp_key("lesson_title"), "").strip()
         objectives = st.session_state.get(_lp_key("objectives"), "").strip()
         yccd = st.session_state.get(_lp_key("yccd"), "").strip()
 
