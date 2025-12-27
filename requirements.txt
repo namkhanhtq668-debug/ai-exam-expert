@@ -1,7 +1,9 @@
 streamlit
 google-generativeai
+jsonschema==4.23.0
 supabase
 pandas
 python-docx
 openpyxl
 flask
+
