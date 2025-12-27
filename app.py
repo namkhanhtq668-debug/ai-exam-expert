@@ -1212,10 +1212,6 @@ def module_lesson_plan():
 
         with r1c4:
             subject = st.selectbox("Môn học", edu["subjects"], key=_lp_key("subject"))
-
-        r2c1 = st.columns([1])[0]
-        with r2c1:
-             book = st.selectbox("Bộ sách", BOOKS_LIST, key=_lp_key("book"))
             
         # =========================
         # PPCT (Bước A - nhanh): Chọn tuần/tiết bằng số
@@ -1776,6 +1772,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
