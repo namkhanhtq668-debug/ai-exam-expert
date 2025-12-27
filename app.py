@@ -1213,12 +1213,10 @@ def module_lesson_plan():
         with r1c4:
             subject = st.selectbox("Môn học", edu["subjects"], key=_lp_key("subject"))
 
-        r2c1, r2c2 = st.columns([2.2, 1.2])
+       r2c1 = st.columns([1])[0]
         with r2c1:
             book = st.selectbox("Bộ sách", BOOKS_LIST, key=_lp_key("book"))
-        with r2c2:
-            scope = st.selectbox("Thời điểm/Phạm vi", FULL_SCOPE_LIST, key=_lp_key("scope"))
-
+            
         # =========================
         # PPCT (Bước A - nhanh): Chọn tuần/tiết bằng số
         # =========================
@@ -1492,41 +1490,72 @@ def module_lesson_plan():
             st.error("❌ Chưa có API Key.")
             st.stop()
 
-        # Lấy dữ liệu từ form
+        # Lấy dữ liệu người dùng đã nhập (các tab)
         lesson_title = st.session_state.get(_lp_key("lesson_title"), "").strip()
         objectives = st.session_state.get(_lp_key("objectives"), "").strip()
         yccd = st.session_state.get(_lp_key("yccd"), "").strip()
 
+        # PPCT
         ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
         ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
         ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}"
 
-        # ==== GỌI AI ====
-        prompt = f"""
-    VAI TRÒ: Chuyên gia soạn giáo án theo CTGDPT 2018.
+        # Gom ghi chú GV để AI bám sát (từ các ô đã có)
+        teacher_note = f"""
+{ppct_text}
+Mẫu: {template} | Mức chi tiết: {detail_level}
+Ưu tiên phương pháp: {", ".join(method_focus) if method_focus else "Chuẩn"}
 
-    THÔNG TIN:
-    - {ppct_text}
-    - Môn: {subject}
-    - Lớp: {grade}
-    - Bộ sách: {book}
-    - Tên bài: {lesson_title}
-    - Thời lượng: {duration} phút
+Mục tiêu GV nhập:
+{objectives if objectives else "(trống)"}
 
-    YÊU CẦU:
-    - Soạn giáo án đầy đủ theo CTGDPT 2018.
-    - Ghi rõ mục tiêu, hoạt động, đánh giá.
-    - Bám sát {ppct_text}.
-    """
+YCCĐ GV nhập:
+{yccd if yccd else "(trống)"}
 
+Gợi ý hoạt động GV:
+- Khởi động: {st.session_state.get(_lp_key("a1"), "")}
+- Hình thành: {st.session_state.get(_lp_key("a2"), "")}
+- Luyện tập: {st.session_state.get(_lp_key("a3"), "")}
+- Vận dụng: {st.session_state.get(_lp_key("a4"), "")}
+
+Phân hoá: {st.session_state.get(_lp_key("diff"), "")}
+Hỗ trợ đặc thù: {st.session_state.get(_lp_key("support"), "")}
+
+Đánh giá trong giờ: {st.session_state.get(_lp_key("assess"), "")}
+Rubric: {st.session_state.get(_lp_key("rubric"), "")}
+
+Đồ dùng: {st.session_state.get(_lp_key("materials"), "")}
+Học liệu số/CNTT: {st.session_state.get(_lp_key("digital"), "")}
+"""
+
+        # 1) Tạo system_prompt CHUẨN MẪU (khóa cấu trúc)
+        system_prompt = _lp_build_lesson_system_prompt(
+            level_key=level_key,
+            subject=subject,
+            grade=grade,
+            book=book,
+            scope=scope,
+            school_year=school_year
+        )
+
+        # 2) Gọi AI theo chuẩn JSON
         try:
-            with st.spinner("🔄 Đang tạo giáo án..."):
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel("gemini-3-pro-preview")
-                res = model.generate_content(prompt)
+            with st.spinner("🔄 Đang tạo giáo án chuẩn mẫu..."):
+                data = _lp_generate_lesson_plan(
+                    api_key=api_key,
+                    system_prompt=system_prompt,
+                    user_note=teacher_note,
+                    lesson_name=lesson_title if lesson_title else f"{subject} {grade} ({ppct_text})",
+                    duration_min=int(duration),
+                    class_size=int(class_size)
+                )
 
-            st.session_state[_lp_key("last_title")] = f"Giáo án - {ppct_text}"
-            st.session_state[_lp_key("last_html")] = res.text
+            # 3) Lưu kết quả
+            st.session_state[_lp_key("last_title")] = data.get("title", f"Giáo án - {ppct_text}")
+            st.session_state[_lp_key("last_html")] = data.get("planHtml", "")
+
+            # 4) Tự nhảy sang Xem trước & Xuất (KHÔNG đụng key widget)
+            _lp_set_active("6) Xem trước & Xuất")
 
             st.success("✅ Tạo giáo án thành công!")
             st.rerun()
@@ -1747,3 +1776,4 @@ else:
         module_advisor()
     else:
         main_app()
+
