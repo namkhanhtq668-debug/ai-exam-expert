@@ -11,6 +11,13 @@ import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 
+# [MỚI] TÍCH HỢP MODULE SOẠN BÀI HƯỚNG B (Yêu cầu 4 file đi kèm)
+# Dùng try-except để không làm sập web nếu thầy chưa kịp tạo file lesson_ui.py
+try:
+    from lesson_ui import module_lesson_plan_B
+except ImportError:
+    module_lesson_plan_B = None
+
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
 # ==============================================================================
@@ -1654,15 +1661,9 @@ def login_screen():
 # ==============================================================================
 
 def dashboard_screen():
+    # Dashboard 4 thẻ card, an toàn (CSS đã có sẵn .css-card)
     st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-
-    st.markdown("""
-    <h2>🏠 Dashboard – AIEXAM.VN – Nền tảng AI Giáo dục</h2>
-    <p><b>© Bản quyền phát triển:</b> Thầy Trần Thanh Tuấn</p>
-    <p><b>📞 Liên hệ hỗ trợ:</b> 0918 198 687</p>
-    <p><b>🌐 Website:</b> https://aiexam.vn</p>
-    """, unsafe_allow_html=True)
-
+    st.markdown("## 🏠 Dashboard – WEB AI GIÁO VIÊN")
     st.caption("Chọn mô-đun ở thanh bên trái để sử dụng.")
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1759,12 +1760,21 @@ else:
     if page == "dashboard":
         dashboard_screen()
     elif page == "lesson_plan":
-        module_lesson_plan()
+        # [MỚI] CHỌN MODULE: Ưu tiên Hướng B (PPCT thật), nếu lỗi fallback về cũ
+        if module_lesson_plan_B:
+            module_lesson_plan_B(
+                SYSTEM_GOOGLE_KEY=SYSTEM_GOOGLE_KEY,
+                BOOKS_LIST=BOOKS_LIST,
+                EDUCATION_DATA=EDUCATION_DATA,
+                FULL_SCOPE_LIST=FULL_SCOPE_LIST,
+                create_word_doc_func=create_word_doc,
+                model_name="gemini-2.0-flash-exp"
+            )
+        else:
+            module_lesson_plan()
     elif page == "digital":
         module_digital()
     elif page == "advisor":
         module_advisor()
     else:
         main_app()
-
-
