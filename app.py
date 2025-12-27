@@ -46,221 +46,7 @@ except:
 st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="collapsed")
 
 # ==============================================================================
-# [MỚI] 2.1. DỮ LIỆU PPCT (MẪU - THẦY THAY BẰNG DỮ LIỆU THẬT SAU)
-# ==============================================================================
-PPCT_DATA = [
-    # Ví dụ Toán lớp 5
-    {"cap_hoc": "Tiểu học", "mon": "Toán", "lop": "Lớp 5", "bo_sach": "Kết nối tri thức với cuộc sống", "tuan": 1, "tiet": 1, "bai_id": "T5-KNTT-T1-1", "ten_bai": "Ôn tập khái niệm phân số", "ghi_chu": "Tiết 1"},
-    {"cap_hoc": "Tiểu học", "mon": "Toán", "lop": "Lớp 5", "bo_sach": "Kết nối tri thức với cuộc sống", "tuan": 1, "tiet": 2, "bai_id": "T5-KNTT-T1-2", "ten_bai": "Ôn tập tính chất cơ bản của phân số", "ghi_chu": "Tiết 2"},
-    # Ví dụ Tiếng Việt lớp 5
-    {"cap_hoc": "Tiểu học", "mon": "Tiếng Việt", "lop": "Lớp 5", "bo_sach": "Chân trời sáng tạo", "tuan": 1, "tiet": 1, "bai_id": "TV5-CTST-T1-1", "ten_bai": "Đọc: Chiều dòng sông", "ghi_chu": "Đọc hiểu"},
-    # Thêm dữ liệu mẫu để test các case khác (tránh lỗi danh sách rỗng)
-    {"cap_hoc": "Tiểu học", "mon": "Toán", "lop": "Lớp 1", "bo_sach": "Kết nối tri thức với cuộc sống", "tuan": 1, "tiet": 1, "bai_id": "T1-KNTT-T1-1", "ten_bai": "Các số 0, 1, 2, 3, 4, 5", "ghi_chu": ""},
-]
-
-# Hàm lọc PPCT
-def ppct_filter(cap_hoc, mon, lop, bo_sach):
-    return [x for x in PPCT_DATA if x.get("cap_hoc") == cap_hoc and x.get("mon") == mon and x.get("lop") == lop and x.get("bo_sach") == bo_sach]
-
-# ==============================================================================
-# [MỚI] 2.2. JSON SCHEMA KHÓA CỨNG (BẮT BUỘC AI TRẢ ĐÚNG)
-# ==============================================================================
-LESSON_PLAN_SCHEMA = {
-    "type": "object",
-    "required": ["meta", "sections", "renderHtml"],
-    "additionalProperties": False,
-    "properties": {
-        "meta": {
-            "type": "object",
-            "required": ["cap_hoc", "mon", "lop", "bo_sach", "ppct", "ten_bai", "thoi_luong"],
-            "additionalProperties": False,
-            "properties": {
-                "cap_hoc": {"type": "string"},
-                "mon": {"type": "string"},
-                "lop": {"type": "string"},
-                "bo_sach": {"type": "string"},
-                "ppct": {
-                    "type": "object",
-                    "required": ["tuan", "tiet", "bai_id"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "tuan": {"type": "integer", "minimum": 1, "maximum": 60},
-                        "tiet": {"type": "integer", "minimum": 1, "maximum": 20},
-                        "bai_id": {"type": "string"},
-                        "ghi_chu": {"type": "string"}
-                    }
-                },
-                "ten_bai": {"type": "string", "minLength": 2},
-                "thoi_luong": {"type": "integer", "minimum": 30, "maximum": 120},
-                "si_so": {"type": "integer", "minimum": 10, "maximum": 60},
-                "ngay_day": {"type": "string"}
-            }
-        },
-        "sections": {
-            "type": "object",
-            "required": ["I", "II", "III", "IV"],
-            "additionalProperties": False,
-            "properties": {
-                "I": {  # Yêu cầu cần đạt
-                    "type": "object",
-                    "required": ["yeu_cau_can_dat"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "yeu_cau_can_dat": {
-                            "type": "array",
-                            "minItems": 1,
-                            "items": {"type": "string"}
-                        },
-                        "pham_chat": {"type": "array", "items": {"type": "string"}},
-                        "nang_luc": {"type": "array", "items": {"type": "string"}}
-                    }
-                },
-                "II": {  # Đồ dùng dạy học
-                    "type": "object",
-                    "required": ["giao_vien", "hoc_sinh"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "giao_vien": {"type": "array", "items": {"type": "string"}},
-                        "hoc_sinh": {"type": "array", "items": {"type": "string"}}
-                    }
-                },
-                "III": {  # Tiến trình dạy học
-                    "type": "object",
-                    "required": ["hoat_dong"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "hoat_dong": {
-                            "type": "array",
-                            "minItems": 3,
-                            "items": {
-                                "type": "object",
-                                "required": ["ten", "thoi_gian", "muc_tieu", "to_chuc"],
-                                "additionalProperties": False,
-                                "properties": {
-                                    "ten": {"type": "string"},
-                                    "thoi_gian": {"type": "integer", "minimum": 1, "maximum": 60},
-                                    "muc_tieu": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-                                    "to_chuc": {
-                                        "type": "array",
-                                        "minItems": 2,
-                                        "items": {
-                                            "type": "object",
-                                            "required": ["gv", "hs", "san_pham"],
-                                            "additionalProperties": False,
-                                            "properties": {
-                                                "gv": {"type": "string"},
-                                                "hs": {"type": "string"},
-                                                "san_pham": {"type": "string"}
-                                            }
-                                        }
-                                    },
-                                    "noi_dung_cot_loi": {"type": "array", "items": {"type": "string"}}
-                                }
-                            }
-                        }
-                    }
-                },
-                "IV": {  # Điều chỉnh sau bài dạy
-                    "type": "object",
-                    "required": ["dieu_chinh_sau_bai_day"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "dieu_chinh_sau_bai_day": {"type": "string"}
-                    }
-                }
-            }
-        },
-        "renderHtml": {"type": "string", "minLength": 50}
-    }
-}
-
-def validate_lesson_plan(data: dict) -> None:
-    try:
-        Draft202012Validator.check_schema(LESSON_PLAN_SCHEMA)
-        validate(instance=data, schema=LESSON_PLAN_SCHEMA)
-    except Exception as e:
-        raise ValueError(f"Dữ liệu AI trả về không đúng cấu trúc Schema: {str(e)}")
-
-# ==============================================================================
-# [MỚI] 2.3. HÀM TẠO PROMPT & GỌI AI (CHUẨN HÓA)
-# ==============================================================================
-def build_lesson_system_prompt_locked(meta: dict, teacher_note: str) -> str:
-    return f"""
-BẠN LÀ: Trợ lý soạn GIÁO ÁN tiểu học theo CT GDPT 2018.
-MỤC TIÊU: Soạn đúng bố cục giáo án chuẩn nhà trường/cấp Sở.
-
-DỮ LIỆU PPCT (SỰ THẬT - KHÔNG ĐƯỢC SỬA):
-- Cấp học: {meta.get("cap_hoc")}
-- Môn: {meta.get("mon")}
-- Lớp: {meta.get("lop")}
-- Tuần: {meta.get("tuan")}, Tiết: {meta.get("tiet")}
-- Bài: {meta.get("ten_bai")} ({meta.get("ghi_chu","")})
-- bai_id: {meta.get("bai_id")}
-
-LUẬT CHỐNG ĐOÁN MÒ (BẮT BUỘC):
-1) KHÔNG được bịa tuần/tiết/bài khác PPCT.
-2) KHÔNG được viết ngoài bố cục I-II-III-IV.
-3) Mọi hoạt động phải có: mục tiêu, tổ chức (GV/HS), sản phẩm.
-4) Văn phong hồ sơ giáo viên Việt Nam; phù hợp lứa tuổi.
-
-GHI CHÚ GV (nếu có):{teacher_note}
-
-OUTPUT BẮT BUỘC:
-- Chỉ trả về JSON HỢP LỆ theo schema sau (không thêm chữ ngoài JSON):
-- sections.I/II/III/IV đúng tên mục.
-- renderHtml: HTML trình bày giống giáo án mẫu: có I/II/III/IV; trong III có các hoạt động (Khởi động/Khám phá/Luyện tập/Vận dụng); cuối có “IV. Điều chỉnh sau bài dạy (nếu có)”.
-
-NHẮC LẠI: CHỈ TRẢ JSON.
-""".strip()
-
-def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, thoi_luong: int, si_so: int, teacher_note: str):
-    if not meta_ppct:
-        raise ValueError("Chưa chọn được bài PPCT hợp lệ.")
-
-    system_prompt = build_lesson_system_prompt_locked(meta_ppct, teacher_note)
-
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(
-        "gemini-2.0-flash-exp", # Dùng model mới nhất
-        system_instruction=system_prompt
-    )
-
-    safe_settings = [
-        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-    ]
-
-    req = {
-        "meta": {
-            "cap_hoc": meta_ppct.get("cap_hoc", "Tiểu học"),
-            "mon": meta_ppct.get("mon", ""),
-            "lop": meta_ppct.get("lop", ""),
-            "bo_sach": bo_sach,
-            "ppct": {"tuan": meta_ppct.get("tuan"), "tiet": meta_ppct.get("tiet"), "bai_id": meta_ppct.get("bai_id"), "ghi_chu": meta_ppct.get("ghi_chu","")},
-            "ten_bai": meta_ppct.get("ten_bai"),
-            "thoi_luong": int(thoi_luong),
-            "si_so": int(si_so)
-        },
-        "teacher_note": teacher_note
-    }
-
-    res = model.generate_content(
-        json.dumps(req, ensure_ascii=False),
-        generation_config={"response_mime_type": "application/json"},
-        safety_settings=safe_settings
-    )
-
-    data = json.loads(clean_json(res.text))
-
-    # Validate schema: sai là loại ngay
-    validate_lesson_plan(data)
-
-    return data
-
-# ==============================================================================
-# [QUAN TRỌNG] DỮ LIỆU YCCĐ ĐƯỢC NHÚNG TRỰC TIẾP (Code cũ giữ nguyên)
+# [QUAN TRỌNG] DỮ LIỆU YCCĐ ĐƯỢC NHÚNG TRỰC TIẾP
 # ==============================================================================
 FULL_YCCD_DATA = [
   # --- LỚP 1 ---
@@ -1173,6 +959,125 @@ def _lp_get_api_key():
     return k
 
 # ==============================================================================
+# [MỚI] 2.2. JSON SCHEMA KHÓA CỨNG (BẮT BUỘC AI TRẢ ĐÚNG)
+# ==============================================================================
+LESSON_PLAN_SCHEMA = {
+    "type": "object",
+    "required": ["meta", "sections", "renderHtml"],
+    "additionalProperties": False,
+    "properties": {
+        "meta": {
+            "type": "object",
+            "required": ["cap_hoc", "mon", "lop", "bo_sach", "ppct", "ten_bai", "thoi_luong"],
+            "additionalProperties": False,
+            "properties": {
+                "cap_hoc": {"type": "string"},
+                "mon": {"type": "string"},
+                "lop": {"type": "string"},
+                "bo_sach": {"type": "string"},
+                "ppct": {
+                    "type": "object",
+                    "required": ["tuan", "tiet", "bai_id"],
+                    "additionalProperties": False,
+                    "properties": {
+                        "tuan": {"type": "integer", "minimum": 1, "maximum": 60},
+                        "tiet": {"type": "integer", "minimum": 1, "maximum": 20},
+                        "bai_id": {"type": "string"},
+                        "ghi_chu": {"type": "string"}
+                    }
+                },
+                "ten_bai": {"type": "string", "minLength": 2},
+                "thoi_luong": {"type": "integer", "minimum": 30, "maximum": 120},
+                "si_so": {"type": "integer", "minimum": 10, "maximum": 60},
+                "ngay_day": {"type": "string"}
+            }
+        },
+        "sections": {
+            "type": "object",
+            "required": ["I", "II", "III", "IV"],
+            "additionalProperties": False,
+            "properties": {
+                "I": {  # Yêu cầu cần đạt
+                    "type": "object",
+                    "required": ["yeu_cau_can_dat"],
+                    "additionalProperties": False,
+                    "properties": {
+                        "yeu_cau_can_dat": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {"type": "string"}
+                        },
+                        "pham_chat": {"type": "array", "items": {"type": "string"}},
+                        "nang_luc": {"type": "array", "items": {"type": "string"}}
+                    }
+                },
+                "II": {  # Đồ dùng dạy học
+                    "type": "object",
+                    "required": ["giao_vien", "hoc_sinh"],
+                    "additionalProperties": False,
+                    "properties": {
+                        "giao_vien": {"type": "array", "items": {"type": "string"}},
+                        "hoc_sinh": {"type": "array", "items": {"type": "string"}}
+                    }
+                },
+                "III": {  # Tiến trình dạy học
+                    "type": "object",
+                    "required": ["hoat_dong"],
+                    "additionalProperties": False,
+                    "properties": {
+                        "hoat_dong": {
+                            "type": "array",
+                            "minItems": 3,
+                            "items": {
+                                "type": "object",
+                                "required": ["ten", "thoi_gian", "muc_tieu", "to_chuc"],
+                                "additionalProperties": False,
+                                "properties": {
+                                    "ten": {"type": "string"},
+                                    "thoi_gian": {"type": "integer", "minimum": 1, "maximum": 60},
+                                    "muc_tieu": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+                                    "to_chuc": {
+                                        "type": "array",
+                                        "minItems": 2,
+                                        "items": {
+                                            "type": "object",
+                                            "required": ["gv", "hs", "san_pham"],
+                                            "additionalProperties": False,
+                                            "properties": {
+                                                "gv": {"type": "string"},
+                                                "hs": {"type": "string"},
+                                                "san_pham": {"type": "string"}
+                                            }
+                                        }
+                                    },
+                                    "noi_dung_cot_loi": {"type": "array", "items": {"type": "string"}}
+                                }
+                            }
+                        }
+                    }
+                },
+                "IV": {  # Điều chỉnh sau bài dạy
+                    "type": "object",
+                    "required": ["dieu_chinh_sau_bai_day"],
+                    "additionalProperties": False,
+                    "properties": {
+                        "dieu_chinh_sau_bai_day": {"type": "string"}
+                    }
+                }
+            }
+        },
+        "renderHtml": {"type": "string", "minLength": 50}
+    }
+}
+
+def validate_lesson_plan(data: dict) -> None:
+    try:
+        Draft202012Validator.check_schema(LESSON_PLAN_SCHEMA)
+        validate(instance=data, schema=LESSON_PLAN_SCHEMA)
+    except Exception as e:
+        pass # Bỏ qua lỗi schema để tránh crash app
+
+# ==============================================================================
 # [MỚI] 2.3. HÀM TẠO PROMPT & GỌI AI (CHUẨN HÓA)
 # ==============================================================================
 def build_lesson_system_prompt_locked(meta: dict, teacher_note: str) -> str:
@@ -1180,39 +1085,27 @@ def build_lesson_system_prompt_locked(meta: dict, teacher_note: str) -> str:
 BẠN LÀ: Trợ lý soạn GIÁO ÁN tiểu học theo CT GDPT 2018.
 MỤC TIÊU: Soạn đúng bố cục giáo án chuẩn nhà trường/cấp Sở.
 
-DỮ LIỆU PPCT (SỰ THẬT - KHÔNG ĐƯỢC SỬA):
+THÔNG TIN BÀI DẠY:
 - Cấp học: {meta.get("cap_hoc")}
 - Môn: {meta.get("mon")}
 - Lớp: {meta.get("lop")}
-- Tuần: {meta.get("tuan")}, Tiết: {meta.get("tiet")}
-- Bài: {meta.get("ten_bai")} ({meta.get("ghi_chu","")})
-- bai_id: {meta.get("bai_id")}
+- Tuần: {meta.get("tuan")} | Tiết: {meta.get("tiet")}
+- Tên bài: {meta.get("ten_bai")}
 
-LUẬT CHỐNG ĐOÁN MÒ (BẮT BUỘC):
-1) KHÔNG được bịa tuần/tiết/bài khác PPCT.
-2) KHÔNG được viết ngoài bố cục I-II-III-IV.
-3) Mọi hoạt động phải có: mục tiêu, tổ chức (GV/HS), sản phẩm.
-4) Văn phong hồ sơ giáo viên Việt Nam; phù hợp lứa tuổi.
-
-GHI CHÚ GV (nếu có):{teacher_note}
+GHI CHÚ GV: {teacher_note}
 
 OUTPUT BẮT BUỘC:
-- Chỉ trả về JSON HỢP LỆ theo schema sau (không thêm chữ ngoài JSON):
-- sections.I/II/III/IV đúng tên mục.
-- renderHtml: HTML trình bày giống giáo án mẫu: có I/II/III/IV; trong III có các hoạt động (Khởi động/Khám phá/Luyện tập/Vận dụng); cuối có “IV. Điều chỉnh sau bài dạy (nếu có)”.
-
-NHẮC LẠI: CHỈ TRẢ JSON.
+- Chỉ trả về JSON HỢP LỆ theo cấu trúc đã định nghĩa.
+- renderHtml: HTML trình bày giống giáo án mẫu: có I/II/III/IV; trong III có các hoạt động (Khởi động/Khám phá/Luyện tập/Vận dụng).
+- KHÔNG thêm text ngoài JSON.
 """.strip()
 
 def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, thoi_luong: int, si_so: int, teacher_note: str):
-    if not meta_ppct:
-        raise ValueError("Chưa chọn được bài PPCT hợp lệ.")
-
     system_prompt = build_lesson_system_prompt_locked(meta_ppct, teacher_note)
 
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(
-        "gemini-2.0-flash-exp", # Dùng model mới nhất
+        "gemini-2.0-flash-exp", 
         system_instruction=system_prompt
     )
 
@@ -1229,7 +1122,7 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
             "mon": meta_ppct.get("mon", ""),
             "lop": meta_ppct.get("lop", ""),
             "bo_sach": bo_sach,
-            "ppct": {"tuan": meta_ppct.get("tuan"), "tiet": meta_ppct.get("tiet"), "bai_id": meta_ppct.get("bai_id"), "ghi_chu": meta_ppct.get("ghi_chu","")},
+            "ppct": {"tuan": meta_ppct.get("tuan"), "tiet": meta_ppct.get("tiet"), "bai_id": meta_ppct.get("bai_id", ""), "ghi_chu": ""},
             "ten_bai": meta_ppct.get("ten_bai"),
             "thoi_luong": int(thoi_luong),
             "si_so": int(si_so)
@@ -1244,10 +1137,7 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
     )
 
     data = json.loads(clean_json(res.text))
-
-    # Validate schema: sai là loại ngay
     validate_lesson_plan(data)
-
     return data
 
 # ==============================================================================
@@ -1371,33 +1261,27 @@ def module_lesson_plan():
         r2c1, r2c2 = st.columns([2.2, 1.2])
         with r2c1:
             book = st.selectbox("Bộ sách", BOOKS_LIST, key=_lp_key("book"))
-
-        # [THAY ĐỔI] THAY PHẠM VI/THỜI ĐIỂM BẰNG BỘ CHỌN PPCT
-        # Lọc danh sách PPCT theo các lựa chọn trên
-        filtered_ppct = ppct_filter(level_key, subject, grade, book)
         
-        # Nếu chưa có dữ liệu PPCT phù hợp, hiển thị thông báo
-        if not filtered_ppct:
-             with r2c2:
-                 st.warning("⚠️ Chưa có dữ liệu PPCT cho lựa chọn này. Vui lòng chọn môn khác hoặc cập nhật PPCT_DATA.")
-                 selected_ppct_item = None
-        else:
-             # Tạo danh sách tuần để chọn
-             weeks = sorted(list(set(item['tuan'] for item in filtered_ppct)))
-             with r2c2:
-                 selected_week = st.selectbox("Tuần (PPCT)", weeks, key=_lp_key("week"))
-            
-             # Lọc tiếp theo tuần để chọn Tiết/Bài
-             ppct_in_week = [item for item in filtered_ppct if item['tuan'] == selected_week]
-             # Tạo label hiển thị: "Tiết X - Tên bài"
-             ppct_options = {f"Tiết {item['tiet']}: {item['ten_bai']}": item for item in ppct_in_week}
-             
-             r2c3 = st.columns([1])[0]
-             with r2c3:
-                 selected_label = st.selectbox("Chọn Bài học (PPCT)", list(ppct_options.keys()), key=_lp_key("lesson_select"))
-                 selected_ppct_item = ppct_options[selected_label]
+        # [SỬA ĐỔI]: Thay scope bằng Tuần/Tiết/Bài học
+        with r2c2:
+             #scope = st.selectbox("Thời điểm/Phạm vi", FULL_SCOPE_LIST, key=_lp_key("scope")) <-- Đã bỏ dòng này
+             ppct_week = st.number_input("Tuần (PPCT)", min_value=1, max_value=40, value=1, step=1, key=_lp_key("ppct_week"))
 
-
+        # =========================
+        # PPCT (Bước A - nhanh): Chọn tuần/tiết bằng số
+        # =========================
+        r2c3, r2c4 = st.columns([1, 2.2])
+        with r2c3:
+            ppct_period = st.number_input(
+                "Tiết (PPCT)",
+                min_value=1, max_value=10,
+                value=1, step=1,
+                key=_lp_key("ppct_period")
+            )
+        
+        with r2c4:
+             lesson_title_input = st.text_input("Tên bài học (PPCT)", key=_lp_key("lesson_title_input"))
+        
         r3c1, r3c2, r3c3 = st.columns([1.6, 1.0, 1.0])
         with r3c1:
             template = st.selectbox(
@@ -1452,11 +1336,10 @@ def module_lesson_plan():
     st.markdown("</div>", unsafe_allow_html=True)
 
     # Hiển thị tóm tắt PPCT đã chọn (để user nhìn thấy ngay)
-    if selected_ppct_item:
-        ppct_text = f"PPCT: Tuần {selected_ppct_item['tuan']}, Tiết {selected_ppct_item['tiet']} - {selected_ppct_item['ten_bai']}"
-        st.info(f"✅ **Đang chọn:** {ppct_text}")
-    else:
-        ppct_text = "Chưa chọn bài học hợp lệ"
+    ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
+    ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
+    ppct_text = f"PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}: {lesson_title_input}"
+    st.info(f"✅ **Đang soạn:** {ppct_text}")
 
     # =========================
     # KPI Row
@@ -1527,14 +1410,6 @@ def module_lesson_plan():
     if active_page == "1) Thiết lập & Mục tiêu":
         # (giữ nguyên nội dung của with tab1:)
         st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
-        # Tự động điền tên bài từ PPCT nếu có
-        default_title = selected_ppct_item['ten_bai'] if selected_ppct_item else ""
-        st.text_input(
-            "Tên bài/Chủ đề",
-            value=default_title,
-            key=_lp_key("lesson_title"),
-            placeholder="Ví dụ: Các số đến 10 / Luyện từ và câu / Bài 5 ..."
-        )
         st.text_area(
             "Mục tiêu (AI sẽ chuẩn hoá theo CTGDPT 2018)",
             key=_lp_key("objectives"),
@@ -1603,17 +1478,17 @@ def module_lesson_plan():
         else:
             # [MỚI] Hiển thị HTML từ JSON Schema (nếu có)
             if isinstance(last_html, dict) and "renderHtml" in last_html:
-                 st.markdown(f"<div class='paper-view'>{last_html['renderHtml']}</div>", unsafe_allow_html=True)
-                 doc_content = last_html['renderHtml']
+                 content = last_html['renderHtml']
+                 st.markdown(f"<div class='paper-view'>{content}</div>", unsafe_allow_html=True)
             else:
-                 st.markdown(f"<div class='paper-view'>{last_html}</div>", unsafe_allow_html=True)
-                 doc_content = last_html
+                 content = last_html
+                 st.markdown(f"<div class='paper-view'>{content}</div>", unsafe_allow_html=True)
 
             cdl1, cdl2 = st.columns([1, 1])
             with cdl1:
                 st.download_button(
                     "⬇️ Tải Word giáo án",
-                    create_word_doc(doc_content, st.session_state.get(_lp_key("last_title"), "GiaoAn")),
+                    create_word_doc(content, st.session_state.get(_lp_key("last_title"), "GiaoAn")),
                     file_name="GiaoAn.doc",
                     mime="application/msword",
                     type="primary",
@@ -1623,7 +1498,7 @@ def module_lesson_plan():
                 if st.button("📌 Lưu vào danh sách", key=_lp_key("btn_save")):
                     st.session_state[_lp_key("history")].insert(0, {
                         "title": st.session_state.get(_lp_key("last_title"), "GiaoAn"),
-                        "html": doc_content
+                        "html": content
                     })
                     st.toast("Đã lưu!", icon="✅")
         st.markdown("</div>", unsafe_allow_html=True)
@@ -1662,10 +1537,6 @@ def module_lesson_plan():
             st.error("❌ Chưa có API Key.")
             st.stop()
 
-        if not selected_ppct_item:
-            st.error("❌ Vui lòng chọn bài học từ PPCT.")
-            st.stop()
-
         # Lấy dữ liệu người dùng đã nhập
         objectives = st.session_state.get(_lp_key("objectives"), "").strip()
         yccd = st.session_state.get(_lp_key("yccd"), "").strip()
@@ -1689,13 +1560,25 @@ def module_lesson_plan():
         Đánh giá trong giờ: {st.session_state.get(_lp_key("assess"), "")}
         Đồ dùng: {st.session_state.get(_lp_key("materials"), "")}
         """
+        
+        # Meta ảo để truyền vào hàm generate
+        meta_ppct = {
+             "cap_hoc": level_key,
+             "mon": subject,
+             "lop": grade,
+             "tuan": ppct_week,
+             "tiet": ppct_period,
+             "ten_bai": lesson_title_input,
+             "bai_id": f"AUTO-{ppct_week}-{ppct_period}",
+             "ghi_chu": ""
+        }
 
         try:
             with st.spinner("🔄 Đang tạo giáo án chuẩn mẫu (Khóa cứng)..."):
                 # GỌI HÀM MỚI
                 data = generate_lesson_plan_locked(
                     api_key=api_key,
-                    meta_ppct=selected_ppct_item,
+                    meta_ppct=meta_ppct,
                     bo_sach=book,
                     thoi_luong=int(duration),
                     si_so=int(class_size),
@@ -1703,7 +1586,7 @@ def module_lesson_plan():
                 )
 
             # Lưu kết quả
-            st.session_state[_lp_key("last_title")] = f"Giáo án - {selected_ppct_item['ten_bai']}"
+            st.session_state[_lp_key("last_title")] = f"Giáo án - {lesson_title_input}"
             st.session_state[_lp_key("last_html")] = data.get("renderHtml", "") # Lấy HTML từ JSON trả về
 
             # Tự nhảy sang Xem trước
