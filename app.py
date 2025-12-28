@@ -1085,6 +1085,7 @@ def generate_lesson_plan_locked(
 
     # Build a normalized request metadata dict (stable keys used throughout prompts & templates)
     req_meta = {
+        "ten_bai": meta_ppct.get("ten_bai", ""),
         "cap_hoc": meta_ppct.get("cap_hoc", ""),
         "mon": meta_ppct.get("mon", ""),
         "lop": meta_ppct.get("lop", ""),
@@ -1104,16 +1105,16 @@ def generate_lesson_plan_locked(
     # prompt data-only (khuyến nghị dùng prompt data-only thay vì prompt HTML)
     system_prompt = build_lesson_system_prompt_data_only(
         meta={
-            "cap_hoc": req_meta["cap_hoc"],
-            "mon": req_meta["mon"],
-            "lop": req_meta["lop"],
-            "bo_sach": req_meta["bo_sach"],
-            "tuan": req_meta["ppct"]["tuan"],
-            "tiet": req_meta["ppct"]["tiet"],
-            "bai_id": req_meta["ppct"]["bai_id"],
-            "ten_bai": req_meta["ten_bai"],
-            "thoi_luong": req_meta["thoi_luong"],
-            "si_so": req_meta["si_so"],
+            "cap_hoc": req_meta.get("cap_hoc",""),
+            "mon": req_meta.get("mon",""),
+            "lop": req_meta.get("lop",""),
+            "bo_sach": req_meta.get("bo_sach",""),
+            "tuan": (req_meta.get("ppct") or {}).get("tuan",""),
+            "tiet": (req_meta.get("ppct") or {}).get("tiet",""),
+            "bai_id": (req_meta.get("ppct") or {}).get("bai_id",""),
+            "ten_bai": req_meta.get("ten_bai",""),
+            "thoi_luong": req_meta.get("thoi_luong",""),
+            "si_so": req_meta.get("si_so",""),
         },
         teacher_note=teacher_note
     )
@@ -1243,16 +1244,16 @@ def generate_lesson_plan_data_only(
 
     system_prompt = build_lesson_system_prompt_data_only(
         meta={
-            "cap_hoc": req_meta["cap_hoc"],
-            "mon": req_meta["mon"],
-            "lop": req_meta["lop"],
-            "bo_sach": req_meta["bo_sach"],
-            "tuan": req_meta["ppct"]["tuan"],
-            "tiet": req_meta["ppct"]["tiet"],
-            "bai_id": req_meta["ppct"]["bai_id"],
-            "ten_bai": req_meta["ten_bai"],
-            "thoi_luong": req_meta["thoi_luong"],
-            "si_so": req_meta["si_so"],
+            "cap_hoc": req_meta.get("cap_hoc",""),
+            "mon": req_meta.get("mon",""),
+            "lop": req_meta.get("lop",""),
+            "bo_sach": req_meta.get("bo_sach",""),
+            "tuan": (req_meta.get("ppct") or {}).get("tuan",""),
+            "tiet": (req_meta.get("ppct") or {}).get("tiet",""),
+            "bai_id": (req_meta.get("ppct") or {}).get("bai_id",""),
+            "ten_bai": req_meta.get("ten_bai",""),
+            "thoi_luong": req_meta.get("thoi_luong",""),
+            "si_so": req_meta.get("si_so",""),
         },
         teacher_note=teacher_note
     )
@@ -2336,7 +2337,8 @@ def module_lesson_plan():
                 html = render_lesson_plan_html(data)
                 
                 # Lưu kết quả vào Session State
-                st.session_state[_lp_key("last_title")] = f"Giáo án - {meta_ppct['ten_bai']}"
+                _ten_bai = (data.get("meta", {}) or {}).get("ten_bai") or meta_ppct.get("ten_bai") or "Bài học"
+                st.session_state[_lp_key("last_title")] = f"Giáo án - {_ten_bai}"
                 
                 # [SỬA QUAN TRỌNG]: Lưu 'html' để hiển thị, không lưu 'data' (dictionary)
                 st.session_state[_lp_key("last_html")] = html 
