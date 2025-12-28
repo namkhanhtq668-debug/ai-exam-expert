@@ -749,7 +749,7 @@ class YCCDManager:
 class QuestionGeneratorYCCD:
     def __init__(self, api_key):
         genai.configure(api_key=api_key)
-        # [SỬA LỖI 404] Dùng gemini-3-pro-preview theo yêu cầu
+        # [SỬA LỖI 404] Dùng gemini-2.0-flash theo yêu cầu
         self.model = genai.GenerativeModel('gemini-2.0-flash')
 
     def generate(self, yccd_item, muc_do="Thông hiểu"):
@@ -1463,7 +1463,7 @@ def main_app():
 
                                         try:
                                             genai.configure(api_key=api_key)
-                                            # [SỬA LỖI 404] Dùng gemini-3-pro-preview
+                                            # [SỬA LỖI 404] Dùng gemini-2.0-flash
                                             model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=SYSTEM_PROMPT)
                                             
                                             # [FIX LỖI] Cấu hình tắt bộ lọc an toàn để AI không chặn đề thi
@@ -2628,6 +2628,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
