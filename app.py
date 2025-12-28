@@ -2187,7 +2187,7 @@ def module_lesson_plan():
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-  # ===============================
+    # ===============================
     # XỬ LÝ NÚT BẤM (Đoạn này nằm trong hàm module_lesson_plan)
     # ===============================
     if generate_btn or regen_btn:
@@ -2628,6 +2628,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
