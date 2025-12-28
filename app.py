@@ -571,6 +571,7 @@ def _render_ul(items) -> str:
 
 def render_lesson_plan_html(data: dict) -> str:
     meta = data.get("meta", {})
+   
     sec = data.get("sections", {})
        meta_table = f"""
     <table style="width:100%; border-collapse:collapse; margin:10px 0;" border="1">
@@ -2722,6 +2723,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
