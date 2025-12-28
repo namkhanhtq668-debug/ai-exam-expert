@@ -1094,7 +1094,7 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
         "teacher_note": teacher_note
     }
 
-     try:
+    try:
             with st.spinner("🔄 Đang tạo giáo án (JSON data-only)..."):
                 # Gọi hàm tạo giáo án (đã sửa tham số)
                 data = generate_lesson_plan_locked(
@@ -1120,9 +1120,10 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
                 st.success("✅ Tạo giáo án thành công!")
                 st.rerun()
 
-    except Exception as e:
+   except Exception as e:
        # Dòng except này phải thẳng hàng với dòng try ở trên
       st.error(f"Lỗi AI: {e}")
+
 # ==============================================================================
 # [PATCH 2/3] PROMPT KHÓA CỨNG: DATA-ONLY JSON (ANTI-HALLUCINATION)
 # ==============================================================================
@@ -2651,6 +2652,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
