@@ -10,6 +10,7 @@ import time
 import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
+import html  # [FIX] dùng html.escape, tránh NameError
 # ==============================================================================
 # [MODULE NLS] DỮ LIỆU & CẤU HÌNH CHO SOẠN GIÁO ÁN NĂNG LỰC SỐ
 # ==============================================================================
