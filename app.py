@@ -1086,13 +1086,13 @@ def generate_lesson_plan_locked(
     # meta chuẩn (đúng schema)
     # req_meta: always define BEFORE any reference (prevents NameError when optional fields are missing)
     req_meta = {
-        "khối_lớp": req.get("khối_lớp", "").strip(),
-        "môn": req.get("môn", "").strip(),
-        "bài": req.get("bài", "").strip(),
-        "chủ_đề": req.get("chủ_đề", "").strip(),
-        "tuần": req.get("tuần", "").strip(),
-        "tiết": req.get("tiết", "").strip(),
-        "thời_lượng": req.get("thời_lượng", "").strip(),
+        "khối_lớp": str(meta_ppct.get("lop", meta_ppct.get("khối_lớp", ""))).strip(),
+        "môn": str(meta_ppct.get("mon", meta_ppct.get("môn", ""))).strip(),
+        "bài": str(meta_ppct.get("ten_bai", meta_ppct.get("bài", ""))).strip(),
+        "chủ_đề": str(meta_ppct.get("chu_de", meta_ppct.get("chủ_đề", ""))).strip(),
+        "tuần": str(meta_ppct.get("tuan", meta_ppct.get("tuần", ""))).strip(),
+        "tiết": str(meta_ppct.get("tiet", meta_ppct.get("tiết", ""))).strip(),
+        "thời_lượng": str(meta_ppct.get("thoi_luong", meta_ppct.get("thời_lượng", ""))).strip(),
         "yccđ": (meta_ppct.get("yccđ") if isinstance(meta_ppct, dict) else ""),
         "nls": (meta_ppct.get("nls") if isinstance(meta_ppct, dict) else ""),
         "học_liệu": (meta_ppct.get("học_liệu") if isinstance(meta_ppct, dict) else ""),
@@ -1226,13 +1226,13 @@ def generate_lesson_plan_data_only(
 
     # req_meta: always define BEFORE any reference (prevents NameError when optional fields are missing)
     req_meta = {
-        "khối_lớp": req.get("khối_lớp", "").strip(),
-        "môn": req.get("môn", "").strip(),
-        "bài": req.get("bài", "").strip(),
-        "chủ_đề": req.get("chủ_đề", "").strip(),
-        "tuần": req.get("tuần", "").strip(),
-        "tiết": req.get("tiết", "").strip(),
-        "thời_lượng": req.get("thời_lượng", "").strip(),
+        "khối_lớp": str(meta_ppct.get("lop", meta_ppct.get("khối_lớp", ""))).strip(),
+        "môn": str(meta_ppct.get("mon", meta_ppct.get("môn", ""))).strip(),
+        "bài": str(meta_ppct.get("ten_bai", meta_ppct.get("bài", ""))).strip(),
+        "chủ_đề": str(meta_ppct.get("chu_de", meta_ppct.get("chủ_đề", ""))).strip(),
+        "tuần": str(meta_ppct.get("tuan", meta_ppct.get("tuần", ""))).strip(),
+        "tiết": str(meta_ppct.get("tiet", meta_ppct.get("tiết", ""))).strip(),
+        "thời_lượng": str(meta_ppct.get("thoi_luong", meta_ppct.get("thời_lượng", ""))).strip(),
         "yccđ": (meta_ppct.get("yccđ") if isinstance(meta_ppct, dict) else ""),
         "nls": (meta_ppct.get("nls") if isinstance(meta_ppct, dict) else ""),
         "học_liệu": (meta_ppct.get("học_liệu") if isinstance(meta_ppct, dict) else ""),
@@ -2704,4 +2704,6 @@ else:
         module_advisor()
     else:
         main_app()
+
+
 
