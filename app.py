@@ -1245,6 +1245,8 @@ def generate_lesson_plan_locked(
     chuyen_de: str = "",
     nls_uu_tien: str = "",
     engine: str = "gemini",
+    teacher_note: str = "",
+    **_kwargs: dict,
 ) -> dict:
     """Sinh giáo án theo chuẩn JSON + renderHtml để xem trước/xuất.
 
@@ -1272,6 +1274,7 @@ def generate_lesson_plan_locked(
         "nls_uu_tien": nls_uu_tien or "",
         "muc_tieu_them": muc_tieu_them or "",
         "yeu_cau_them": yeu_cau_them or "",
+        "teacher_note": teacher_note or "",
     }
     system_prompt = build_lesson_system_prompt_locked(req_meta)
 
