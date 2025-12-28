@@ -80,7 +80,7 @@ QUY TẮC KỸ THUẬT:
 # 3. Hàm xử lý AI riêng cho Module này
 def generate_nls_lesson_plan(api_key, lesson_content, distribution_content, textbook, subject, grade, analyze_only):
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_INSTRUCTION_NLS)
+    model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=SYSTEM_INSTRUCTION_NLS)
     
     user_prompt = f"""
     THÔNG TIN ĐẦU VÀO:
@@ -241,7 +241,7 @@ QUY TẮC KỸ THUẬT:
 
 def generate_nls_lesson_plan(api_key, lesson_content, subject, grade, textbook, ppct_content, analyze_only):
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=SYSTEM_INSTRUCTION_NLS)
+    model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=SYSTEM_INSTRUCTION_NLS)
     
     prompt = f"""
     THÔNG TIN:
@@ -2224,5 +2224,6 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
