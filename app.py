@@ -2240,8 +2240,8 @@ def module_lesson_plan():
              "ghi_chu": ""
         }
 
-        try:
-    with st.spinner("🔄 Đang tạo giáo án (JSON data-only, khóa mẫu)..."):
+   try:
+       with st.spinner("🔄 Đang tạo giáo án (JSON data-only, khóa mẫu)..."):
         data = generate_lesson_plan_locked(
             api_key=api_key,
             meta_ppct={
@@ -2249,32 +2249,10 @@ def module_lesson_plan():
                 "bo_sach": book,
                 "thoi_luong": int(duration),
                 "si_so": int(class_size),
-            },  # <--- Đã thêm dấu phẩy ở đây
+            },  # <--- Đã thêm dấu phẩy đúng
             teacher_note=teacher_note,
             model_name="gemini-2.0-flash"
         )
-
-    # Render HTML đúng mẫu tuyệt đối (2 cột GV/HS)
-    # Đã sửa 'data_json' thành 'data' (biến nhận được từ hàm trên)
-    html = render_lesson_plan_html(data)
-    
-    # Lưu kết quả
-    st.session_state[_lp_key("last_title")] = f"Giáo án - {meta_ppct['ten_bai']}"
-    
-    # LƯU Ý QUAN TRỌNG:
-    # Code cũ của bạn lưu 'data' (dictionary) vào key 'last_html'. 
-    # Nếu tab Xem trước cần mã HTML để hiển thị, bạn nên lưu biến 'html'.
-    # Tôi đã sửa thành lưu 'html'. Nếu bạn chủ đích muốn lưu data gốc, hãy đổi lại thành 'data'.
-    st.session_state[_lp_key("last_html")] = html 
-
-    # Tự nhảy sang Xem trước
-    _lp_set_active("6) Xem trước & Xuất")
-
-    st.success("✅ Tạo giáo án thành công!")
-    st.rerun()
-           
-except Exception as e:
-    st.error(f"Lỗi AI: {e}")
 
             # Render HTML đúng mẫu tuyệt đối (2 cột GV/HS)
             html = render_lesson_plan_html(data_json)
@@ -2647,6 +2625,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
