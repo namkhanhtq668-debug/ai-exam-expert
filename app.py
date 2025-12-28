@@ -1101,21 +1101,20 @@ def generate_lesson_plan_locked(
     genai.configure(api_key=api_key)
 
     # meta chuẩn (đúng schema)
+        # req_meta: always define BEFORE any reference (prevents NameError when optional fields are missing)
     req_meta = {
-        "cap_hoc": meta_ppct.get("cap_hoc", ""),
-        "mon": meta_ppct.get("mon", ""),
-        "lop": meta_ppct.get("lop", ""),
-        "bo_sach": bo_sach,
-        "ppct": {
-            "tuan": int(meta_ppct.get("tuan", 1)),
-            "tiet": int(meta_ppct.get("tiet", 1)),
-            "bai_id": meta_ppct.get("bai_id", "AUTO"),
-            "ghi_chu": meta_ppct.get("ghi_chu", "")
-        },
-        "ten_bai": meta_ppct.get("ten_bai", ""),
-        "thoi_luong": int(thoi_luong),
-        "si_so": int(si_so),
-        "ngay_day": meta_ppct.get("ngay_day", "")
+        "khối_lớp": req.get("khối_lớp", "").strip(),
+        "môn": req.get("môn", "").strip(),
+        "bài": req.get("bài", "").strip(),
+        "chủ_đề": req.get("chủ_đề", "").strip(),
+        "tuần": req.get("tuần", "").strip(),
+        "tiết": req.get("tiết", "").strip(),
+        "thời_lượng": req.get("thời_lượng", "").strip(),
+        "yccđ": (meta_ppct.get("yccđ") if isinstance(meta_ppct, dict) else ""),
+        "nls": (meta_ppct.get("nls") if isinstance(meta_ppct, dict) else ""),
+        "học_liệu": (meta_ppct.get("học_liệu") if isinstance(meta_ppct, dict) else ""),
+        "thiết_bị": (meta_ppct.get("thiết_bị") if isinstance(meta_ppct, dict) else ""),
+        "lưu_ý": (meta_ppct.get("lưu_ý") if isinstance(meta_ppct, dict) else ""),
     }
 
     # prompt data-only (khuyến nghị dùng prompt data-only thay vì prompt HTML)
@@ -1242,21 +1241,20 @@ def generate_lesson_plan_data_only(
     """
     genai.configure(api_key=api_key)
 
+        # req_meta: always define BEFORE any reference (prevents NameError when optional fields are missing)
     req_meta = {
-        "cap_hoc": meta_ppct.get("cap_hoc"),
-        "mon": meta_ppct.get("mon"),
-        "lop": meta_ppct.get("lop"),
-        "bo_sach": meta_ppct.get("bo_sach"),
-        "ppct": {
-            "tuan": int(meta_ppct.get("tuan", 1)),
-            "tiet": int(meta_ppct.get("tiet", 1)),
-            "bai_id": meta_ppct.get("bai_id", "AUTO"),
-            "ghi_chu": meta_ppct.get("ghi_chu", "")
-        },
-        "ten_bai": meta_ppct.get("ten_bai"),
-        "thoi_luong": int(meta_ppct.get("thoi_luong", 35)),
-        "si_so": int(meta_ppct.get("si_so", 40)),
-        "ngay_day": meta_ppct.get("ngay_day", "")
+        "khối_lớp": req.get("khối_lớp", "").strip(),
+        "môn": req.get("môn", "").strip(),
+        "bài": req.get("bài", "").strip(),
+        "chủ_đề": req.get("chủ_đề", "").strip(),
+        "tuần": req.get("tuần", "").strip(),
+        "tiết": req.get("tiết", "").strip(),
+        "thời_lượng": req.get("thời_lượng", "").strip(),
+        "yccđ": (meta_ppct.get("yccđ") if isinstance(meta_ppct, dict) else ""),
+        "nls": (meta_ppct.get("nls") if isinstance(meta_ppct, dict) else ""),
+        "học_liệu": (meta_ppct.get("học_liệu") if isinstance(meta_ppct, dict) else ""),
+        "thiết_bị": (meta_ppct.get("thiết_bị") if isinstance(meta_ppct, dict) else ""),
+        "lưu_ý": (meta_ppct.get("lưu_ý") if isinstance(meta_ppct, dict) else ""),
     }
 
     system_prompt = build_lesson_system_prompt_data_only(
@@ -2723,6 +2721,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
