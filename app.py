@@ -13,6 +13,50 @@ import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 import html  # [FIX] dùng html.escape, tránh NameError
 import os
+
+def safe_json_loads(text: str):
+    """
+    Parse JSON robustly from LLM outputs.
+    - Removes common markdown code fences
+    - Extracts the first JSON object/array found
+    - Tries a second pass with minor cleanup for trailing commas
+    Returns Python object or raises ValueError.
+    """
+    import json as _json
+    import re as _re
+
+    if text is None:
+        raise ValueError("Empty text")
+
+    s = str(text).strip()
+
+    # Remove markdown fences if present
+    s = _re.sub(r"^```(?:json)?\s*", "", s, flags=_re.IGNORECASE)
+    s = _re.sub(r"\s*```$", "", s)
+
+    # If the model returned extra prose, try to extract the first JSON block
+    # Prefer object {...} then array [...]
+    obj_match = _re.search(r"\{[\s\S]*\}", s)
+    arr_match = _re.search(r"\[[\s\S]*\]", s)
+    if obj_match:
+        s2 = obj_match.group(0)
+    elif arr_match:
+        s2 = arr_match.group(0)
+    else:
+        s2 = s
+
+    # First attempt
+    try:
+        return _json.loads(s2)
+    except Exception:
+        # Cleanup: remove trailing commas before } or ]
+        s3 = _re.sub(r",\s*([}\]])", r"\1", s2)
+        # Replace smart quotes
+        s3 = s3.replace("“", '"').replace("”", '"').replace("’", "'")
+        try:
+            return _json.loads(s3)
+        except Exception as e:
+            raise ValueError(f"Invalid JSON: {e}") from e
 # ==============================================================================
 # [MODULE NLS] DỮ LIỆU & CẤU HÌNH CHO SOẠN GIÁO ÁN NĂNG LỰC SỐ
 # ==============================================================================
@@ -931,112 +975,46 @@ class QuestionGeneratorYCCD:
 # [MỚI] 2.2. JSON SCHEMA KHÓA CỨNG (CÓ BẢNG)
 # ==============================================================================
 LESSON_PLAN_SCHEMA = {
-    "type": "object",
-    "required": ["meta", "sections", "renderHtml"],
-    "additionalProperties": False,
-    "properties": {
-        "meta": {
-            "type": "object",
-            "required": ["cap_hoc", "mon", "lop", "bo_sach", "ppct", "ten_bai", "thoi_luong"],
-            "additionalProperties": False,
-            "properties": {
-                "cap_hoc": {"type": "string"},
-                "mon": {"type": "string"},
-                "lop": {"type": "string"},
-                "bo_sach": {"type": "string"},
-                "ppct": {
-                    "type": "object",
-                    "required": ["tuan", "tiet", "bai_id"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "tuan": {"type": "integer", "minimum": 1, "maximum": 60},
-                        "tiet": {"type": "integer", "minimum": 1, "maximum": 20},
-                        "bai_id": {"type": "string"},
-                        "ghi_chu": {"type": "string"}
-                    }
-                },
-                "ten_bai": {"type": "string", "minLength": 2},
-                "thoi_luong": {"type": "integer", "minimum": 30, "maximum": 120},
-                "si_so": {"type": "integer", "minimum": 10, "maximum": 60},
-                "ngay_day": {"type": "string"}
-            }
-        },
-        "sections": {
-            "type": "object",
-            "required": ["I", "II", "III", "IV", "V"],
-            "additionalProperties": False,
-            "properties": {
-                "I": {  # Yêu cầu cần đạt
-                    "type": "object",
-                    "required": ["yeu_cau_can_dat"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "yeu_cau_can_dat": {
-                            "type": "array",
-                            "minItems": 1,
-                            "items": {"type": "string"}
-                        },
-                        "pham_chat": {"type": "array", "items": {"type": "string"}},
-                        "nang_luc": {"type": "array", "items": {"type": "string"}}
-                    }
-                },
-                "II": {  # Đồ dùng dạy học
-                    "type": "object",
-                    "required": ["giao_vien", "hoc_sinh"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "giao_vien": {"type": "array", "items": {"type": "string"}},
-                        "hoc_sinh": {"type": "array", "items": {"type": "string"}}
-                    }
-                },
-                "III": {  # Tiến trình dạy học
-                    "type": "object",
-                    "required": ["hoat_dong"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "hoat_dong": {
-                            "type": "array",
-                            "minItems": 4,
-                            "items": {
-                                "type": "object",
-                                "required": ["ten", "thoi_gian", "muc_tieu", "to_chuc"],
-                                "additionalProperties": False,
-                                "properties": {
-                                    "ten": {"type": "string"},
-                                    "thoi_gian": {"type": "integer", "minimum": 1, "maximum": 60},
-                                    "muc_tieu": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-                                    "to_chuc": {
-                                        "type": "array",
-                                        "minItems": 2,
-                                        "items": {
-                                            "type": "object",
-                                            "required": ["gv", "hs", "san_pham"],
-                                            "additionalProperties": False,
-                                            "properties": {
-                                                "gv": {"type": "string"},
-                                                "hs": {"type": "string"},
-                                                "san_pham": {"type": "string"}
-                                            }
-                                        }
-                                    },
-                                    "noi_dung_cot_loi": {"type": "array", "items": {"type": "string"}}
-                                }
-                            }
-                        }
-                    }
-                },
-                "IV": {  # Điều chỉnh sau bài dạy
-                    "type": "object",
-                    "required": ["dieu_chinh_sau_bai_day"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "dieu_chinh_sau_bai_day": {"type": "string"}
-                    }
-                }
-            }
-        },
-        "renderHtml": {"type": "string", "minLength": 50, "description": "Toàn bộ nội dung giáo án dạng HTML. Phần III PHẢI là bảng (table) 2 cột: Hoạt động của GV và Hoạt động của HS."}
-    }
+  "type": "object",
+  "additionalProperties": True,
+  "required": ["meta", "sections"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": True,
+      "properties": {
+        "cap_hoc": {"type": "string"},
+        "mon_hoc": {"type": "string"},
+        "lop": {"type": "string"},
+        "ten_bai": {"type": "string"},
+        "thoi_luong": {"type": "string"},
+        "tiet_so": {"type": "string"},
+        "ngay_day": {"type": "string"},
+        "giao_vien": {"type": "string"},
+        "truong": {"type": "string"},
+        "chu_de": {"type": "string"},
+        "muc_tieu": {"type": "array", "items": {"type": "string"}},
+        "yeu_cau_can_dat": {"type": "array", "items": {"type": "string"}},
+        "pham_chat_nang_luc": {"type": "array", "items": {"type": "string"}},
+        "thiet_bi_hoc_lieu": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": True,
+        "required": ["title", "content"],
+        "properties": {
+          "title": {"type": "string"},
+          "content": {"type": ["string", "array", "object"]}
+        }
+      }
+    },
+    "appendix": {"type": ["object", "array", "string", "null"]},
+    "renderHtml": {"type": "string"}
+  }
 }
 
 # ==============================================================================
@@ -2942,8 +2920,6 @@ else:
         module_advisor()
     else:
         main_app()
-
-
 
 
 
