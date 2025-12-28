@@ -2446,12 +2446,18 @@ def module_lesson_plan():
                 # GỌI HÀM TẠO GIÁO ÁN
                 data = generate_lesson_plan_locked(
                     api_key=api_key,
-                    meta_ppct=meta_ppct,         # KHÔNG nhét bo_sach/thoi_luong/si_so vào meta_ppct nữa
-                    bo_sach=book,                # truyền riêng
-                    thoi_luong=int(duration),    # truyền riêng
-                    si_so=int(class_size),       # truyền riêng
+                    meta_ppct=meta_ppct,
+                    bo_sach=book,
+                    cap_hoc=str(meta_ppct.get("level", "")),
+                    mon_hoc=str(meta_ppct.get("subject", "")),
+                    lop=str(meta_ppct.get("grade", "")),
+                    ten_bai=str(meta_ppct.get("lesson", "")),
+                    thoi_luong=str(duration),
+                    si_so=str(class_size),
+                    muc_tieu_them=st.session_state.get(_lp_key("objectives"), ""),
+                    yeu_cau_them=st.session_state.get(_lp_key("yccd"), ""),
+                    engine=engine,
                     teacher_note=teacher_note,
-                    model_name="gemini-2.0-flash"
                 )
 
                 # [SỬA QUAN TRỌNG]: Dùng biến 'data' thay vì 'data_json'
@@ -2828,6 +2834,19 @@ else:
         module_advisor()
     else:
         main_app()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # --- Chuẩn hóa và suy luận đầu vào ---
