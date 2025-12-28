@@ -1067,41 +1067,35 @@ Chỉ trả về JSON hợp lệ với 2 trường chính:
 2. "renderHtml": Toàn bộ nội dung giáo án dạng HTML (để hiển thị và in ấn). Trong đó phần III phải là thẻ <table> có border="1".
 """.strip()
 
-# [ĐÃ SỬA] Thêm tham số model_name vào dòng định nghĩa hàm
-def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, thoi_luong: int, si_so: int, teacher_note: str, model_name: str = "gemini-2.0-flash"):
-    system_prompt = build_lesson_system_prompt_locked(meta_ppct, teacher_note)
-    genai.configure(api_key=api_key)
-    
-    # Dùng model được truyền vào từ tham số
-    model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
+        try:
+            with st.spinner("🔄 Đang tạo giáo án (JSON data-only)..."):
+                # [SỬA LỖI QUAN TRỌNG]: Truyền tham số rời rạc thay vì gộp vào meta_ppct
+                data = generate_lesson_plan_locked(
+                    api_key=api_key,
+                    meta_ppct=meta_ppct,       # Chỉ truyền dict ppct cơ bản
+                    bo_sach=book,              # Truyền riêng tham số này
+                    thoi_luong=int(duration),  # Truyền riêng tham số này
+                    si_so=int(class_size),     # Truyền riêng tham số này
+                    teacher_note=teacher_note,
+                    model_name="gemini-2.0-flash"
+                )
 
-    safe_settings = [
-        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-    ]
+                # Render HTML
+                html = render_lesson_plan_html(data)
+                
+                # Lưu kết quả
+                st.session_state[_lp_key("last_title")] = f"Giáo án - {meta_ppct['ten_bai']}"
+                st.session_state[_lp_key("last_html")] = html 
 
-    req = {
-        "meta": {
-            "cap_hoc": meta_ppct.get("cap_hoc"), "mon": meta_ppct.get("mon"), "lop": meta_ppct.get("lop"),
-            "bo_sach": bo_sach,
-            "ppct": {"tuan": meta_ppct.get("tuan"), "tiet": meta_ppct.get("tiet"), "bai_id": meta_ppct.get("bai_id"), "ghi_chu": ""},
-            "ten_bai": meta_ppct.get("ten_bai"),
-            "thoi_luong": int(thoi_luong),
-            "si_so": int(si_so)
-        },
-        "teacher_note": teacher_note
-    }
+                # Chuyển tab
+                _lp_set_active("6) Xem trước & Xuất")
 
-    try:
-        res = model.generate_content(json.dumps(req, ensure_ascii=False), generation_config={"response_mime_type": "application/json"}, safety_settings=safe_settings)
-        data = json.loads(clean_json(res.text))
-        validate_lesson_plan(data)
-        return data
-    except Exception as e:
-        return {"renderHtml": f"Lỗi sinh nội dung: {str(e)}", "title": "Lỗi"}
+                st.success("✅ Tạo giáo án thành công!")
+                st.rerun()
 
+        except Exception as e:
+            st.error(f"Lỗi AI: {e}")
+            
 # ==============================================================================
 # [PATCH 2/3] PROMPT KHÓA CỨNG: DATA-ONLY JSON (ANTI-HALLUCINATION)
 # ==============================================================================
@@ -2630,6 +2624,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
