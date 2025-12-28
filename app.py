@@ -1094,7 +1094,7 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
         "teacher_note": teacher_note
     }
 
-    try:
+      try:
             with st.spinner("🔄 Đang tạo giáo án (JSON data-only)..."):
                 # Gọi hàm tạo giáo án (đã sửa tham số)
                 data = generate_lesson_plan_locked(
@@ -2651,6 +2651,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
