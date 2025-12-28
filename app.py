@@ -1096,13 +1096,13 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
 
     try:
             with st.spinner("🔄 Đang tạo giáo án (JSON data-only)..."):
-                # [SỬA LỖI QUAN TRỌNG]: Truyền tham số rời rạc thay vì gộp vào meta_ppct
+                # Gọi hàm tạo giáo án (đã sửa tham số)
                 data = generate_lesson_plan_locked(
                     api_key=api_key,
-                    meta_ppct=meta_ppct,       # Chỉ truyền dict ppct cơ bản
-                    bo_sach=book,              # Truyền riêng tham số này
-                    thoi_luong=int(duration),  # Truyền riêng tham số này
-                    si_so=int(class_size),     # Truyền riêng tham số này
+                    meta_ppct=meta_ppct,       # Dict chứa thông tin cơ bản
+                    bo_sach=book,              # Tham số rời 1
+                    thoi_luong=int(duration),  # Tham số rời 2
+                    si_so=int(class_size),     # Tham số rời 3
                     teacher_note=teacher_note,
                     model_name="gemini-2.0-flash"
                 )
@@ -1121,6 +1121,7 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
                 st.rerun()
 
         except Exception as e:
+            # Dòng except này phải thẳng hàng với dòng try ở trên
             st.error(f"Lỗi AI: {e}")
 # ==============================================================================
 # [PATCH 2/3] PROMPT KHÓA CỨNG: DATA-ONLY JSON (ANTI-HALLUCINATION)
@@ -2650,6 +2651,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
