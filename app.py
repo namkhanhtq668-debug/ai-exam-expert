@@ -518,39 +518,37 @@ def clean_json(text):
         return text
 
 # [CẬP NHẬT] Hàm tạo File Word chuẩn Font XML VÀ CÓ BẢNG
-def create_word_doc(html, title):
-    doc_content = f"""
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-    <head>
-        <meta charset='utf-8'>
-        <title>{title}</title>
-        <xml>
-            <w:WordDocument>
-                <w:View>Print</w:View>
-                <w:Zoom>100</w:Zoom>
-                <w:DoNotOptimizeForBrowser/>
-            </w:WordDocument>
-        </xml>
-        <style>
-            @page {{ size: 21cm 29.7cm; margin: 2cm 2cm 2cm 2cm; mso-page-orientation: portrait; }}
-            body {{ font-family: 'Times New Roman', serif; font-size: 13pt; line-height: 1.3; }}
-            p, div, span, li, td, th {{ font-family: 'Times New Roman', serif; mso-ascii-font-family: 'Times New Roman'; mso-hansi-font-family: 'Times New Roman'; color: #000000; }}
-            table {{ border-collapse: collapse; width: 100%; border: 1px solid black; }}
-            td, th {{ border: 1px solid black; padding: 5px; vertical-align: top; }}
-        </style>
-    </head>
-    <body>
-        <div class="WordSection1">
-            {html}
-        </div>
-    </body>
-    </html>
+def create_word_doc(html_content: str, title: str = "GiaoAn") -> bytes:
     """
-    return "\ufeff" + doc_content
+    Tạo file .doc (Word) từ HTML.
 
-# ==============================================================================
-# [PATCH 3/3] RENDER HTML TỪ JSON (BẢNG 2 CỘT GV/HS) - KHÓA MẪU
-# ==============================================================================
+    - Nếu html_content đã là tài liệu HTML hoàn chỉnh (<html>...), sẽ dùng trực tiếp (chỉ bổ sung charset khi thiếu).
+    - Nếu không, sẽ bọc vào khung HTML Office-compatible và ép font Times New Roman 13pt.
+    """
+    html_text = html_content or ""
+    safe_title = re.sub(r"[^A-Za-z0-9_\-]+", "_", title or "GiaoAn").strip("_") or "GiaoAn"
+    low = html_text.lower()
+
+    if "<html" in low and "<body" in low:
+        # đảm bảo có meta charset
+        if "charset" not in low:
+            html_text = html_text.replace("<head>", "<head><meta charset='utf-8'>", 1) if "<head>" in low else ("<meta charset='utf-8'>\n" + html_text)
+        return html_text.encode("utf-8")
+
+    wrapper = f"""<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>{html.escape(safe_title)}</title>
+<style>
+  body {{ font-family: 'Times New Roman', Times, serif; font-size: 13pt; color:#000; }}
+</style>
+</head>
+<body>
+{html_text}
+</body>
+</html>"""
+    return wrapper.encode("utf-8")
 
 def _html_escape(s: str) -> str:
     if s is None:
@@ -570,132 +568,128 @@ def _render_ul(items) -> str:
     return f"<ul>{lis or '<li>...</li>'}</ul>"
 
 def render_lesson_plan_html(data: dict) -> str:
-    meta = data.get("meta", {})
-    sec = data.get("sections", {})
+    """
+    Render giáo án theo mẫu 2 cột (Hoạt động của GV / Hoạt động của HS),
+    gần sát các mẫu giáo án người dùng cung cấp.
+    """
+    meta = (data or {}).get("meta") or {}
+    muc_tieu = (data or {}).get("muc_tieu") or {}
+    chuan_bi = (data or {}).get("chuan_bi") or {}
+    tien_trinh = (data or {}).get("tien_trinh_day_hoc") or []
+    danh_gia = (data or {}).get("danh_gia") or {}
+    dieu_chinh = (data or {}).get("dieu_chinh") or ""
 
-    sec_I = sec.get("I", {})
-    sec_II = sec.get("II", {})
-    sec_III = sec.get("III", {})
-    sec_IV = sec.get("IV", {})
+    def _esc(x):
+        return html.escape(str(x or ""))
 
-    cap_hoc = meta.get("cap_hoc", "")
-    mon = meta.get("mon", "")
-    lop = meta.get("lop", "")
-    bo_sach = meta.get("bo_sach", "")
-    ten_bai = meta.get("ten_bai", "")
-    thoi_luong = meta.get("thoi_luong", "")
-    si_so = meta.get("si_so", "")
+    def _ul(items):
+        items = [i for i in (items or []) if str(i).strip()]
+        if not items:
+            return "<div class='muted'>…</div>"
+        return "<ul>" + "".join(f"<li>{_esc(i)}</li>" for i in items) + "</ul>"
 
-    ppct = meta.get("ppct", {}) or {}
-    tuan = ppct.get("tuan", "")
-    tiet = ppct.get("tiet", "")
-    bai_id = ppct.get("bai_id", "")
-    ghi_chu = ppct.get("ghi_chu", "")
-
-    # I
-    yccd = sec_I.get("yeu_cau_can_dat", []) or []
-    pham_chat = sec_I.get("pham_chat", []) or []
-    nang_luc = sec_I.get("nang_luc", []) or []
-    nang_luc_dac_thu = sec_I.get("nang_luc_dac_thu", []) or []
-    nang_luc_so = sec_I.get("nang_luc_so", []) or []
-
-    # II
-    gv_tools = sec_II.get("giao_vien", []) or []
-    hs_tools = sec_II.get("hoc_sinh", []) or []
-
-    # III
-    activities = sec_III.get("hoat_dong", []) or []
-    table_rows = ""
-
-    for idx, a in enumerate(activities, start=1):
-        ten_hd = a.get("ten_hoat_dong", f"Hoạt động {idx}")
-        tg = a.get("thoi_gian", "")
-        muc_tieu = a.get("muc_tieu", []) or []
-        cot_loi = a.get("noi_dung_cot_loi", []) or []
-        gv_list = a.get("gv", []) or []
-        hs_list = a.get("hs", []) or []
-
-        gv_html = ""
-        if muc_tieu:
-            gv_html += f"<div><b>Mục tiêu:</b>{_render_ul(muc_tieu)}</div>"
-        if cot_loi:
-            gv_html += f"<div><b>Nội dung cốt lõi:</b>{_render_ul(cot_loi)}</div>"
-        gv_html += f"<div><b>GV:</b>{_render_ul(gv_list)}</div>"
-
-        hs_html = f"<div><b>HS:</b>{_render_ul(hs_list)}</div>"
-
-        table_rows += f"""
-        <tr>
-            <td style="width:42px; text-align:center;"><b>{idx}</b></td>
-            <td style="width:160px;"><b>{_html_escape(ten_hd)}</b></td>
-            <td style="width:70px; text-align:center;">{_html_escape(tg)}</td>
-            <td style="width:50%;">{gv_html}</td>
-            <td style="width:50%;">{hs_html}</td>
-        </tr>
-        """
-
-    if not table_rows.strip():
-        table_rows = """
-        <tr>
-            <td style="text-align:center;"><b>1</b></td>
-            <td><b>Khởi động</b></td>
-            <td style="text-align:center;">5</td>
-            <td><ul><li>Tổ chức cho HS...</li><li>Gợi mở...</li></ul></td>
-            <td><ul><li>HS tham gia...</li><li>HS trả lời...</li></ul></td>
-        </tr>
-        """
-
-    # IV
-    dieu_chinh = sec_IV.get("dieu_chinh_sau_bai_day", "") or ""
-    if not dieu_chinh.strip():
-        dieu_chinh = "...................................................................................."
-
-    html = f"""
-    <div style="font-family:'Times New Roman', serif; font-size:13pt; line-height:1.3; color:#000;">
-        <div style="text-align:center; font-weight:bold; font-size:14pt; margin-bottom:10px;">
-            KẾ HOẠCH BÀI DẠY
-        </div>
-
-        <div style="margin-bottom:10px;">
-            <b>Cấp học:</b> {_html_escape(cap_hoc)} &nbsp;&nbsp;|&nbsp;&nbsp;
-            <b>Môn:</b> {_html_escape(mon)} &nbsp;&nbsp;|&nbsp;&nbsp;
-            <b>Lớp:</b> {_html_escape(lop)}<br/>
-            <b>Bộ sách:</b> {_html_escape(bo_sach)}<br/>
-            <b>PPCT:</b> Tuần {_html_escape(tuan)} – Tiết {_html_escape(tiet)} – Mã bài {_html_escape(bai_id)} {("– " + _html_escape(ghi_chu)) if str(ghi_chu).strip() else ""}<br/>
-            <b>Tên bài:</b> {_html_escape(ten_bai)}<br/>
-            <b>Thời lượng:</b> {_html_escape(thoi_luong)} phút &nbsp;&nbsp;|&nbsp;&nbsp;
-            <b>Sĩ số:</b> {_html_escape(si_so)} HS
-        </div>
-
-        <div style="margin:10px 0 6px 0; font-weight:bold;">I. YÊU CẦU CẦN ĐẠT</div>
-        <div><b>Yêu cầu cần đạt:</b>{_render_ul(yccd)}</div>
-        <div><b>Phẩm chất:</b>{_render_ul(pham_chat)}</div>
-        <div><b>Năng lực chung:</b>{_render_ul(nang_luc)}</div>
-        <div><b>Năng lực đặc thù:</b>{_render_ul(nang_luc_dac_thu)}</div>
-        <div><b>Năng lực số (nếu có):</b>{_render_ul(nang_luc_so)}</div>
-
-        <div style="margin:10px 0 6px 0; font-weight:bold;">II. ĐỒ DÙNG DẠY HỌC</div>
-        <div><b>Giáo viên:</b>{_render_ul(gv_tools)}</div>
-        <div><b>Học sinh:</b>{_render_ul(hs_tools)}</div>
-
-        <div style="margin:10px 0 6px 0; font-weight:bold;">III. CÁC HOẠT ĐỘNG DẠY – HỌC CHỦ YẾU</div>
-        <table border="1" style="width:100%; border-collapse:collapse;">
-            <tr>
-                <th style="width:42px; text-align:center;">STT</th>
-                <th style="width:160px; text-align:center;">Hoạt động</th>
-                <th style="width:70px; text-align:center;">Thời gian</th>
-                <th style="text-align:center;">Hoạt động của GV</th>
-                <th style="text-align:center;">Hoạt động của HS</th>
-            </tr>
-            {table_rows}
-        </table>
-
-        <div style="margin:10px 0 6px 0; font-weight:bold;">IV. ĐIỀU CHỈNH SAU BÀI DẠY</div>
-        <div>{_html_escape(dieu_chinh)}</div>
+    # --- Header theo mẫu ---
+    hdr = f"""
+    <div class="header">
+      <div><b>Môn:</b> {_esc(meta.get("mon_hoc"))}</div>
+      <div><b>Lớp:</b> {_esc(meta.get("lop"))}</div>
+      <div><b>Bài:</b> {_esc(meta.get("ten_bai"))}</div>
+      <div><b>Thời lượng:</b> {_esc(meta.get("thoi_luong"))}</div>
     </div>
-    """.strip()
+    """
 
-    return html
+    # --- Mục tiêu ---
+    mt_html = f"""
+    <h2>I. MỤC TIÊU</h2>
+    <div class="section">
+      <div><b>1. Phẩm chất:</b> {_ul(muc_tieu.get("pham_chat"))}</div>
+      <div><b>2. Năng lực:</b> {_ul(muc_tieu.get("nang_luc"))}</div>
+      <div><b>3. Kiến thức:</b> {_ul(muc_tieu.get("kien_thuc"))}</div>
+      <div><b>4. Yêu cầu cần đạt (YCCĐ):</b> {_ul(muc_tieu.get("yccd"))}</div>
+    </div>
+    """
+
+    # --- Chuẩn bị ---
+    cb_html = f"""
+    <h2>II. ĐỒ DÙNG DẠY HỌC</h2>
+    <div class="section">
+      <div><b>1. Giáo viên:</b> {_ul(chuan_bi.get("giao_vien"))}</div>
+      <div><b>2. Học sinh:</b> {_ul(chuan_bi.get("hoc_sinh"))}</div>
+    </div>
+    """
+
+    # --- Tiến trình dạy học (2 cột) ---
+    rows = []
+    if not tien_trinh:
+        rows.append(f"<tr><td colspan='2' class='muted'>Chưa có tiến trình dạy học.</td></tr>")
+    else:
+        for idx, hd in enumerate(tien_trinh, start=1):
+            ten = (hd or {}).get("ten_hoat_dong") or f"Hoạt động {idx}"
+            thoi_gian = (hd or {}).get("thoi_gian") or ""
+            gv = (hd or {}).get("hoat_dong_gv") or []
+            hs = (hd or {}).get("hoat_dong_hs") or []
+            ghi_chu = (hd or {}).get("ghi_chu") or ""
+
+            # Hàng tiêu đề hoạt động (gộp 2 cột)
+            title = f"{idx}. {ten}".strip()
+            if thoi_gian:
+                title += f" ({thoi_gian})"
+            rows.append(f"<tr><td colspan='2' class='activity-title'>{_esc(title)}:</td></tr>")
+
+            # Hàng nội dung (2 cột GV / HS)
+            rows.append(
+                "<tr>"
+                f"<td class='col-gv'><b>Hoạt động của GV</b>{_ul(gv)}</td>"
+                f"<td class='col-hs'><b>Hoạt động của HS</b>{_ul(hs)}</td>"
+                "</tr>"
+            )
+            if str(ghi_chu).strip():
+                rows.append(f"<tr><td colspan='2' class='note'><b>Ghi chú:</b> {_esc(ghi_chu)}</td></tr>")
+
+    tt_html = f"""
+    <h2>III. CÁC HOẠT ĐỘNG DẠY HỌC</h2>
+    <table class="tt">
+      <tr>
+        <th>Hoạt động của giáo viên</th>
+        <th>Hoạt động của học sinh</th>
+      </tr>
+      {''.join(rows)}
+    </table>
+    """
+
+    # --- Đánh giá ---
+    dg_html = f"""
+    <h2>IV. ĐÁNH GIÁ – DẶN DÒ</h2>
+    <div class="section">
+      <div><b>Đánh giá:</b> {_ul(danh_gia.get("tieu_chi"))}</div>
+      <div><b>Dặn dò:</b> {_ul(danh_gia.get("dan_do"))}</div>
+    </div>
+    """
+
+    dc_html = f"""
+    <h2>V. ĐIỀU CHỈNH / BỔ SUNG</h2>
+    <div class="section">{_esc(dieu_chinh) if str(dieu_chinh).strip() else "<div class='muted'>…</div>"}</div>
+    """
+
+    css = """
+    <style>
+      body { font-family: 'Times New Roman', Times, serif; font-size: 13pt; color: #000; }
+      .header { margin-bottom: 10px; }
+      .header div { margin: 2px 0; }
+      h2 { font-size: 14pt; margin: 12px 0 6px; }
+      .section { margin-left: 10px; }
+      ul { margin: 4px 0 8px 18px; }
+      .muted { color: #666; font-style: italic; }
+      table.tt { width: 100%; border-collapse: collapse; margin-top: 6px; }
+      table.tt th, table.tt td { border: 1px solid #000; vertical-align: top; padding: 6px; }
+      table.tt th { text-align: center; font-weight: bold; }
+      .activity-title { font-weight: bold; background: #f2f2f2; }
+      .note { font-style: italic; }
+      .col-gv ul, .col-hs ul { margin-top: 6px; }
+    </style>
+    """
+
+    return f"<!doctype html><html><head><meta charset='utf-8'>{css}</head><body>{hdr}{mt_html}{cb_html}{tt_html}{dg_html}{dc_html}</body></html>"
 
 def get_knowledge_context(subject, grade, book, scope):
     try:
