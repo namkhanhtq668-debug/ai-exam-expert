@@ -1988,29 +1988,27 @@ def module_lesson_plan():
         }
 
         try:
-            with st.spinner("🔄 Đang tạo giáo án chuẩn mẫu (Khóa cứng)..."):
-                # GỌI HÀM MỚI generate_lesson_plan_locked
-                data = generate_lesson_plan_locked(
-                    api_key=api_key,
-                    meta_ppct=meta_ppct,
-                    bo_sach=book,
-                    thoi_luong=int(duration),
-                    si_so=int(class_size),
-                    teacher_note=teacher_note
-                )
+            with st.spinner("🔄 Đang tạo giáo án (JSON data-only, khóa mẫu)..."):
+    data_json = generate_lesson_plan_data_only(
+        api_key=api_key,
+        meta_ppct={
+            **meta_ppct,
+            "bo_sach": book,
+            "thoi_luong": int(duration),
+            "si_so": int(class_size),
+        },
+        teacher_note=teacher_note,
+        model_name="gemini-2.0-flash-exp"
+    )
 
-            # Lưu kết quả
-            st.session_state[_lp_key("last_title")] = f"Giáo án - {meta_ppct['ten_bai']}"
-            st.session_state[_lp_key("last_html")] = data # Lưu cả dict để lấy renderHtml
+# Render HTML theo mẫu cố định (2 cột GV/HS)
+html = render_lesson_plan_html(data_json)
 
-            # Tự nhảy sang Xem trước
-            _lp_set_active("6) Xem trước & Xuất")
-
-            st.success("✅ Tạo giáo án thành công!")
-            st.rerun()
-
-        except Exception as e:
-            st.error(f"Lỗi AI: {e}")
+st.session_state[_lp_key("last_title")] = f"Giáo án - {meta_ppct['ten_bai']}"
+st.session_state[_lp_key("last_html")] = html  # LƯU HTML CHUẨN (không lưu dict)
+_lp_set_active("6) Xem trước & Xuất")
+st.success("✅ Tạo giáo án thành công (đã khóa mẫu tuyệt đối)!")
+st.rerun()
 
     # ===============================
     # NÚT XOÁ
@@ -2301,6 +2299,159 @@ def module_advisor():
     st.markdown("## 🧠 AI EDU Advisor – Nhận xét & Tư vấn")
     st.info("Mô-đun đang hoàn thiện. (Sẽ tích hợp sau)")
     st.markdown("</div>", unsafe_allow_html=True)
+    
+# ==============================================================================
+# [PATCH] RENDER HTML TỪ JSON (BẢNG 2 CỘT GV/HS) - CHỐNG LỆCH MẪU
+# ==============================================================================
+
+def _html_escape(s: str) -> str:
+    if s is None:
+        return ""
+    return (
+        str(s)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+def _render_ul(items):
+    if not items:
+        return "<ul><li>...</li></ul>"
+    lis = "".join([f"<li>{_html_escape(x)}</li>" for x in items if str(x).strip()])
+    return f"<ul>{lis or '<li>...</li>'}</ul>"
+
+def render_lesson_plan_html(data: dict) -> str:
+    """
+    Render HTML theo mẫu cố định (cấp Sở):
+    - Times New Roman 13
+    - I. Yêu cầu cần đạt
+    - II. Đồ dùng dạy học
+    - III. Bảng tiến trình 2 cột GV/HS (có cột STT + Hoạt động + Thời gian)
+    - IV. Điều chỉnh sau bài dạy (dòng chấm)
+    """
+    meta = data.get("meta", {})
+    sec = data.get("sections", {})
+
+    I = sec.get("I", {})
+    II = sec.get("II", {})
+    III = sec.get("III", {})
+    IV = sec.get("IV", {})
+
+    # ---- Header meta ----
+    cap_hoc = meta.get("cap_hoc", "")
+    mon = meta.get("mon", "")
+    lop = meta.get("lop", "")
+    bo_sach = meta.get("bo_sach", "")
+    ten_bai = meta.get("ten_bai", "")
+    thoi_luong = meta.get("thoi_luong", "")
+    si_so = meta.get("si_so", "")
+    ppct = meta.get("ppct", {}) or {}
+    tuan = ppct.get("tuan", "")
+    tiet = ppct.get("tiet", "")
+    bai_id = ppct.get("bai_id", "")
+    ghi_chu = ppct.get("ghi_chu", "")
+
+    # ---- Build table rows ----
+    activities = (III.get("hoat_dong", []) or [])
+    table_rows = ""
+    for idx, a in enumerate(activities, start=1):
+        ten_hd = a.get("ten_hoat_dong", f"Hoạt động {idx}")
+        tg = a.get("thoi_gian", "")
+        muc_tieu = a.get("muc_tieu", [])
+        cot_loi = a.get("noi_dung_cot_loi", [])
+        gv_list = a.get("gv", [])
+        hs_list = a.get("hs", [])
+
+        left = ""
+        # GV: có thể thêm mục tiêu/cốt lõi trước cho đúng văn phong hồ sơ
+        if muc_tieu:
+            left += f"<div><b>Mục tiêu:</b>{_render_ul(muc_tieu)}</div>"
+        if cot_loi:
+            left += f"<div><b>Nội dung cốt lõi:</b>{_render_ul(cot_loi)}</div>"
+        left += f"<div><b>GV:</b>{_render_ul(gv_list)}</div>"
+
+        right = f"<div><b>HS:</b>{_render_ul(hs_list)}</div>"
+
+        table_rows += f"""
+        <tr>
+          <td style="width:42px; text-align:center;"><b>{idx}</b></td>
+          <td style="width:160px;"><b>{_html_escape(ten_hd)}</b></td>
+          <td style="width:70px; text-align:center;">{_html_escape(tg)}</td>
+          <td style="width:50%;">{left}</td>
+          <td style="width:50%;">{right}</td>
+        </tr>
+        """
+
+    if not table_rows.strip():
+        table_rows = """
+        <tr>
+          <td style="text-align:center;"><b>1</b></td>
+          <td><b>Khởi động</b></td>
+          <td style="text-align:center;">5</td>
+          <td><ul><li>Tổ chức cho HS...</li><li>Gợi mở...</li></ul></td>
+          <td><ul><li>HS tham gia...</li><li>HS trả lời...</li></ul></td>
+        </tr>
+        """
+
+    # ---- Sections ----
+    yccd = I.get("yeu_cau_can_dat", []) or []
+    pham_chat = I.get("pham_chat", []) or []
+    nang_luc = I.get("nang_luc", []) or []
+    nang_luc_dac_thu = I.get("nang_luc_dac_thu", []) or []
+    nang_luc_so = I.get("nang_luc_so", []) or []
+
+    gv_tools = II.get("giao_vien", []) or []
+    hs_tools = II.get("hoc_sinh", []) or []
+
+    dieu_chinh = IV.get("dieu_chinh_sau_bai_day", "....................................................................................")
+
+    html = f"""
+<div style="font-family:'Times New Roman', serif; font-size:13pt; line-height:1.3; color:#000;">
+  <div style="text-align:center; font-weight:bold; font-size:14pt; margin-bottom:10px;">
+    KẾ HOẠCH BÀI DẠY
+  </div>
+
+  <div style="margin-bottom:10px;">
+    <b>Cấp học:</b> {_html_escape(cap_hoc)} &nbsp;&nbsp;|&nbsp;&nbsp;
+    <b>Môn:</b> {_html_escape(mon)} &nbsp;&nbsp;|&nbsp;&nbsp;
+    <b>Lớp:</b> {_html_escape(lop)}<br/>
+    <b>Bộ sách:</b> {_html_escape(bo_sach)}<br/>
+    <b>PPCT:</b> Tuần {_html_escape(tuan)} – Tiết {_html_escape(tiet)} – Mã bài {_html_escape(bai_id)} {("– " + _html_escape(ghi_chu)) if str(ghi_chu).strip() else ""}<br/>
+    <b>Tên bài:</b> {_html_escape(ten_bai)}<br/>
+    <b>Thời lượng:</b> {_html_escape(thoi_luong)} phút &nbsp;&nbsp;|&nbsp;&nbsp; <b>Sĩ số:</b> {_html_escape(si_so)} HS
+  </div>
+
+  <div style="margin:10px 0 6px 0; font-weight:bold;">I. YÊU CẦU CẦN ĐẠT</div>
+  <div><b>Yêu cầu cần đạt:</b>{_render_ul(yccd)}</div>
+  <div><b>Phẩm chất:</b>{_render_ul(pham_chat)}</div>
+  <div><b>Năng lực chung:</b>{_render_ul(nang_luc)}</div>
+  <div><b>Năng lực đặc thù:</b>{_render_ul(nang_luc_dac_thu)}</div>
+  <div><b>Năng lực số (nếu có):</b>{_render_ul(nang_luc_so)}</div>
+
+  <div style="margin:10px 0 6px 0; font-weight:bold;">II. ĐỒ DÙNG DẠY HỌC</div>
+  <div><b>Giáo viên:</b>{_render_ul(gv_tools)}</div>
+  <div><b>Học sinh:</b>{_render_ul(hs_tools)}</div>
+
+  <div style="margin:10px 0 6px 0; font-weight:bold;">III. CÁC HOẠT ĐỘNG DẠY – HỌC CHỦ YẾU</div>
+
+  <table border="1" style="width:100%; border-collapse:collapse;">
+    <tr>
+      <th style="width:42px; text-align:center;">STT</th>
+      <th style="width:160px; text-align:center;">Hoạt động</th>
+      <th style="width:70px; text-align:center;">Thời gian</th>
+      <th style="text-align:center;">Hoạt động của GV</th>
+      <th style="text-align:center;">Hoạt động của HS</th>
+    </tr>
+    {table_rows}
+  </table>
+
+  <div style="margin:10px 0 6px 0; font-weight:bold;">IV. ĐIỀU CHỈNH SAU BÀI DẠY</div>
+  <div>{_html_escape(dieu_chinh)}</div>
+</div>
+""".strip()
+
+    return html
 
 # ==============================================================================
 # ENTRY POINT (ỔN ĐỊNH: sidebar + router theo current_page)
@@ -2367,6 +2518,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
