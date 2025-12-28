@@ -2187,7 +2187,7 @@ def module_lesson_plan():
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ===============================
+   # ===============================
     # XỬ LÝ NÚT BẤM (GỌI HÀM MỚI LOCKED)
     # ===============================
     if generate_btn or regen_btn:
@@ -2240,32 +2240,35 @@ def module_lesson_plan():
              "ghi_chu": ""
         }
 
-   try:
-       with st.spinner("🔄 Đang tạo giáo án (JSON data-only, khóa mẫu)..."):
-        data = generate_lesson_plan_locked(
-            api_key=api_key,
-            meta_ppct={
-                **meta_ppct,
-                "bo_sach": book,
-                "thoi_luong": int(duration),
-                "si_so": int(class_size),
-            },  # <--- Đã thêm dấu phẩy đúng
-            teacher_note=teacher_note,
-            model_name="gemini-2.0-flash"
-        )
+        try:
+            with st.spinner("🔄 Đang tạo giáo án (JSON data-only, khóa mẫu)..."):
+                # [SỬA LỖI] Thụt đầu dòng đúng vị trí bên trong with
+                data = generate_lesson_plan_locked(
+                    api_key=api_key,
+                    meta_ppct={
+                        **meta_ppct,
+                        "bo_sach": book,
+                        "thoi_luong": int(duration),
+                        "si_so": int(class_size),
+                    }, 
+                    teacher_note=teacher_note,
+                    model_name="gemini-2.0-flash"
+                )
 
-            # Render HTML đúng mẫu tuyệt đối (2 cột GV/HS)
-            html = render_lesson_plan_html(data_json)
-           
-            # Lưu kết quả
-            st.session_state[_lp_key("last_title")] = f"Giáo án - {meta_ppct['ten_bai']}"
-            st.session_state[_lp_key("last_html")] = data # Lưu cả dict để lấy renderHtml
+                # [SỬA LỖI] render_lesson_plan_html(data) thay vì data_json (biến không tồn tại)
+                html = render_lesson_plan_html(data)
+                
+                # Lưu kết quả
+                st.session_state[_lp_key("last_title")] = f"Giáo án - {meta_ppct['ten_bai']}"
+                
+                # [QUAN TRỌNG] Phải lưu 'html' (chuỗi) thay vì 'data' (dict) để tab Xem trước hiển thị được
+                st.session_state[_lp_key("last_html")] = html 
 
-            # Tự nhảy sang Xem trước
-            _lp_set_active("6) Xem trước & Xuất")
+                # Tự nhảy sang Xem trước
+                _lp_set_active("6) Xem trước & Xuất")
 
-            st.success("✅ Tạo giáo án thành công!")
-            st.rerun()
+                st.success("✅ Tạo giáo án thành công!")
+                st.rerun()
 
         except Exception as e:
             st.error(f"Lỗi AI: {e}")
@@ -2625,6 +2628,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
