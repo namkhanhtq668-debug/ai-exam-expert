@@ -1083,21 +1083,22 @@ def generate_lesson_plan_locked(
     """
     genai.configure(api_key=api_key)
 
-    # meta chuẩn (đúng schema)
-    # req_meta: always define BEFORE any reference (prevents NameError when optional fields are missing)
+    # Build a normalized request metadata dict (stable keys used throughout prompts & templates)
     req_meta = {
-        "khối_lớp": str(meta_ppct.get("lop", meta_ppct.get("khối_lớp", ""))).strip(),
-        "môn": str(meta_ppct.get("mon", meta_ppct.get("môn", ""))).strip(),
-        "bài": str(meta_ppct.get("ten_bai", meta_ppct.get("bài", ""))).strip(),
-        "chủ_đề": str(meta_ppct.get("chu_de", meta_ppct.get("chủ_đề", ""))).strip(),
-        "tuần": str(meta_ppct.get("tuan", meta_ppct.get("tuần", ""))).strip(),
-        "tiết": str(meta_ppct.get("tiet", meta_ppct.get("tiết", ""))).strip(),
-        "thời_lượng": str(meta_ppct.get("thoi_luong", meta_ppct.get("thời_lượng", ""))).strip(),
-        "yccđ": (meta_ppct.get("yccđ") if isinstance(meta_ppct, dict) else ""),
-        "nls": (meta_ppct.get("nls") if isinstance(meta_ppct, dict) else ""),
-        "học_liệu": (meta_ppct.get("học_liệu") if isinstance(meta_ppct, dict) else ""),
-        "thiết_bị": (meta_ppct.get("thiết_bị") if isinstance(meta_ppct, dict) else ""),
-        "lưu_ý": (meta_ppct.get("lưu_ý") if isinstance(meta_ppct, dict) else ""),
+        "cap_hoc": meta_ppct.get("cap_hoc", ""),
+        "mon": meta_ppct.get("mon", ""),
+        "lop": meta_ppct.get("lop", ""),
+        # If the UI/API provides a textbook/series key, keep it; otherwise leave blank
+        "bo_sach": meta_ppct.get("bo_sach", req.get("bo_sach", "")) if isinstance(req, dict) else meta_ppct.get("bo_sach", ""),
+        "ten_bai": meta_ppct.get("ten_bai", meta_ppct.get("bai", "")),
+        "thoi_luong": meta_ppct.get("thoi_luong", req.get("thoi_luong", 35) if isinstance(req, dict) else 35),
+        "si_so": meta_ppct.get("si_so", req.get("si_so", 40) if isinstance(req, dict) else 40),
+        "ppct": {
+            "tuan": meta_ppct.get("tuan", ""),
+            "tiet": meta_ppct.get("tiet", ""),
+            "bai_id": meta_ppct.get("bai_id", ""),
+            "ppct_raw": meta_ppct.get("ppct_raw", ""),
+        },
     }
 
     # prompt data-only (khuyến nghị dùng prompt data-only thay vì prompt HTML)
@@ -2704,6 +2705,5 @@ else:
         module_advisor()
     else:
         main_app()
-
 
 
