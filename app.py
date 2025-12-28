@@ -141,6 +141,14 @@ except:
     SYSTEM_GOOGLE_KEY = ""
     SEPAY_API_TOKEN = ""
 
+
+# --- Engine & model defaults (VPS-safe) ---
+MODEL_GEMINI = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
+MODEL_OPENAI = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')  # chỉ dùng khi bạn đã tích hợp OpenAI client
+if 'engine_choice' not in st.session_state:
+    # Mặc định dùng Gemini để tránh lỗi nếu chưa cấu hình OpenAI
+    st.session_state['engine_choice'] = 'gemini'
+
 st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="collapsed")
 
 # ==============================================================================
@@ -1295,7 +1303,7 @@ def generate_lesson_plan_locked(
                 temperature=0.4,
                 max_output_tokens=8192,
                 response_mime_type="application/json",
-                engine=engine,
+                engine=st.session_state.get('engine_choice','gemini'),
             )
 
             data = safe_json_loads(raw_text)
@@ -2456,7 +2464,7 @@ def module_lesson_plan():
                     si_so=str(class_size),
                     muc_tieu_them=st.session_state.get(_lp_key("objectives"), ""),
                     yeu_cau_them=st.session_state.get(_lp_key("yccd"), ""),
-                    engine=engine,
+                    engine=st.session_state.get('engine_choice','gemini'),
                     teacher_note=teacher_note,
                 )
 
@@ -2781,7 +2789,17 @@ else:
     with st.sidebar:
         st.markdown("## 🏫 AIEXAM.VN")
         st.caption("WEB AI GIÁO VIÊN")
+        # Chọn engine AI (để đồng bộ giữa các module)
+        engine_label = st.radio(
+            'Engine AI',
+            ['Miễn phí (Gemini)', 'Pro (OpenAI)'],
+            index=0 if st.session_state.get('engine_choice','gemini')=='gemini' else 1,
+        )
+        st.session_state['engine_choice'] = 'gemini' if engine_label.startswith('Miễn') else 'openai'
+        if st.session_state['engine_choice'] == 'openai':
+            st.info('Lưu ý: Engine OpenAI chỉ hoạt động nếu bạn đã cấu hình OPENAI_API_KEY và client trong code. Nếu chưa, hệ thống sẽ tự fallback sang Gemini để tránh lỗi.')
         st.divider()
+
 
         page_map = {
             "🏠 Dashboard": "dashboard",
@@ -2834,5 +2852,4 @@ else:
         module_advisor()
     else:
         main_app()
-
 
