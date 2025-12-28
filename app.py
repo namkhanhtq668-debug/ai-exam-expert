@@ -1071,7 +1071,7 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
     system_prompt = build_lesson_system_prompt_locked(meta_ppct, teacher_note)
     genai.configure(api_key=api_key)
     # Dùng model tốt nhất để kẻ bảng
-    model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=system_prompt)
+    model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
 
     safe_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -2628,6 +2628,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
