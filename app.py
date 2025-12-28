@@ -2187,8 +2187,8 @@ def module_lesson_plan():
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-   # ===============================
-    # XỬ LÝ NÚT BẤM (GỌI HÀM MỚI LOCKED)
+  # ===============================
+    # XỬ LÝ NÚT BẤM (Đoạn này nằm trong hàm module_lesson_plan)
     # ===============================
     if generate_btn or regen_btn:
         api_key = _lp_api_key()
@@ -2241,8 +2241,8 @@ def module_lesson_plan():
         }
 
         try:
-            with st.spinner("🔄 Đang tạo giáo án (JSON data-only, khóa mẫu)..."):
-                # [SỬA LỖI] Thụt đầu dòng đúng vị trí bên trong with
+            with st.spinner("🔄 Đang tạo giáo án (JSON data-only)..."):
+                # GỌI HÀM TẠO GIÁO ÁN
                 data = generate_lesson_plan_locked(
                     api_key=api_key,
                     meta_ppct={
@@ -2252,19 +2252,19 @@ def module_lesson_plan():
                         "si_so": int(class_size),
                     }, 
                     teacher_note=teacher_note,
-                    model_name="gemini-2.0-flash"
+                    model_name="gemini-2.0-flash" # <-- Đảm bảo dùng đúng model flash
                 )
 
-                # [SỬA LỖI] render_lesson_plan_html(data) thay vì data_json (biến không tồn tại)
+                # [SỬA QUAN TRỌNG]: Dùng biến 'data' thay vì 'data_json'
                 html = render_lesson_plan_html(data)
                 
-                # Lưu kết quả
+                # Lưu kết quả vào Session State
                 st.session_state[_lp_key("last_title")] = f"Giáo án - {meta_ppct['ten_bai']}"
                 
-                # [QUAN TRỌNG] Phải lưu 'html' (chuỗi) thay vì 'data' (dict) để tab Xem trước hiển thị được
+                # [SỬA QUAN TRỌNG]: Lưu 'html' để hiển thị, không lưu 'data' (dictionary)
                 st.session_state[_lp_key("last_html")] = html 
 
-                # Tự nhảy sang Xem trước
+                # Tự nhảy sang tab Xem trước
                 _lp_set_active("6) Xem trước & Xuất")
 
                 st.success("✅ Tạo giáo án thành công!")
@@ -2628,6 +2628,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
