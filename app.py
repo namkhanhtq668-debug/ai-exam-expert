@@ -572,6 +572,38 @@ def _render_ul(items) -> str:
 def render_lesson_plan_html(data: dict) -> str:
     meta = data.get("meta", {})
     sec = data.get("sections", {})
+       meta_table = f"""
+    <table style="width:100%; border-collapse:collapse; margin:10px 0;" border="1">
+      <tr>
+        <td style="width:25%; padding:6px;"><b>Trường</b></td>
+        <td style="padding:6px;">{escape_html(meta.get("truong",""))}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px;"><b>Lớp</b></td>
+        <td style="padding:6px;">{escape_html(meta.get("lop",""))}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px;"><b>Môn</b></td>
+        <td style="padding:6px;">{escape_html(meta.get("mon",""))}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px;"><b>Bài</b></td>
+        <td style="padding:6px;">{escape_html(meta.get("bai",""))}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px;"><b>Tiết</b></td>
+        <td style="padding:6px;">{escape_html(str(meta.get("tiet","")))}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px;"><b>Giáo viên</b></td>
+        <td style="padding:6px;">{escape_html(meta.get("gv",""))}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px;"><b>Ngày dạy</b></td>
+        <td style="padding:6px;">{escape_html(meta.get("ngay_day",""))}</td>
+      </tr>
+    </table>
+    """.strip()
 
     sec_I = sec.get("I", {})
     sec_II = sec.get("II", {})
@@ -1024,47 +1056,31 @@ def validate_lesson_plan(data: dict) -> None:
 # ==============================================================================
 # [MỚI] 2.3. HÀM TẠO PROMPT & GỌI AI (CHUẨN HÓA BẢNG 2 CỘT)
 # ==============================================================================
-def build_lesson_system_prompt_locked(meta: dict, teacher_note: str) -> str:
+def build_lesson_system_prompt_locked() -> str:
+    """
+    System prompt khóa chuẩn để AI chỉ trả về JSON theo LESSON_PLAN_DATA_SCHEMA.
+    Tuyệt đối không sinh HTML/Markdown.
+    """
     return f"""
-VAI TRÒ: Bạn là Giáo viên Tiểu học cốt cán, chuyên soạn GIÁO ÁN MẪU theo định hướng phát triển năng lực (CV 2345/BGDĐT).
+Bạn là trợ lý soạn GIÁO ÁN TIỂU HỌC theo mẫu nộp chuyên môn (CTGDPT 2018).
+NHIỆM VỤ: Sinh đúng 01 JSON HỢP LỆ theo schema bên dưới. KHÔNG Markdown. KHÔNG giải thích. KHÔNG HTML.
 
-THÔNG TIN BÀI DẠY:
-- Cấp học: {meta.get("cap_hoc")} | Môn: {meta.get("mon")} | Lớp: {meta.get("lop")}
-- Tuần: {meta.get("tuan")} | Tiết: {meta.get("tiet")}
-- Tên bài: {meta.get("ten_bai")} ({meta.get("ghi_chu","")})
-- Mã bài: {meta.get("bai_id")}
-- Bộ sách: {meta.get("bo_sach")}
+YÊU CẦU BẮT BUỘC:
+1) CHỈ trả về 01 JSON hợp lệ.
+2) JSON chỉ có 2 khóa cấp cao: "meta" và "sections". Không thêm khóa khác.
+3) "sections" phải có đủ 4 mục I, II, III, IV và mỗi mục phải có nội dung (không rỗng).
+4) "sections.III.hoat_dong" phải có ≥ 3 hoạt động. Mỗi hoạt động có:
+   - ten_hoat_dong (string), thoi_gian (int),
+   - gv: mảng ≥ 2 ý (giáo viên làm gì),
+   - hs: mảng ≥ 2 ý (học sinh làm gì),
+   - san_pham: mảng ≥ 1 ý (kết quả/sản phẩm học tập).
+5) Không bịa văn bản pháp lý. Chỉ viết nội dung sư phạm.
+6) Nếu thiếu YCCĐ/PPCT chi tiết, suy luận phù hợp lứa tuổi và CTGDPT 2018.
 
-YÊU CẦU CẤU TRÚC (BẮT BUỘC GIỐNG MẪU CHUẨN):
-Giáo án phải trình bày dưới dạng HTML, font Times New Roman, gồm 4 phần chính:
+SCHEMA (rút gọn, phải tuân thủ đầy đủ theo code):
+{json.dumps(LESSON_PLAN_DATA_SCHEMA, ensure_ascii=False)}
 
-I. Yêu cầu cần đạt:
-- Nêu rõ năng lực đặc thù, năng lực chung và phẩm chất.
-
-II. Đồ dùng dạy học:
-- Giáo viên: (Slide, tranh ảnh, thẻ từ...)
-- Học sinh: (SGK, bảng con...)
-
-III. Các hoạt động dạy – học chủ yếu:
-***QUAN TRỌNG NHẤT: Phần này phải kẻ BẢNG (HTML <table>) gồm 2 cột***
-- Cột 1: Hoạt động của Giáo viên
-- Cột 2: Hoạt động của Học sinh
-- Nội dung chia thành các hoạt động lớn (dùng dòng colspan hoặc in đậm để phân cách):
-  1. Khởi động (Trò chơi, hát, kết nối...)
-  2. Khám phá / Hình thành kiến thức mới (hoặc Luyện tập thực hành tùy bài)
-  3. Vận dụng / Trải nghiệm
-*Lưu ý văn phong:* Dùng từ ngữ sư phạm như "Tổ chức cho HS...", "Yêu cầu HS...", "Mời đại diện nhóm...", "GV chốt lại...".
-*Chi tiết:* Viết rõ lời thoại, câu hỏi của GV và câu trả lời dự kiến của HS. Viết rõ các phép tính hoặc nội dung bài tập (VD: 27 - 1,2 = 25,8).
-
-IV. Điều chỉnh sau bài dạy:
-- Để trống dòng kẻ chấm (...) để GV tự ghi.
-
-GHI CHÚ GV: {teacher_note}
-
-OUTPUT JSON FORMAT:
-Chỉ trả về JSON hợp lệ với 2 trường chính:
-1. "meta": Thông tin bài học.
-2. "renderHtml": Toàn bộ nội dung giáo án dạng HTML (để hiển thị và in ấn). Trong đó phần III phải là thẻ <table> có border="1".
+Hãy trả về JSON DUY NHẤT.
 """.strip()
 
 # [FIX] Hàm LOCKED: chỉ làm nhiệm vụ gọi AI và trả dict (KHÔNG chứa UI, KHÔNG tự gọi lại)
@@ -1185,33 +1201,33 @@ Chỉ trả JSON
 # ==============================================================================
 
 def build_lesson_system_prompt_data_only(meta: dict, teacher_note: str) -> str:
-    return f"""
-VAI TRÒ: Bạn là giáo viên tiểu học cốt cán, soạn KẾ HOẠCH BÀI DẠY theo CTGDPT 2018, văn phong hồ sơ chuyên môn cấp Sở.
+             system_prompt = f"""
+Bạn là trợ lý soạn GIÁO ÁN TIỂU HỌC theo mẫu nộp chuyên môn (CTGDPT 2018).
 
-DỮ LIỆU ĐẦU VÀO (CỐ ĐỊNH):
-- Cấp học: {meta.get("cap_hoc")}
-- Môn: {meta.get("mon")} | Lớp: {meta.get("lop")} | Bộ sách: {meta.get("bo_sach")}
-- PPCT: Tuần {meta.get("tuan")} | Tiết {meta.get("tiet")} | Mã bài {meta.get("bai_id")}
-- Tên bài: {meta.get("ten_bai")}
-- Thời lượng: {meta.get("thoi_luong")} phút | Sĩ số: {meta.get("si_so")} HS
+ĐẦU VÀO (tóm tắt):
+- Môn: {req_meta.get("mon","")}
+- Lớp: {req_meta.get("lop","")}
+- Bài: {req_meta.get("bai","")}
+- Tiết: {req_meta.get("tiet","")}
+- Trường: {req_meta.get("truong","")}
+- GV: {req_meta.get("gv","")}
+- Ngày dạy: {req_meta.get("ngay_day","")}
 
-GHI CHÚ GIÁO VIÊN (PHẢI ƯU TIÊN):
-{teacher_note}
-
-MỤC TIÊU KỸ THUẬT (BẮT BUỘC TUYỆT ĐỐI):
-1) CHỈ TRẢ VỀ 01 JSON HỢP LỆ theo schema. KHÔNG markdown. KHÔNG giải thích.
+YÊU CẦU ĐẦU RA (BẮT BUỘC TUYỆT ĐỐI):
+1) CHỈ TRẢ VỀ 01 JSON HỢP LỆ. KHÔNG Markdown. KHÔNG giải thích. KHÔNG văn xuôi ngoài JSON.
 2) JSON chỉ gồm 2 khóa cấp cao: "meta" và "sections". Không thêm khóa khác.
-3) "sections.III.hoat_dong" phải có ≥ 3 hoạt động. Mỗi hoạt động phải có:
-   - ten_hoat_dong (string), thoi_gian (int),
-   - gv là mảng ≥ 2 ý,
-   - hs là mảng ≥ 2 ý.
-4) KHÔNG được tạo HTML. Hệ thống sẽ tự render HTML đúng mẫu.
-5) Nếu không có YCCĐ, hãy suy luận phù hợp CTGDPT 2018 và lứa tuổi.
-6) Không bịa văn bản pháp lý. Chỉ viết nội dung sư phạm.
+3) "meta" phải giữ nguyên thông tin đầu vào; nếu thiếu trường nào thì điền "Chưa có thông tin".
+4) "sections" bắt buộc có đủ 4 mục I, II, III, IV:
+   - I: yeu_cau_can_dat (mảng), pham_chat (mảng), nang_luc (mảng)
+   - II: do_dung_gv (mảng), do_dung_hs (mảng)
+   - III: hoat_dong (mảng ≥ 3 hoạt động; mỗi hoạt động có gv/hs/san_pham đầy đủ), danh_gia (mảng), dieu_chinh (mảng)
+   - IV: dieu_chinh_sau_bai_day (string, tối thiểu 2–3 câu)
+5) Tuyệt đối KHÔNG tạo HTML. Hệ thống sẽ tự render đúng mẫu.
+6) Ngôn ngữ: Tiếng Việt, rõ ràng, đúng nghiệp vụ giáo án.
 
+Bạn phải tuân thủ schema của hệ thống.
 HÃY TRẢ VỀ JSON DUY NHẤT.
 """.strip()
-
 
 def generate_lesson_plan_data_only(
     api_key: str,
@@ -2706,6 +2722,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
