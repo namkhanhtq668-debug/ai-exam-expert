@@ -1067,12 +1067,57 @@ Chỉ trả về JSON hợp lệ với 2 trường chính:
 2. "renderHtml": Toàn bộ nội dung giáo án dạng HTML (để hiển thị và in ấn). Trong đó phần III phải là thẻ <table> có border="1".
 """.strip()
 
-# [ĐÃ SỬA] Thêm tham số model_name vào dòng định nghĩa hàm
-def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, thoi_luong: int, si_so: int, teacher_note: str, model_name: str = "gemini-2.0-flash"):
-    system_prompt = build_lesson_system_prompt_locked(meta_ppct, teacher_note)
+# [FIX] Hàm LOCKED: chỉ làm nhiệm vụ gọi AI và trả dict (KHÔNG chứa UI, KHÔNG tự gọi lại)
+def generate_lesson_plan_locked(
+    api_key: str,
+    meta_ppct: dict,
+    bo_sach: str,
+    thoi_luong: int,
+    si_so: int,
+    teacher_note: str,
+    model_name: str = "gemini-2.0-flash"
+) -> dict:
+    """
+    Sinh JSON data-only theo LESSON_PLAN_DATA_SCHEMA (meta + sections).
+    Không render HTML ở đây. Không dùng st.spinner ở đây.
+    """
     genai.configure(api_key=api_key)
-    
-    # Dùng model được truyền vào từ tham số
+
+    # meta chuẩn (đúng schema)
+    req_meta = {
+        "cap_hoc": meta_ppct.get("cap_hoc", ""),
+        "mon": meta_ppct.get("mon", ""),
+        "lop": meta_ppct.get("lop", ""),
+        "bo_sach": bo_sach,
+        "ppct": {
+            "tuan": int(meta_ppct.get("tuan", 1)),
+            "tiet": int(meta_ppct.get("tiet", 1)),
+            "bai_id": meta_ppct.get("bai_id", "AUTO"),
+            "ghi_chu": meta_ppct.get("ghi_chu", "")
+        },
+        "ten_bai": meta_ppct.get("ten_bai", ""),
+        "thoi_luong": int(thoi_luong),
+        "si_so": int(si_so),
+        "ngay_day": meta_ppct.get("ngay_day", "")
+    }
+
+    # prompt data-only (khuyến nghị dùng prompt data-only thay vì prompt HTML)
+    system_prompt = build_lesson_system_prompt_data_only(
+        meta={
+            "cap_hoc": req_meta["cap_hoc"],
+            "mon": req_meta["mon"],
+            "lop": req_meta["lop"],
+            "bo_sach": req_meta["bo_sach"],
+            "tuan": req_meta["ppct"]["tuan"],
+            "tiet": req_meta["ppct"]["tiet"],
+            "bai_id": req_meta["ppct"]["bai_id"],
+            "ten_bai": req_meta["ten_bai"],
+            "thoi_luong": req_meta["thoi_luong"],
+            "si_so": req_meta["si_so"],
+        },
+        teacher_note=teacher_note
+    )
+
     model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
 
     safe_settings = [
@@ -1082,46 +1127,58 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
     ]
 
-    req = {
-        "meta": {
-            "cap_hoc": meta_ppct.get("cap_hoc"), "mon": meta_ppct.get("mon"), "lop": meta_ppct.get("lop"),
-            "bo_sach": bo_sach,
-            "ppct": {"tuan": meta_ppct.get("tuan"), "tiet": meta_ppct.get("tiet"), "bai_id": meta_ppct.get("bai_id"), "ghi_chu": ""},
-            "ten_bai": meta_ppct.get("ten_bai"),
-            "thoi_luong": int(thoi_luong),
-            "si_so": int(si_so)
-        },
-        "teacher_note": teacher_note
-    }
+    base_req = {"meta": req_meta, "note": teacher_note}
+    last_err = ""
 
-    try:
-        with st.spinner("🔄 Đang tạo giáo án (JSON data-only)..."):
-            # [ĐÃ SỬA CHUẨN] Truyền tham số tách rời, KHÔNG nằm trong meta_ppct
-            data = generate_lesson_plan_locked(
-                api_key=api_key,
-                meta_ppct=meta_ppct,       # Chỉ truyền biến meta_ppct
-                bo_sach=book,              # [QUAN TRỌNG] Truyền riêng tham số này
-                thoi_luong=int(duration),  # [QUAN TRỌNG] Truyền riêng tham số này
-                si_so=int(class_size),     # [QUAN TRỌNG] Truyền riêng tham số này
-                teacher_note=teacher_note,
-                model_name="gemini-2.0-flash"
+    # thử tối đa 2 lần, nếu sai schema thì tự sửa
+    for attempt in range(1, 3):
+        try:
+            res = model.generate_content(
+                json.dumps(base_req, ensure_ascii=False),
+                generation_config={"response_mime_type": "application/json"},
+                safety_settings=safe_settings
             )
 
-            # Render HTML từ dữ liệu data vừa nhận
-            html = render_lesson_plan_html(data)
-            
-            # Lưu kết quả vào Session
-            st.session_state[_lp_key("last_title")] = f"Giáo án - {meta_ppct['ten_bai']}"
-            st.session_state[_lp_key("last_html")] = html 
+            raw = json.loads(clean_json(res.text))
 
-            # Chuyển tab
-            _lp_set_active("6) Xem trước & Xuất")
+            data = {
+                "meta": req_meta,
+                "sections": raw.get("sections", {})
+            }
 
-            st.success("✅ Tạo giáo án thành công!")
-            st.rerun()
+            validate_lesson_plan_data(data)  # bắt buộc đúng schema
+            return data
 
-    except Exception as e:
-        st.error(f"Lỗi AI: {e}")
+        except Exception as e:
+            last_err = _schema_error_to_text(e)
+            repair_note = f"""
+[SCHEMA_REPAIR]
+Bạn vừa trả JSON KHÔNG đạt schema.
+LỖI: {last_err}
+
+YÊU CẦU:
+- Chỉ trả JSON gồm "meta" và "sections"
+- sections phải có đủ I, II, III, IV
+- III.hoat_dong >= 3; mỗi hoạt động có ten_hoat_dong, thoi_gian, gv>=2, hs>=2
+- Không tạo HTML
+Chỉ trả JSON
+"""
+            base_req = {"meta": req_meta, "note": teacher_note + "\n" + repair_note}
+
+    # fallback an toàn
+    return {
+        "meta": req_meta,
+        "sections": {
+            "I": {"yeu_cau_can_dat": [f"(Lỗi tạo dữ liệu) {last_err}"]},
+            "II": {"giao_vien": ["..."], "hoc_sinh": ["..."]},
+            "III": {"hoat_dong": [
+                {"ten_hoat_dong": "Khởi động", "thoi_gian": 5, "gv": ["...", "..."], "hs": ["...", "..."]},
+                {"ten_hoat_dong": "Hình thành kiến thức", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]},
+                {"ten_hoat_dong": "Luyện tập/Vận dụng", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]}
+            ]},
+            "IV": {"dieu_chinh_sau_bai_day": "...................................................................................."}
+        }
+    }
 
 # ==============================================================================
 # [PATCH 2/3] PROMPT KHÓA CỨNG: DATA-ONLY JSON (ANTI-HALLUCINATION)
@@ -2268,14 +2325,12 @@ def module_lesson_plan():
                 # GỌI HÀM TẠO GIÁO ÁN
                 data = generate_lesson_plan_locked(
                     api_key=api_key,
-                    meta_ppct={
-                        **meta_ppct,
-                        "bo_sach": book,
-                        "thoi_luong": int(duration),
-                        "si_so": int(class_size),
-                    }, 
+                    meta_ppct=meta_ppct,         # KHÔNG nhét bo_sach/thoi_luong/si_so vào meta_ppct nữa
+                    bo_sach=book,                # truyền riêng
+                    thoi_luong=int(duration),    # truyền riêng
+                    si_so=int(class_size),       # truyền riêng
                     teacher_note=teacher_note,
-                    model_name="gemini-2.0-flash" # <-- Đảm bảo dùng đúng model flash
+                    model_name="gemini-2.0-flash"
                 )
 
                 # [SỬA QUAN TRỌNG]: Dùng biến 'data' thay vì 'data_json'
@@ -2651,6 +2706,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
