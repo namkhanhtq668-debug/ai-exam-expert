@@ -529,6 +529,93 @@ def clean_json(text):
         return text
 
 # [CẬP NHẬT] Hàm tạo File Word chuẩn Font XML VÀ CÓ BẢNG
+def call_llm_text(
+    *,
+    engine: str,
+    model_name: str,
+    api_key: str,
+    system_prompt: str,
+    user_prompt: str,
+    temperature: float = 0.4,
+    max_output_tokens: int = 4096,
+    response_mime_type: str | None = None,
+) -> str:
+    """Call the selected LLM engine and return plain text.
+
+    Notes:
+    - Gemini: uses google.generativeai with system_instruction and GenerationConfig.
+    - OpenAI: uses openai Python SDK if available.
+    """
+    engine = (engine or "").strip().lower()
+    if not api_key:
+        raise ValueError("Thiếu API key cho engine đã chọn.")
+
+    if engine == "gemini":
+        # Google Gemini via google.generativeai
+        try:
+            import google.generativeai as genai  # type: ignore
+        except Exception as e:
+            raise RuntimeError(f"Không import được google.generativeai: {e}") from e
+
+        genai.configure(api_key=api_key)
+
+        try:
+            generation_config = genai.types.GenerationConfig(
+                temperature=temperature,
+                max_output_tokens=max_output_tokens,
+                response_mime_type=response_mime_type or "text/plain",
+            )
+        except Exception:
+            # Fallback for older SDK versions without response_mime_type
+            generation_config = genai.types.GenerationConfig(
+                temperature=temperature,
+                max_output_tokens=max_output_tokens,
+            )
+
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ]
+
+        model = genai.GenerativeModel(model_name=model_name, system_instruction=system_prompt)
+        res = model.generate_content(
+            user_prompt,
+            generation_config=generation_config,
+            safety_settings=safety_settings,
+        )
+        text = getattr(res, "text", None)
+        if not text:
+            # Some SDK versions return candidates list; try to extract safely.
+            try:
+                text = res.candidates[0].content.parts[0].text  # type: ignore
+            except Exception:
+                text = ""
+        return (text or "").strip()
+
+    if engine == "openai":
+        # OpenAI via official SDK (if installed)
+        try:
+            from openai import OpenAI  # type: ignore
+        except Exception as e:
+            raise RuntimeError(f"Không import được openai SDK: {e}") from e
+
+        client = OpenAI(api_key=api_key)
+        # OpenAI max_tokens refers to output tokens
+        resp = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=temperature,
+            max_tokens=max_output_tokens,
+        )
+        return (resp.choices[0].message.content or "").strip()
+
+    raise ValueError(f"Engine không hợp lệ: {engine}. Chỉ hỗ trợ: gemini, openai.")
+
 def create_word_doc(html_content: str, title: str = "GiaoAn") -> bytes:
     """
     Tạo file .doc (Word) từ HTML.
@@ -2855,6 +2942,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
