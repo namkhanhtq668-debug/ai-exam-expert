@@ -2836,29 +2836,3 @@ else:
         main_app()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-# --- Chuẩn hóa và suy luận đầu vào ---
-# Một số nơi trong UI chỉ truyền meta_ppct + các tham số chung. Để tránh lỗi thiếu khóa,
-# ta cho phép các trường mô tả bài học rỗng và suy luận ngược từ meta_ppct khi có.
-if meta_ppct and isinstance(meta_ppct, dict):
-    cap_hoc = cap_hoc or str(meta_ppct.get("cap_hoc") or meta_ppct.get("level") or "")
-    # Một số phiên bản meta_ppct dùng key "mon" thay cho "mon_hoc"
-    mon_hoc = mon_hoc or str(meta_ppct.get("mon_hoc") or meta_ppct.get("mon") or meta_ppct.get("subject") or "")
-    lop = lop or str(meta_ppct.get("lop") or meta_ppct.get("grade") or "")
-    ten_bai = ten_bai or str(meta_ppct.get("ten_bai") or meta_ppct.get("lesson_title") or meta_ppct.get("bai") or "")
-muc_tieu_them = muc_tieu_them or ""
-yeu_cau_them = yeu_cau_them or ""
-
-
