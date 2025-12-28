@@ -4,6 +4,7 @@ from supabase import create_client, Client
 import pandas as pd
 import docx
 import json
+import copy
 import re
 import io
 import time
@@ -690,7 +691,7 @@ def render_lesson_plan_html(data: dict) -> str:
     </style>
     """
 
-    return f"<!doctype html><html><head><meta charset='utf-8'>{css}</head><body>{hdr}{mt_html}{cb_html}{tt_html}{dg_html}{dc_html}</body></html>"
+    return f"<!doctype html><html><head><meta charset='utf-8'><meta charset='utf-8'>{css}</head><body>{hdr}{mt_html}{cb_html}{tt_html}{dg_html}{dc_html}</body></html>"
 
 def get_knowledge_context(subject, grade, book, scope):
     try:
@@ -821,7 +822,7 @@ LESSON_PLAN_SCHEMA = {
         },
         "sections": {
             "type": "object",
-            "required": ["I", "II", "III", "IV"],
+            "required": ["I", "II", "III", "IV", "V"],
             "additionalProperties": False,
             "properties": {
                 "I": {  # Yêu cầu cần đạt
@@ -854,7 +855,7 @@ LESSON_PLAN_SCHEMA = {
                     "properties": {
                         "hoat_dong": {
                             "type": "array",
-                            "minItems": 3,
+                            "minItems": 4,
                             "items": {
                                 "type": "object",
                                 "required": ["ten", "thoi_gian", "muc_tieu", "to_chuc"],
@@ -938,7 +939,7 @@ LESSON_PLAN_DATA_SCHEMA = {
         },
         "sections": {
             "type": "object",
-            "required": ["I", "II", "III", "IV"],
+            "required": ["I", "II", "III", "IV", "V"],
             "additionalProperties": False,
             "properties": {
                 "I": {
@@ -969,7 +970,7 @@ LESSON_PLAN_DATA_SCHEMA = {
                     "properties": {
                         "hoat_dong": {
                             "type": "array",
-                            "minItems": 3,
+                            "minItems": 4,
                             "items": {
                                 "type": "object",
                                 "required": ["ten_hoat_dong", "thoi_gian", "gv", "hs"],
@@ -1002,6 +1003,70 @@ LESSON_PLAN_DATA_SCHEMA = {
 def validate_lesson_plan_data(data: dict) -> None:
     Draft202012Validator.check_schema(LESSON_PLAN_DATA_SCHEMA)
     validate(instance=data, schema=LESSON_PLAN_DATA_SCHEMA)
+
+def ensure_complete_lesson_plan(data: dict) -> dict:
+    """Bổ sung cấu trúc tối thiểu để giáo án luôn đủ mục I–V và có tối thiểu 4 hoạt động.
+    Không làm mất nội dung AI đã sinh; chỉ điền mặc định khi thiếu."""
+    if not isinstance(data, dict):
+        return {}
+    data = copy.deepcopy(data)
+    info = data.get('thong_tin_chung') or {}
+    data['thong_tin_chung'] = {
+        'cap_hoc': str(info.get('cap_hoc') or 'Tiểu học'),
+        'lop': str(info.get('lop') or ''),
+        'mon': str(info.get('mon') or ''),
+        'ten_bai': str(info.get('ten_bai') or ''),
+        'thoi_luong': int(info.get('thoi_luong') or 35),
+        'tuan': str(info.get('tuan') or ''),
+        'tiet': str(info.get('tiet') or ''),
+        'ngay_day': str(info.get('ngay_day') or ''),
+    }
+    for sec in ['I','II','III','IV','V']:
+        data.setdefault(sec, {})
+    # I
+    for k in ['muc_tieu','pham_chat_nang_luc','nang_luc_so','ycc_dau_ra']:
+        v = data['I'].get(k, [])
+        if isinstance(v, str): v=[v] if v.strip() else []
+        if not isinstance(v, list) or len(v)==0: v=['...']
+        data['I'][k]=v
+    # II
+    for k in ['do_dung','phuong_phap','hinh_thuc']:
+        v = data['II'].get(k, [])
+        if isinstance(v, str): v=[v] if v.strip() else []
+        if not isinstance(v, list) or len(v)==0: v=['...']
+        data['II'][k]=v
+    # III
+    hd = data['III'].get('hoat_dong', [])
+    if not isinstance(hd, list): hd=[]
+    def _mk(name, minutes):
+        return {'ten_hoat_dong': name, 'thoi_gian': minutes, 'muc_tieu':['...'], 'to_chuc':['...'], 'giao_vien':['...'], 'hoc_sinh':['...'], 'san_pham':['...'], 'danh_gia':['...']}
+    wanted=[('Khởi động',5),('Khám phá/Hình thành kiến thức',15),('Luyện tập',10),('Vận dụng/Mở rộng',5)]
+    normalized=[]
+    # giữ hoạt động AI đã có theo thứ tự, nhưng đảm bảo đủ 4 mục tối thiểu
+    for idx,(name,minutes) in enumerate(wanted):
+        item = hd[idx] if idx < len(hd) and isinstance(hd[idx], dict) else _mk(name, minutes)
+        if not str(item.get('ten_hoat_dong','')).strip(): item['ten_hoat_dong']=name
+        item['thoi_gian']=int(item.get('thoi_gian') or minutes)
+        for k in ['muc_tieu','to_chuc','giao_vien','hoc_sinh','san_pham','danh_gia']:
+            v=item.get(k, [])
+            if isinstance(v, str): v=[v] if v.strip() else []
+            if not isinstance(v, list) or len(v)==0: v=['...']
+            item[k]=v
+        normalized.append(item)
+    data['III']['hoat_dong']=normalized
+    # IV
+    for k in ['danh_gia','cau_hoi_kiem_tra']:
+        v=data['IV'].get(k, [])
+        if isinstance(v, str): v=[v] if v.strip() else []
+        if not isinstance(v, list) or len(v)==0: v=['...']
+        data['IV'][k]=v
+    # V
+    v=data['V'].get('dieu_chinh', [])
+    if isinstance(v, str): v=[v] if v.strip() else []
+    if not isinstance(v, list) or len(v)==0: v=['...']
+    data['V']['dieu_chinh']=v
+    return data
+
 
 def _schema_error_to_text(e: Exception) -> str:
     if isinstance(e, ValidationError):
@@ -1143,6 +1208,7 @@ def generate_lesson_plan_locked(
             }
 
             validate_lesson_plan_data(data)  # bắt buộc đúng schema
+            data = ensure_complete_lesson_plan(data)
             return data
 
         except Exception as e:
@@ -1155,7 +1221,7 @@ LỖI: {last_err}
 YÊU CẦU:
 - Chỉ trả JSON gồm "meta" và "sections"
 - sections phải có đủ I, II, III, IV
-- III.hoat_dong >= 3; mỗi hoạt động có ten_hoat_dong, thoi_gian, gv>=2, hs>=2
+- III.hoat_dong >= 4; mỗi hoạt động có ten_hoat_dong, thoi_gian, gv>=2, hs>=2
 - Không tạo HTML
 Chỉ trả JSON
 """
@@ -1168,9 +1234,10 @@ Chỉ trả JSON
             "I": {"yeu_cau_can_dat": [f"(Lỗi tạo dữ liệu) {last_err}"]},
             "II": {"giao_vien": ["..."], "hoc_sinh": ["..."]},
             "III": {"hoat_dong": [
-                {"ten_hoat_dong": "Khởi động", "thoi_gian": 5, "gv": ["...", "..."], "hs": ["...", "..."]},
-                {"ten_hoat_dong": "Hình thành kiến thức", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]},
-                {"ten_hoat_dong": "Luyện tập/Vận dụng", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]}
+                {"ten_hoat_dong": "Khởi động", "thoi_gian": 5, "gv": ["..."], "hs": ["..."]},
+                {"ten_hoat_dong": "Khám phá/Hình thành kiến thức", "thoi_gian": 15, "gv": ["..."], "hs": ["..."]},
+                {"ten_hoat_dong": "Luyện tập", "thoi_gian": 10, "gv": ["..."], "hs": ["..."]},
+                {"ten_hoat_dong": "Vận dụng/Mở rộng", "thoi_gian": 5, "gv": ["..."], "hs": ["..."]}
             ]},
             "IV": {"dieu_chinh_sau_bai_day": "...................................................................................."}
         }
@@ -1197,7 +1264,7 @@ GHI CHÚ GIÁO VIÊN (PHẢI ƯU TIÊN):
 MỤC TIÊU KỸ THUẬT (BẮT BUỘC TUYỆT ĐỐI):
 1) CHỈ TRẢ VỀ 01 JSON HỢP LỆ theo schema. KHÔNG markdown. KHÔNG giải thích.
 2) JSON chỉ gồm 2 khóa cấp cao: "meta" và "sections". Không thêm khóa khác.
-3) "sections.III.hoat_dong" phải có ≥ 3 hoạt động. Mỗi hoạt động phải có:
+3) "sections.III.hoat_dong" phải có ≥ 4 hoạt động. Mỗi hoạt động phải có:
    - ten_hoat_dong (string), thoi_gian (int),
    - gv là mảng ≥ 2 ý,
    - hs là mảng ≥ 2 ý.
@@ -1294,7 +1361,7 @@ LỖI: {last_err}
 YÊU CẦU:
 - Chỉ trả JSON gồm "meta" và "sections"
 - sections phải có đủ I, II, III, IV
-- III.hoat_dong >= 3; mỗi hoạt động có ten_hoat_dong, thoi_gian, gv>=2, hs>=2.
+- III.hoat_dong >= 4; mỗi hoạt động có ten_hoat_dong, thoi_gian, gv>=2, hs>=2.
 - Không tạo HTML.
 Chỉ trả JSON.
 """
@@ -1308,8 +1375,9 @@ Chỉ trả JSON.
             "II": {"giao_vien": ["..."], "hoc_sinh": ["..."]},
             "III": {"hoat_dong": [
                 {"ten_hoat_dong": "Khởi động", "thoi_gian": 5, "gv": ["...", "..."], "hs": ["...", "..."]},
-                {"ten_hoat_dong": "Hình thành kiến thức", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]},
-                {"ten_hoat_dong": "Luyện tập/Vận dụng", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]}
+                {"ten_hoat_dong": "Khám phá/Hình thành kiến thức", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]},
+                {"ten_hoat_dong": "Luyện tập", "thoi_gian": 10, "gv": ["...", "..."], "hs": ["...", "..."]},
+                {"ten_hoat_dong": "Vận dụng/Mở rộng", "thoi_gian": 5, "gv": ["...", "..."], "hs": ["...", "..."]}
             ]},
             "IV": {"dieu_chinh_sau_bai_day": "...................................................................................."}
         }
