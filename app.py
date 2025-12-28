@@ -1096,10 +1096,11 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
 
     try:
             with st.spinner("🔄 Đang tạo giáo án (JSON data-only)..."):
-                # [SỬA LỖI]: Truyền tham số RỜI RA NGOÀI, không để trong meta_ppct={}
+                # [ĐÃ SỬA LỖI TẠI ĐÂY]
+                # Truyền các tham số tách rời nhau, khớp với định nghĩa hàm
                 data = generate_lesson_plan_locked(
                     api_key=api_key,
-                    meta_ppct=meta_ppct,       # Chỉ truyền biến meta_ppct (đã tạo ở trên)
+                    meta_ppct=meta_ppct,       # Chỉ truyền biến meta_ppct gốc
                     bo_sach=book,              # Truyền riêng tham số bo_sach
                     thoi_luong=int(duration),  # Truyền riêng tham số thoi_luong
                     si_so=int(class_size),     # Truyền riêng tham số si_so
@@ -1110,18 +1111,18 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
                 # Render HTML từ dữ liệu data vừa nhận
                 html = render_lesson_plan_html(data)
                 
-                # Lưu kết quả
+                # Lưu kết quả vào Session State
                 st.session_state[_lp_key("last_title")] = f"Giáo án - {meta_ppct['ten_bai']}"
                 st.session_state[_lp_key("last_html")] = html 
 
-                # Chuyển tab
+                # Chuyển sang tab Xem trước
                 _lp_set_active("6) Xem trước & Xuất")
 
                 st.success("✅ Tạo giáo án thành công!")
                 st.rerun()
 
       except Exception as e:
-          st.error(f"Lỗi AI: {e}")
+         st.error(f"Lỗi AI: {e}")
 
 # ==============================================================================
 # [PATCH 2/3] PROMPT KHÓA CỨNG: DATA-ONLY JSON (ANTI-HALLUCINATION)
@@ -2651,6 +2652,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
