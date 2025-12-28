@@ -2137,7 +2137,7 @@ def module_lesson_plan():
         st.markdown("<div class='lp-card'>", unsafe_allow_html=True)
         last_html = st.session_state.get(_lp_key("last_html"), "")
         if not last_html:
-           st.info("Chưa có giáo án. Hãy bấm ⚡ TẠO GIÁO ÁN ở phần thiết lập phía trên."
+           st.info("Chưa có giáo án. Hãy bấm ⚡ TẠO GIÁO ÁN ở phần thiết lập phía trên.")
         else:
             content_html = str(last_html)
    
@@ -2625,3 +2625,4 @@ else:
         module_advisor()
     else:
         main_app()
+
