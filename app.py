@@ -2272,10 +2272,9 @@ def module_lesson_plan():
 
     st.success("✅ Tạo giáo án thành công!")
     st.rerun()
-
+           
 except Exception as e:
     st.error(f"Lỗi AI: {e}")
-                )
 
             # Render HTML đúng mẫu tuyệt đối (2 cột GV/HS)
             html = render_lesson_plan_html(data_json)
@@ -2648,5 +2647,6 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
