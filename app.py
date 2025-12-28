@@ -1121,8 +1121,8 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
                 st.success("✅ Tạo giáo án thành công!")
                 st.rerun()
 
-   except Exception as e:
-      st.error(f"Lỗi AI: {e}")
+    except Exception as e:
+       st.error(f"Lỗi AI: {e}")
 
 # ==============================================================================
 # [PATCH 2/3] PROMPT KHÓA CỨNG: DATA-ONLY JSON (ANTI-HALLUCINATION)
@@ -2652,6 +2652,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
