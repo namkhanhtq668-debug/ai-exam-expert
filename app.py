@@ -1067,10 +1067,12 @@ Chỉ trả về JSON hợp lệ với 2 trường chính:
 2. "renderHtml": Toàn bộ nội dung giáo án dạng HTML (để hiển thị và in ấn). Trong đó phần III phải là thẻ <table> có border="1".
 """.strip()
 
-def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, thoi_luong: int, si_so: int, teacher_note: str):
+# [ĐÃ SỬA] Thêm tham số model_name vào dòng định nghĩa hàm
+def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, thoi_luong: int, si_so: int, teacher_note: str, model_name: str = "gemini-2.0-flash"):
     system_prompt = build_lesson_system_prompt_locked(meta_ppct, teacher_note)
     genai.configure(api_key=api_key)
-    # Dùng model tốt nhất để kẻ bảng
+    
+    # Dùng model được truyền vào từ tham số
     model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
 
     safe_settings = [
@@ -2628,6 +2630,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
