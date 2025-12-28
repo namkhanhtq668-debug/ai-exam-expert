@@ -750,7 +750,7 @@ class QuestionGeneratorYCCD:
     def __init__(self, api_key):
         genai.configure(api_key=api_key)
         # [SỬA LỖI 404] Dùng gemini-3-pro-preview theo yêu cầu
-        self.model = genai.GenerativeModel('gemini-3-pro-preview')
+        self.model = genai.GenerativeModel('gemini-2.0-flash')
 
     def generate(self, yccd_item, muc_do="Thông hiểu"):
         prompt = f"""
@@ -1071,7 +1071,7 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
     system_prompt = build_lesson_system_prompt_locked(meta_ppct, teacher_note)
     genai.configure(api_key=api_key)
     # Dùng model tốt nhất để kẻ bảng
-    model = genai.GenerativeModel("gemini-2.0-flash-exp", system_instruction=system_prompt)
+    model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=system_prompt)
 
     safe_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -1137,7 +1137,7 @@ def generate_lesson_plan_data_only(
     api_key: str,
     meta_ppct: dict,
     teacher_note: str,
-    model_name: str = "gemini-2.0-flash-exp"
+    model_name: str = "gemini-2.0-flash"
 ) -> dict:
     """
     Sinh JSON data-only theo LESSON_PLAN_DATA_SCHEMA.
@@ -1464,7 +1464,7 @@ def main_app():
                                         try:
                                             genai.configure(api_key=api_key)
                                             # [SỬA LỖI 404] Dùng gemini-3-pro-preview
-                                            model = genai.GenerativeModel('gemini-3-pro-preview', system_instruction=SYSTEM_PROMPT)
+                                            model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=SYSTEM_PROMPT)
                                             
                                             # [FIX LỖI] Cấu hình tắt bộ lọc an toàn để AI không chặn đề thi
                                             safe_settings = [
@@ -2618,7 +2618,7 @@ else:
                 EDUCATION_DATA=EDUCATION_DATA,
                 FULL_SCOPE_LIST=FULL_SCOPE_LIST,
                 create_word_doc_func=create_word_doc,
-                model_name="gemini-2.0-flash-exp"
+                model_name="gemini-2.0-flash"
             )
         else:
             module_lesson_plan()
@@ -2628,6 +2628,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
