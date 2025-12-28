@@ -569,6 +569,51 @@ def _render_ul(items) -> str:
     lis = "".join([f"<li>{_html_escape(x)}</li>" for x in items if str(x).strip()])
     return f"<ul>{lis or '<li>...</li>'}</ul>"
 
+def render_lesson_plan_html_from_schema(data: dict) -> str:
+    """Fallback render từ dữ liệu schema nếu model không trả renderHtml."""
+    try:
+        # Tận dụng renderer hiện hữu nếu dữ liệu đã ở dạng render_lesson_plan_html
+        if all(k in data for k in ("meta", "muc_tieu", "chuan_bi", "tien_trinh_day_hoc")):
+            return render_lesson_plan_html(data)
+    except Exception:
+        pass
+
+    meta = data.get("meta", {})
+    sections = data.get("sections", {})
+    # Render tối giản, ưu tiên lấy bảng ở III/hoat_dong
+    html_parts = []
+    html_parts.append(f"<h2 style='text-align:center'>GIÁO ÁN</h2>")
+    html_parts.append(f"<p><b>Môn:</b> {meta.get('mon_hoc','')} &nbsp;&nbsp; <b>Lớp:</b> {meta.get('lop','')}</p>")
+    html_parts.append(f"<p><b>Bài:</b> {meta.get('ten_bai','')}</p>")
+    # Nội dung chính
+    for key, title in [("I","I. MỤC TIÊU"),("II","II. CHUẨN BỊ"),("III","III. TIẾN TRÌNH DẠY HỌC"),("IV","IV. ĐIỀU CHỈNH SAU BÀI DẠY")]:
+        sec = sections.get(key, {}) if isinstance(sections, dict) else {}
+        html_parts.append(f"<h3>{title}</h3>")
+        if key == "III":
+            acts = sec.get("hoat_dong", []) if isinstance(sec, dict) else []
+            html_parts.append("<table><thead><tr><th>Hoạt động</th><th>Thời lượng</th><th>GV</th><th>HS</th><th>Sản phẩm</th><th>Đánh giá</th></tr></thead><tbody>")
+            for a in acts:
+                html_parts.append(
+                    "<tr>" +
+                    f"<td>{a.get('ten','')}</td>" +
+                    f"<td>{a.get('thoi_luong','')}</td>" +
+                    f"<td>{'<br>'.join(a.get('gv',[]) or [])}</td>" +
+                    f"<td>{'<br>'.join(a.get('hs',[]) or [])}</td>" +
+                    f"<td>{a.get('san_pham','')}</td>" +
+                    f"<td>{a.get('danh_gia','')}</td>" +
+                    "</tr>"
+                )
+            html_parts.append("</tbody></table>")
+        else:
+            # render text bullets
+            if isinstance(sec, dict):
+                for k,v in sec.items():
+                    if isinstance(v, list):
+                        html_parts.append(f"<p><b>{k}:</b><br>- " + "<br>- ".join(map(str,v)) + "</p>")
+                    elif isinstance(v, str) and v.strip():
+                        html_parts.append(f"<p><b>{k}:</b> {v}</p>")
+    return "\n".join(html_parts)
+
 def render_lesson_plan_html(data: dict) -> str:
     """
     Render giáo án theo mẫu 2 cột (Hoạt động của GV / Hoạt động của HS),
@@ -908,163 +953,220 @@ from jsonschema import validate, Draft202012Validator, ValidationError
 
 LESSON_PLAN_DATA_SCHEMA = {
     "type": "object",
-    "required": ["meta", "sections"],
-    "additionalProperties": False,
+    "required": ["meta", "muc_tieu", "chuan_bi", "tien_trinh_day_hoc"],
     "properties": {
         "meta": {
             "type": "object",
-            "required": ["cap_hoc", "mon", "lop", "bo_sach", "ppct", "ten_bai", "thoi_luong", "si_so"],
-            "additionalProperties": False,
+            "required": ["cap_hoc", "mon_hoc", "lop", "ten_bai", "thoi_luong"],
             "properties": {
-                "cap_hoc": {"type": "string", "minLength": 2},
-                "mon": {"type": "string", "minLength": 2},
-                "lop": {"type": "string", "minLength": 2},
-                "bo_sach": {"type": "string", "minLength": 2},
-                "ppct": {
-                    "type": "object",
-                    "required": ["tuan", "tiet", "bai_id"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "tuan": {"type": "integer", "minimum": 1, "maximum": 60},
-                        "tiet": {"type": "integer", "minimum": 1, "maximum": 30},
-                        "bai_id": {"type": "string", "minLength": 2},
-                        "ghi_chu": {"type": "string"}
+                "cap_hoc": {"type": "string"},
+                "mon_hoc": {"type": "string"},
+                "lop": {"type": "string"},
+                "bo_sach": {"type": "string"},
+                "tuan": {"type": "string"},
+                "tiet": {"type": "string"},
+                "ten_bai": {"type": "string"},
+                "ngay_day": {"type": "string"},
+                "thoi_luong": {"type": "string"},
+                "si_so": {"type": "string"},
+                "dia_diem": {"type": "string"}
+            },
+            "additionalProperties": True
+        },
+        "muc_tieu": {
+            "type": "object",
+            "required": ["pham_chat", "nang_luc", "kien_thuc", "ki_nang"],
+            "properties": {
+                "pham_chat": {"type": "array", "items": {"type": "string"}},
+                "nang_luc": {"type": "array", "items": {"type": "string"}},
+                "kien_thuc": {"type": "array", "items": {"type": "string"}},
+                "ki_nang": {"type": "array", "items": {"type": "string"}},
+                "thai_do": {"type": "array", "items": {"type": "string"}},
+                "tich_hop_nang_luc_so": {"type": "array", "items": {"type": "string"}}
+            },
+            "additionalProperties": True
+        },
+        "chuan_bi": {
+            "type": "object",
+            "required": ["giao_vien", "hoc_sinh"],
+            "properties": {
+                "giao_vien": {"type": "array", "items": {"type": "string"}},
+                "hoc_sinh": {"type": "array", "items": {"type": "string"}},
+                "phuong_phap_ky_thuat": {"type": "array", "items": {"type": "string"}}
+            },
+            "additionalProperties": True
+        },
+        "tien_trinh_day_hoc": {
+            "type": "array",
+            "minItems": 4,
+            "items": {
+                "type": "object",
+                "required": ["ten_hoat_dong", "muc_tieu", "thoi_gian", "to_chuc"],
+                "properties": {
+                    "ten_hoat_dong": {"type": "string"},
+                    "muc_tieu": {"type": "array", "items": {"type": "string"}},
+                    "thoi_gian": {"type": "string"},
+                    "san_pham": {"type": "array", "items": {"type": "string"}},
+                    "phuong_phap_ky_thuat": {"type": "array", "items": {"type": "string"}},
+                    "to_chuc": {
+                        "type": "object",
+                        "required": ["giao_vien", "hoc_sinh"],
+                        "properties": {
+                            "giao_vien": {"type": "array", "items": {"type": "string"}},
+                            "hoc_sinh": {"type": "array", "items": {"type": "string"}},
+                            "phan_hoa_ho_tro": {"type": "array", "items": {"type": "string"}},
+                            "danh_gia": {"type": "array", "items": {"type": "string"}}
+                        },
+                        "additionalProperties": True
                     }
                 },
-                "ten_bai": {"type": "string", "minLength": 2},
-                "thoi_luong": {"type": "integer", "minimum": 30, "maximum": 120},
-                "si_so": {"type": "integer", "minimum": 10, "maximum": 60},
-                "ngay_day": {"type": "string"}
+                "additionalProperties": True
             }
         },
-        "sections": {
+        "danh_gia": {
             "type": "object",
-            "required": ["I", "II", "III", "IV", "V"],
-            "additionalProperties": False,
             "properties": {
-                "I": {
-                    "type": "object",
-                    "required": ["yeu_cau_can_dat"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "yeu_cau_can_dat": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-                        "pham_chat": {"type": "array", "items": {"type": "string"}},
-                        "nang_luc": {"type": "array", "items": {"type": "string"}},
-                        "nang_luc_dac_thu": {"type": "array", "items": {"type": "string"}},
-                        "nang_luc_so": {"type": "array", "items": {"type": "string"}}
-                    }
-                },
-                "II": {
-                    "type": "object",
-                    "required": ["giao_vien", "hoc_sinh"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "giao_vien": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-                        "hoc_sinh": {"type": "array", "minItems": 1, "items": {"type": "string"}}
-                    }
-                },
-                "III": {
-                    "type": "object",
-                    "required": ["hoat_dong"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "hoat_dong": {
-                            "type": "array",
-                            "minItems": 4,
-                            "items": {
-                                "type": "object",
-                                "required": ["ten_hoat_dong", "thoi_gian", "gv", "hs"],
-                                "additionalProperties": False,
-                                "properties": {
-                                    "ten_hoat_dong": {"type": "string", "minLength": 2},
-                                    "thoi_gian": {"type": "integer", "minimum": 1, "maximum": 60},
-                                    "muc_tieu": {"type": "array", "items": {"type": "string"}},
-                                    "noi_dung_cot_loi": {"type": "array", "items": {"type": "string"}},
-                                    "gv": {"type": "array", "minItems": 2, "items": {"type": "string"}},
-                                    "hs": {"type": "array", "minItems": 2, "items": {"type": "string"}}
-                                }
-                            }
-                        }
-                    }
-                },
-                "IV": {
-                    "type": "object",
-                    "required": ["dieu_chinh_sau_bai_day"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "dieu_chinh_sau_bai_day": {"type": "string", "minLength": 1}
-                    }
-                }
-            }
-        }
-    }
+                "tieu_chi": {"type": "array", "items": {"type": "string"}},
+                "cong_cu": {"type": "array", "items": {"type": "string"}},
+                "rubric_goi_y": {"type": "array", "items": {"type": "string"}}
+            },
+            "additionalProperties": True
+        },
+        "dieu_chinh": {"type": "string"},
+        "dieu_chinh_sau_day": {"type": "string"}
+    },
+    "additionalProperties": True
 }
+
 
 def validate_lesson_plan_data(data: dict) -> None:
     Draft202012Validator.check_schema(LESSON_PLAN_DATA_SCHEMA)
     validate(instance=data, schema=LESSON_PLAN_DATA_SCHEMA)
 
 def ensure_complete_lesson_plan(data: dict) -> dict:
-    """Bổ sung cấu trúc tối thiểu để giáo án luôn đủ mục I–V và có tối thiểu 4 hoạt động.
-    Không làm mất nội dung AI đã sinh; chỉ điền mặc định khi thiếu."""
+    """Bổ sung cấu trúc tối thiểu để giáo án luôn đủ các mục theo schema meta/mục tiêu/chuẩn bị/tiến trình/đánh giá.
+
+    Nguyên tắc:
+    - Không làm mất nội dung AI đã sinh; chỉ điền mặc định khi thiếu.
+    - Chuẩn hoá khóa để render_lesson_plan_html không bị KeyError.
+    """
     if not isinstance(data, dict):
         return {}
+
     data = copy.deepcopy(data)
-    info = data.get('thong_tin_chung') or {}
-    data['thong_tin_chung'] = {
-        'cap_hoc': str(info.get('cap_hoc') or 'Tiểu học'),
-        'lop': str(info.get('lop') or ''),
-        'mon': str(info.get('mon') or ''),
-        'ten_bai': str(info.get('ten_bai') or ''),
-        'thoi_luong': int(info.get('thoi_luong') or 35),
-        'tuan': str(info.get('tuan') or ''),
-        'tiet': str(info.get('tiet') or ''),
-        'ngay_day': str(info.get('ngay_day') or ''),
+
+    # ---- Chuẩn hoá META ----
+    meta = data.get('meta') or {}
+    if not isinstance(meta, dict):
+        meta = {}
+    data['meta'] = {
+        'cap_hoc': str(meta.get('cap_hoc') or 'Tiểu học'),
+        'mon_hoc': str(meta.get('mon_hoc') or meta.get('mon') or ''),
+        'lop': str(meta.get('lop') or ''),
+        'bo_sach': str(meta.get('bo_sach') or ''),
+        'ten_bai': str(meta.get('ten_bai') or ''),
+        'thoi_luong': str(meta.get('thoi_luong') or meta.get('thoi_gian') or '35 phút'),
+        'si_so': str(meta.get('si_so') or ''),
+        'tuan': str(meta.get('tuan') or ''),
+        'tiet': str(meta.get('tiet') or ''),
+        'ngay_day': str(meta.get('ngay_day') or ''),
+        'dia_diem': str(meta.get('dia_diem') or ''),
+        'giao_vien': str(meta.get('giao_vien') or ''),
+        'truong': str(meta.get('truong') or ''),
     }
-    for sec in ['I','II','III','IV','V']:
-        data.setdefault(sec, {})
-    # I
-    for k in ['muc_tieu','pham_chat_nang_luc','nang_luc_so','ycc_dau_ra']:
-        v = data['I'].get(k, [])
-        if isinstance(v, str): v=[v] if v.strip() else []
-        if not isinstance(v, list) or len(v)==0: v=['...']
-        data['I'][k]=v
-    # II
-    for k in ['do_dung','phuong_phap','hinh_thuc']:
-        v = data['II'].get(k, [])
-        if isinstance(v, str): v=[v] if v.strip() else []
-        if not isinstance(v, list) or len(v)==0: v=['...']
-        data['II'][k]=v
-    # III
-    hd = data['III'].get('hoat_dong', [])
-    if not isinstance(hd, list): hd=[]
-    def _mk(name, minutes):
-        return {'ten_hoat_dong': name, 'thoi_gian': minutes, 'muc_tieu':['...'], 'to_chuc':['...'], 'giao_vien':['...'], 'hoc_sinh':['...'], 'san_pham':['...'], 'danh_gia':['...']}
-    wanted=[('Khởi động',5),('Khám phá/Hình thành kiến thức',15),('Luyện tập',10),('Vận dụng/Mở rộng',5)]
-    normalized=[]
-    # giữ hoạt động AI đã có theo thứ tự, nhưng đảm bảo đủ 4 mục tối thiểu
-    for idx,(name,minutes) in enumerate(wanted):
-        item = hd[idx] if idx < len(hd) and isinstance(hd[idx], dict) else _mk(name, minutes)
-        if not str(item.get('ten_hoat_dong','')).strip(): item['ten_hoat_dong']=name
-        item['thoi_gian']=int(item.get('thoi_gian') or minutes)
-        for k in ['muc_tieu','to_chuc','giao_vien','hoc_sinh','san_pham','danh_gia']:
-            v=item.get(k, [])
-            if isinstance(v, str): v=[v] if v.strip() else []
-            if not isinstance(v, list) or len(v)==0: v=['...']
-            item[k]=v
-        normalized.append(item)
-    data['III']['hoat_dong']=normalized
-    # IV
-    for k in ['danh_gia','cau_hoi_kiem_tra']:
-        v=data['IV'].get(k, [])
-        if isinstance(v, str): v=[v] if v.strip() else []
-        if not isinstance(v, list) or len(v)==0: v=['...']
-        data['IV'][k]=v
-    # V
-    v=data['V'].get('dieu_chinh', [])
-    if isinstance(v, str): v=[v] if v.strip() else []
-    if not isinstance(v, list) or len(v)==0: v=['...']
-    data['V']['dieu_chinh']=v
+
+    # ---- MỤC TIÊU ----
+    mt = data.get('muc_tieu') or {}
+    if not isinstance(mt, dict):
+        mt = {}
+    def _list(v):
+        if v is None: return []
+        if isinstance(v, list): return [str(x) for x in v if str(x).strip()]
+        return [str(v)]
+    data['muc_tieu'] = {
+        'pham_chat': _list(mt.get('pham_chat')),
+        'nang_luc': _list(mt.get('nang_luc')),
+        'kien_thuc': _list(mt.get('kien_thuc')),
+        'ki_nang': _list(mt.get('ki_nang')),
+        'thai_do': _list(mt.get('thai_do')),
+        'tich_hop_nang_luc_so': _list(mt.get('tich_hop_nang_luc_so')),
+    }
+
+    # ---- CHUẨN BỊ ----
+    cb = data.get('chuan_bi') or {}
+    if not isinstance(cb, dict):
+        cb = {}
+    data['chuan_bi'] = {
+        'giao_vien': _list(cb.get('giao_vien')),
+        'hoc_sinh': _list(cb.get('hoc_sinh')),
+        'phuong_phap_ky_thuat': _list(cb.get('phuong_phap_ky_thuat')),
+    }
+
+    # ---- TIẾN TRÌNH DẠY HỌC (>=4 HOẠT ĐỘNG) ----
+    ttdh = data.get('tien_trinh_day_hoc')
+    if not isinstance(ttdh, list):
+        ttdh = []
+
+    # Bổ sung khung tối thiểu nếu thiếu
+    if len(ttdh) < 4:
+        default_acts = [
+            'Hoạt động 1. Khởi động',
+            'Hoạt động 2. Khám phá/Hình thành kiến thức',
+            'Hoạt động 3. Luyện tập',
+            'Hoạt động 4. Vận dụng/Mở rộng'
+        ]
+        while len(ttdh) < 4:
+            idx = len(ttdh)
+            ttdh.append({
+                'ten_hoat_dong': default_acts[idx],
+                'muc_tieu': [],
+                'thoi_gian': '5 phút' if idx == 0 else ('15 phút' if idx == 1 else ('10 phút' if idx == 2 else '5 phút')),
+                'san_pham': [],
+                'phuong_phap_ky_thuat': [],
+                'to_chuc': {
+                    'giao_vien': [],
+                    'hoc_sinh': [],
+                    'phan_hoa_ho_tro': [],
+                    'danh_gia': []
+                }
+            })
+
+    norm_acts = []
+    for act in ttdh:
+        if not isinstance(act, dict):
+            continue
+        tc = act.get('to_chuc') or {}
+        if not isinstance(tc, dict):
+            tc = {}
+        norm_acts.append({
+            'ten_hoat_dong': str(act.get('ten_hoat_dong') or ''),
+            'muc_tieu': _list(act.get('muc_tieu')),
+            'thoi_gian': str(act.get('thoi_gian') or ''),
+            'san_pham': _list(act.get('san_pham')),
+            'phuong_phap_ky_thuat': _list(act.get('phuong_phap_ky_thuat')),
+            'to_chuc': {
+                'giao_vien': _list(tc.get('giao_vien')),
+                'hoc_sinh': _list(tc.get('hoc_sinh')),
+                'phan_hoa_ho_tro': _list(tc.get('phan_hoa_ho_tro')),
+                'danh_gia': _list(tc.get('danh_gia')),
+            }
+        })
+    data['tien_trinh_day_hoc'] = norm_acts
+
+    # ---- ĐÁNH GIÁ ----
+    dg = data.get('danh_gia') or {}
+    if not isinstance(dg, dict):
+        dg = {}
+    data['danh_gia'] = {
+        'tieu_chi': _list(dg.get('tieu_chi')),
+        'cong_cu': _list(dg.get('cong_cu')),
+        'rubric_goi_y': _list(dg.get('rubric_goi_y')),
+    }
+
+    # ---- ĐIỀU CHỈNH SAU DẠY ----
+    if not data.get('dieu_chinh'):
+        data['dieu_chinh'] = str(data.get('dieu_chinh_sau_day') or '')
+
     return data
 
 
@@ -1132,149 +1234,102 @@ def generate_lesson_plan_locked(
     api_key: str,
     meta_ppct: dict,
     bo_sach: str,
-    thoi_luong: int,
-    si_so: int,
-    teacher_note: str,
-    model_name: str = "gemini-2.0-flash"
+    cap_hoc: str,
+    mon_hoc: str,
+    lop: str,
+    ten_bai: str,
+    thoi_luong: str,
+    si_so: str,
+    muc_tieu_them: str,
+    yeu_cau_them: str,
+    chuyen_de: str = "",
+    nls_uu_tien: str = "",
+    engine: str = "gemini",
 ) -> dict:
-    """
-    Sinh JSON data-only theo LESSON_PLAN_DATA_SCHEMA (meta + sections).
-    Không render HTML ở đây. Không dùng st.spinner ở đây.
-    """
-    genai.configure(api_key=api_key)
+    """Sinh giáo án theo chuẩn JSON + renderHtml để xem trước/xuất.
 
-    # Build a normalized request metadata dict (stable keys used throughout prompts & templates)
+    Nguyên tắc ổn định:
+    - Bắt mô hình trả về **JSON hợp lệ** theo LESSON_PLAN_SCHEMA.
+    - Validate schema; nếu sai -> tự sửa và sinh lại tối đa 2 lần.
+    - Bổ sung meta thiếu từ input UI (bo_sach, cap_hoc, ...).
+    - Đảm bảo renderHtml có CSS font (Times New Roman) và bảng hoạt động.
+    """
+
+    # 1) Chọn mô hình
+    model_name = MODEL_GEMINI if engine == "gemini" else MODEL_OPENAI
+
+    # 2) System prompt (khóa định dạng)
     req_meta = {
-        "ten_bai": meta_ppct.get("ten_bai", ""),
-        "cap_hoc": meta_ppct.get("cap_hoc", ""),
-        "mon": meta_ppct.get("mon", ""),
-        "lop": meta_ppct.get("lop", ""),
-        # If the UI/API provides a textbook/series key, keep it; otherwise leave blank
-        "bo_sach": meta_ppct.get("bo_sach", ""),
-        "thoi_luong": meta_ppct.get("thoi_luong", ""),
-        "si_so": meta_ppct.get("si_so", ""),
-        "ghi_chu": meta_ppct.get("ghi_chu", ""),
-        "ppct": {
-            "tuan": meta_ppct.get("tuan", ""),
-            "tiet": meta_ppct.get("tiet", ""),
-            "bai_id": meta_ppct.get("bai_id", ""),
-            "ppct_raw": meta_ppct.get("ppct_raw", ""),
-        },
+        "cap_hoc": cap_hoc,
+        "mon_hoc": mon_hoc,
+        "lop": lop,
+        "bo_sach": bo_sach,
+        "ten_bai": ten_bai,
+        "thoi_luong": thoi_luong,
+        "si_so": si_so,
+        "ppct": meta_ppct or {},
+        "chuyen_de": chuyen_de or "",
+        "nls_uu_tien": nls_uu_tien or "",
+        "muc_tieu_them": muc_tieu_them or "",
+        "yeu_cau_them": yeu_cau_them or "",
     }
+    system_prompt = build_lesson_system_prompt_locked(req_meta)
 
-    # prompt data-only (khuyến nghị dùng prompt data-only thay vì prompt HTML)
-    system_prompt = build_lesson_system_prompt_data_only(
-        meta={
-            "cap_hoc": req_meta.get("cap_hoc",""),
-            "mon": req_meta.get("mon",""),
-            "lop": req_meta.get("lop",""),
-            "bo_sach": req_meta.get("bo_sach",""),
-            "tuan": (req_meta.get("ppct") or {}).get("tuan",""),
-            "tiet": (req_meta.get("ppct") or {}).get("tiet",""),
-            "bai_id": (req_meta.get("ppct") or {}).get("bai_id",""),
-            "ten_bai": req_meta.get("ten_bai",""),
-            "thoi_luong": req_meta.get("thoi_luong",""),
-            "si_so": req_meta.get("si_so",""),
-        },
-        teacher_note=teacher_note
-    )
+    # 3) Gọi model với cơ chế tự sửa
+    last_err = None
+    payload_user = "Tạo GIÁO ÁN theo yêu cầu. Bắt buộc trả về JSON hợp lệ đúng schema."
 
-    model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
-
-    safe_settings = [
-        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-    ]
-
-    base_req = {"meta": req_meta, "note": teacher_note}
-    last_err = ""
-
-    # thử tối đa 2 lần, nếu sai schema thì tự sửa
-    for attempt in range(1, 3):
+    for attempt in range(1, 4):
         try:
-            res = model.generate_content(
-                json.dumps(base_req, ensure_ascii=False),
-                generation_config={"response_mime_type": "application/json"},
-                safety_settings=safe_settings
+            raw_text = call_llm_text(
+                api_key=api_key,
+                model_name=model_name,
+                system_prompt=system_prompt,
+                user_prompt=payload_user if attempt == 1 else (
+                    payload_user + "\n\nLần trước JSON/schema sai. Hãy sửa toàn bộ lỗi và xuất lại JSON hợp lệ đúng schema."
+                    + ("\nChi tiết lỗi: " + str(last_err) if last_err else "")
+                ),
+                temperature=0.4,
+                max_output_tokens=8192,
+                response_mime_type="application/json",
+                engine=engine,
             )
 
-            raw = json.loads(clean_json(res.text))
+            data = safe_json_loads(raw_text)
 
-            data = {
-                "meta": req_meta,
-                "sections": raw.get("sections", {})
-            }
+            # Validate schema (bắt buộc)
+            validate_lesson_plan(data)
 
-            validate_lesson_plan_data(data)  # bắt buộc đúng schema
-            data = ensure_complete_lesson_plan(data)
+            # Chuẩn hóa/bù meta từ UI
+            data.setdefault("meta", {})
+            data["meta"].setdefault("cap_hoc", cap_hoc)
+            data["meta"].setdefault("mon_hoc", mon_hoc)
+            data["meta"].setdefault("lop", lop)
+            data["meta"].setdefault("bo_sach", bo_sach)
+            data["meta"].setdefault("ten_bai", ten_bai)
+            data["meta"].setdefault("thoi_luong", thoi_luong)
+            data["meta"].setdefault("si_so", si_so)
+
+            # Bù renderHtml tối thiểu nếu thiếu
+            if not isinstance(data.get("renderHtml"), str) or not data["renderHtml"].strip():
+                data["renderHtml"] = render_lesson_plan_html_from_schema(data)
+
+            # Đảm bảo CSS font trong renderHtml
+            if "Times New Roman" not in data["renderHtml"]:
+                data["renderHtml"] = (
+                    "<style>body{font-family:'Times New Roman', Times, serif; font-size:13pt;} "
+                    "table{border-collapse:collapse;} td,th{border:1px solid #000; padding:6px; vertical-align:top;}</style>\n"
+                    + data["renderHtml"]
+                )
+
             return data
 
         except Exception as e:
-            last_err = _schema_error_to_text(e)
-            repair_note = f"""
-[SCHEMA_REPAIR]
-Bạn vừa trả JSON KHÔNG đạt schema.
-LỖI: {last_err}
+            last_err = e
+            continue
 
-YÊU CẦU:
-- Chỉ trả JSON gồm "meta" và "sections"
-- sections phải có đủ I, II, III, IV
-- III.hoat_dong >= 4; mỗi hoạt động có ten_hoat_dong, thoi_gian, gv>=2, hs>=2
-- Không tạo HTML
-Chỉ trả JSON
-"""
-            base_req = {"meta": req_meta, "note": teacher_note + "\n" + repair_note}
-
-    # fallback an toàn
-    return {
-        "meta": req_meta,
-        "sections": {
-            "I": {"yeu_cau_can_dat": [f"(Lỗi tạo dữ liệu) {last_err}"]},
-            "II": {"giao_vien": ["..."], "hoc_sinh": ["..."]},
-            "III": {"hoat_dong": [
-                {"ten_hoat_dong": "Khởi động", "thoi_gian": 5, "gv": ["..."], "hs": ["..."]},
-                {"ten_hoat_dong": "Khám phá/Hình thành kiến thức", "thoi_gian": 15, "gv": ["..."], "hs": ["..."]},
-                {"ten_hoat_dong": "Luyện tập", "thoi_gian": 10, "gv": ["..."], "hs": ["..."]},
-                {"ten_hoat_dong": "Vận dụng/Mở rộng", "thoi_gian": 5, "gv": ["..."], "hs": ["..."]}
-            ]},
-            "IV": {"dieu_chinh_sau_bai_day": "...................................................................................."}
-        }
-    }
-
-# ==============================================================================
-# [PATCH 2/3] PROMPT KHÓA CỨNG: DATA-ONLY JSON (ANTI-HALLUCINATION)
-# ==============================================================================
-
-def build_lesson_system_prompt_data_only(meta: dict, teacher_note: str) -> str:
-    return f"""
-VAI TRÒ: Bạn là giáo viên tiểu học cốt cán, soạn KẾ HOẠCH BÀI DẠY theo CTGDPT 2018, văn phong hồ sơ chuyên môn cấp Sở.
-
-DỮ LIỆU ĐẦU VÀO (CỐ ĐỊNH):
-- Cấp học: {meta.get("cap_hoc")}
-- Môn: {meta.get("mon")} | Lớp: {meta.get("lop")} | Bộ sách: {meta.get("bo_sach")}
-- PPCT: Tuần {meta.get("tuan")} | Tiết {meta.get("tiet")} | Mã bài {meta.get("bai_id")}
-- Tên bài: {meta.get("ten_bai")}
-- Thời lượng: {meta.get("thoi_luong")} phút | Sĩ số: {meta.get("si_so")} HS
-
-GHI CHÚ GIÁO VIÊN (PHẢI ƯU TIÊN):
-{teacher_note}
-
-MỤC TIÊU KỸ THUẬT (BẮT BUỘC TUYỆT ĐỐI):
-1) CHỈ TRẢ VỀ 01 JSON HỢP LỆ theo schema. KHÔNG markdown. KHÔNG giải thích.
-2) JSON chỉ gồm 2 khóa cấp cao: "meta" và "sections". Không thêm khóa khác.
-3) "sections.III.hoat_dong" phải có ≥ 4 hoạt động. Mỗi hoạt động phải có:
-   - ten_hoat_dong (string), thoi_gian (int),
-   - gv là mảng ≥ 2 ý,
-   - hs là mảng ≥ 2 ý.
-4) KHÔNG được tạo HTML. Hệ thống sẽ tự render HTML đúng mẫu.
-5) Nếu không có YCCĐ, hãy suy luận phù hợp CTGDPT 2018 và lứa tuổi.
-6) Không bịa văn bản pháp lý. Chỉ viết nội dung sư phạm.
-
-HÃY TRẢ VỀ JSON DUY NHẤT.
-""".strip()
-
+    # Nếu vẫn lỗi sau nhiều lần
+    raise RuntimeError(f"Không tạo được giáo án hợp lệ theo schema sau 3 lần. Lỗi cuối: {last_err}")
 
 def generate_lesson_plan_data_only(
     api_key: str,
