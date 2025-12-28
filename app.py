@@ -878,7 +878,7 @@ HÃY TRẢ VỀ JSON DUY NHẤT.
 """.strip()
 
 
-def generate_lesson_plan_data_only(api_key: str, meta_ppct: dict, teacher_note: str, model_name: str = "gemini-2.0-flash-exp"):
+def generate_lesson_plan_data_only(api_key: str, meta_ppct: dict, teacher_note: str, model_name: str = "gemini-2.0-flash"):
     """
     Sinh JSON data-only theo LESSON_PLAN_DATA_SCHEMA.
     Nếu sai schema: tự sửa tối đa 2 lần.
@@ -1998,7 +1998,7 @@ def module_lesson_plan():
             "si_so": int(class_size),
         },
         teacher_note=teacher_note,
-        model_name="gemini-2.0-flash-exp"
+        model_name="gemini-2.0-flash"
     )
 
 # Render HTML theo mẫu cố định (2 cột GV/HS)
@@ -2508,7 +2508,7 @@ else:
                 EDUCATION_DATA=EDUCATION_DATA,
                 FULL_SCOPE_LIST=FULL_SCOPE_LIST,
                 create_word_doc_func=create_word_doc,
-                model_name="gemini-2.0-flash-exp"
+                model_name="gemini-2.0-flash"
             )
         else:
             module_lesson_plan()
@@ -2518,6 +2518,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
