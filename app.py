@@ -5,6 +5,7 @@ import pandas as pd
 import docx
 import json
 import copy
+import os
 import re
 import io
 import time
@@ -144,6 +145,7 @@ except:
 
 # --- Engine & model defaults (VPS-safe) ---
 MODEL_GEMINI = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
+MODEL_OPENAI = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')  # chỉ dùng khi bạn đã tích hợp OpenAI client
 if 'engine_choice' not in st.session_state:
     # Mặc định dùng Gemini để tránh lỗi nếu chưa cấu hình OpenAI
     st.session_state['engine_choice'] = 'gemini'
@@ -2851,5 +2853,8 @@ else:
         module_advisor()
     else:
         main_app()
+
+
+
 
 
