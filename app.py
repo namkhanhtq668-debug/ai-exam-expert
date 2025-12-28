@@ -1089,10 +1089,10 @@ def generate_lesson_plan_locked(
         "mon": meta_ppct.get("mon", ""),
         "lop": meta_ppct.get("lop", ""),
         # If the UI/API provides a textbook/series key, keep it; otherwise leave blank
-        "bo_sach": meta_ppct.get("bo_sach", req.get("bo_sach", "")) if isinstance(req, dict) else meta_ppct.get("bo_sach", ""),
-        "ten_bai": meta_ppct.get("ten_bai", meta_ppct.get("bai", "")),
-        "thoi_luong": meta_ppct.get("thoi_luong", req.get("thoi_luong", 35) if isinstance(req, dict) else 35),
-        "si_so": meta_ppct.get("si_so", req.get("si_so", 40) if isinstance(req, dict) else 40),
+        "bo_sach": meta_ppct.get("bo_sach", ""),
+        "thoi_luong": meta_ppct.get("thoi_luong", ""),
+        "si_so": meta_ppct.get("si_so", ""),
+        "ghi_chu": meta_ppct.get("ghi_chu", ""),
         "ppct": {
             "tuan": meta_ppct.get("tuan", ""),
             "tiet": meta_ppct.get("tiet", ""),
