@@ -5,7 +5,6 @@ import pandas as pd
 import docx
 import json
 import copy
-import os
 import re
 import io
 import time
@@ -13,6 +12,7 @@ import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 import html  # [FIX] dùng html.escape, tránh NameError
+import os
 # ==============================================================================
 # [MODULE NLS] DỮ LIỆU & CẤU HÌNH CHO SOẠN GIÁO ÁN NĂNG LỰC SỐ
 # ==============================================================================
@@ -1195,7 +1195,9 @@ def validate_lesson_plan(data: dict) -> None:
 # ==============================================================================
 # [MỚI] 2.3. HÀM TẠO PROMPT & GỌI AI (CHUẨN HÓA BẢNG 2 CỘT)
 # ==============================================================================
-def build_lesson_system_prompt_locked(meta: dict, teacher_note: str) -> str:
+def build_lesson_system_prompt_locked(meta: dict, teacher_note: str = "") -> str:
+    teacher_note = (teacher_note or (meta.get("teacher_note") if isinstance(meta, dict) else "") or "").strip()
+    meta = meta or {}
     return f"""
 VAI TRÒ: Bạn là Giáo viên Tiểu học cốt cán, chuyên soạn GIÁO ÁN MẪU theo định hướng phát triển năng lực (CV 2345/BGDĐT).
 
@@ -2853,7 +2855,6 @@ else:
         module_advisor()
     else:
         main_app()
-
 
 
 
