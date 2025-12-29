@@ -1587,6 +1587,7 @@ def build_lesson_system_prompt_locked(
     muc_tieu_them: str = "",
     yeu_cau_them: str = "",
     teacher_note: str = "",
+    quality_feedback: str = "",
 ) -> str:
     """System prompt that forces a *detailed* Vietnam-style lesson plan, matching the user's template."""
     # Guardrails: ensure enough detail and correct 4-activity structure.
@@ -1602,6 +1603,7 @@ THÔNG TIN BÀI DẠY
 - Bổ sung mục tiêu (nếu có): {muc_tieu_them}
 - Yêu cầu thêm (nếu có): {yeu_cau_them}
 - Ghi chú giáo viên: {teacher_note}
+- Phản hồi chất lượng cần bổ sung: {quality_feedback}
 
 YÊU CẦU CHẤT LƯỢNG (BẮT BUỘC)
 1) Nội dung phải dài và chi tiết: tối thiểu ~1200 từ. Không viết chung chung, không liệt kê sơ sài.
@@ -3313,8 +3315,6 @@ else:
         module_advisor()
     else:
         main_app()
-
-
 
 
 
