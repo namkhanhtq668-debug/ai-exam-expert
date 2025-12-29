@@ -584,6 +584,16 @@ def call_llm_text(
     max_output_tokens: int = 4096,
     response_mime_type: str | None = None,
 ) -> str:
+
+    # --- Chuẩn hóa đầu vào theo req_meta để tránh lỗi thiếu tham số từ UI ---
+    meta = req_meta if isinstance(req_meta, dict) else {}
+    cap_hoc = str(meta.get("cap_hoc") or meta.get("level") or "")
+    mon_hoc = str(meta.get("mon_hoc") or meta.get("mon") or meta.get("subject") or "")
+    lop = str(meta.get("lop") or meta.get("grade") or "")
+    ten_bai = str(meta.get("ten_bai") or meta.get("lesson_title") or meta.get("bai") or "")
+    muc_tieu_them = str(meta.get("muc_tieu_them") or meta.get("muc_tieu_bo_sung") or "")
+    yeu_cau_them = str(meta.get("yeu_cau_them") or meta.get("yeu_cau_bo_sung") or "")
+    # schema hiện được dùng ở lớp validate JSON bên ngoài; giữ tham số để tương thích.
     """Call the selected LLM engine and return plain text.
 
     Notes:
@@ -1580,12 +1590,8 @@ def ensure_min_wordcount_html(html_text: str, min_words: int = 950) -> str:
 
 
 def build_lesson_system_prompt_locked(
-    cap_hoc: str,
-    mon_hoc: str,
-    lop: str,
-    ten_bai: str,
-    muc_tieu_them: str = "",
-    yeu_cau_them: str = "",
+    schema: dict,
+    req_meta: dict,
     teacher_note: str = "",
     quality_feedback: str = "",
 ) -> str:
