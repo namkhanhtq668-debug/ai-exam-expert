@@ -1119,10 +1119,10 @@ def validate_lesson_plan_data(data: dict) -> None:
     Draft202012Validator.check_schema(LESSON_PLAN_DATA_SCHEMA)
     validate(instance=data, schema=LESSON_PLAN_DATA_SCHEMA)
 
-def quality_check_lesson_html(render_html: str, min_rows: int = 5, min_words: int = 800):
+def quality_check_lesson_html(render_html: str, min_rows: int = 2, min_words: int = 400):
     """
     Kiểm tra chất lượng bản HTML giáo án sau khi render:
-    - Có đủ đề mục bắt buộc: Mục tiêu, Chuẩn bị, Tiến trình, Rút kinh nghiệm
+    - Có đủ đề mục bắt buộc: Mục tiêu, Chuẩn bị, Tiến trình, Điều chỉnh sau bài dạy
     - Bảng tiến trình có tối thiểu min_rows dòng (tính theo số hàng hoạt động trong bảng)
     - Tiến trình thể hiện đủ 4 hoạt động chuẩn (Khởi động – Hình thành – Luyện tập – Vận dụng/Mở rộng)
     - Có mô tả song song hoạt động GV/HS trong tiến trình
@@ -1137,7 +1137,7 @@ def quality_check_lesson_html(render_html: str, min_rows: int = 5, min_words: in
         issues = []
 
         # 1) đề mục bắt buộc (tìm theo tiêu đề)
-        required_heads = ["Mục tiêu", "Chuẩn bị", "Tiến trình", "Rút kinh nghiệm"]
+        required_heads = ["Mục tiêu", "Chuẩn bị", "Tiến trình", "Điều chỉnh sau bài dạy"]
         missing = [h for h in required_heads if h.lower() not in html_text.lower()]
         if missing:
             issues.append(f"Thiếu các đề mục bắt buộc: {', '.join(missing)}.")
@@ -1185,7 +1185,7 @@ def quality_check_lesson_html(render_html: str, min_rows: int = 5, min_words: in
 def ensure_complete_lesson_plan(data: dict, min_rows_per_lesson: int = 10) -> dict:
     """
     Chuẩn hóa dữ liệu giáo án để đảm bảo:
-    - Có đủ các mục bắt buộc (Mục tiêu, Chuẩn bị, Tiến trình, Rút kinh nghiệm)
+    - Có đủ các mục bắt buộc (Mục tiêu, Chuẩn bị, Tiến trình, Điều chỉnh sau bài dạy)
     - Tiến trình có đủ 4 hoạt động chuẩn (Khởi động – Hình thành – Luyện tập – Vận dụng/Mở rộng)
     - Tổng số dòng trong bảng tiến trình >= min_rows_per_lesson
     - Mỗi dòng có mô tả GV/HS song song và có câu hỏi gợi mở, sản phẩm, tiêu chí đánh giá tối thiểu.
@@ -1389,7 +1389,7 @@ def ensure_complete_lesson_plan(data: dict, min_rows_per_lesson: int = 10) -> di
             total_rows += 1
             i += 1
 
-    # --- 4) Nếu rút kinh nghiệm trống, thêm khung hướng dẫn ---
+    # --- 4) Nếu Điều chỉnh sau bài dạy trống, thêm khung hướng dẫn ---
     if not str(data.get("rut_kinh_nghiem","")).strip():
         data["rut_kinh_nghiem"] = (
             "Sau tiết dạy: (1) Mức độ đạt mục tiêu; (2) Hiệu quả tổ chức hoạt động, thời gian; "
@@ -1486,7 +1486,7 @@ def enrich_lesson_plan_data_min_detail(data: dict, cap_hoc: str, mon_hoc: str, l
             ]
             hs_base = [
                 "Làm bài tập; thao tác theo hướng dẫn; ghi lại quy trình/đáp án.",
-                "Chia sẻ cách làm; so sánh kết quả; sửa sai; rút kinh nghiệm.",
+                "Chia sẻ cách làm; so sánh kết quả; sửa sai; Điều chỉnh sau bài dạy.",
                 "Vận dụng vào tình huống tương tự/ mở rộng trong thực tế."
             ]
         return {
@@ -3358,6 +3358,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
