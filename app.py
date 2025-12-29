@@ -1308,54 +1308,76 @@ def validate_lesson_plan(data: dict) -> None:
 def build_lesson_system_prompt_locked(schema: dict, req_meta: dict, teacher_note: str = "", quality_feedback: str = "") -> str:
     """System prompt khóa định dạng cho module Soạn giáo án.
 
-    Mục tiêu:
-    - Bắt buộc trả về JSON đúng schema (có 'meta' và 'renderHtml').
-    - Nội dung trong renderHtml phải là một GIÁO ÁN HOÀN CHỈNH (không chỉ liệt kê đề mục),
-      đủ để giáo viên in/nộp chuyên môn.
-    - Bám chặt lớp/môn/bộ sách/tên bài theo req_meta và (nếu có) meta_ppct do hệ thống cung cấp.
+    Mục tiêu: AI trả về GIÁO ÁN ĐỦ NỘI DUNG – CHI TIẾT – ĐÚNG MẪU NỘP CHUYÊN MÔN.
+    Để giảm lỗi "đề mục có nhưng không có nội dung", prompt bắt buộc:
+    - Có đủ các phần theo cấu trúc giáo án phổ biến ở tiểu học.
+    - Có bảng tiến trình dạy học dạng HTML table, tối thiểu 8 dòng/buổi (tính theo <tr> của phần hoạt động, không kể tiêu đề bảng).
+    - Nội dung tối thiểu ~900 từ (không tính thẻ HTML), ưu tiên 1000–1400 từ.
+    - Hoạt động GV/HS phải thể hiện song song, có câu hỏi gợi mở, sản phẩm, tiêu chí đánh giá.
     """
 
-    # Lưu ý: teacher_note/quality_feedback chỉ là gợi ý bổ sung cho model, không phải dữ liệu bắt buộc.
-    note_block = f"\nGHI CHÚ CỦA GIÁO VIÊN (ưu tiên áp dụng nếu phù hợp):\n{teacher_note.strip()}\n" if teacher_note and teacher_note.strip() else ""
-    quality_block = f"\nPHẢN HỒI CHẤT LƯỢNG TỪ HỆ THỐNG (bắt buộc khắc phục):\n{quality_feedback.strip()}\n" if quality_feedback and quality_feedback.strip() else ""
+    # Lưu ý: Schema JSON phía dưới là "khung" để hệ thống parse/validate.
+    # Bạn PHẢI tuân theo schema khi xuất JSON.
+    schema_json = json.dumps(schema, ensure_ascii=False, indent=2)
 
-    # Khóa quy tắc xuất
-    return f"""Bạn là AI chuyên gia sư phạm tiểu học (GDPT 2018). Nhiệm vụ: soạn GIÁO ÁN HOÀN CHỈNH theo đúng mẫu chuẩn của nhà trường.
+    # Gợi ý ràng buộc chất lượng để mô hình tự sửa ở lần retry
+    qfb = (quality_feedback or "").strip()
+    qfb_block = f"\n\nPHẢN HỒI CHẤT LƯỢNG (cần khắc phục trong lần này):\n{qfb}\n" if qfb else ""
 
-RÀNG BUỘC BẮT BUỘC (KHÔNG ĐƯỢC VI PHẠM):
-1) Bạn PHẢI trả về DUY NHẤT một đối tượng JSON hợp lệ theo schema bên dưới. Không thêm văn bản ngoài JSON.
-2) JSON phải có đủ 2 khóa: meta, renderHtml. Không đổi tên khóa.
-3) renderHtml phải là HTML hoàn chỉnh (có <style> hoặc CSS inline) và dùng font Times New Roman, cỡ 13–14pt.
-4) renderHtml phải có ĐẦY ĐỦ NỘI DUNG CHI TIẾT của một giáo án, không được chỉ liệt kê đề mục.
-   - Mỗi mục phải có nội dung cụ thể, có hướng dẫn triển khai, câu hỏi gợi mở, sản phẩm học tập, tiêu chí đánh giá.
-   - Tiến trình dạy học phải thể hiện rõ hoạt động GV/HS, thời lượng, phương pháp/kĩ thuật, phương tiện/thiết bị, sản phẩm.
-5) Bám đúng thông tin bài học theo req_meta (lớp/môn/bộ sách/tên bài/cấp học). Nếu meta_ppct có thông tin tiết/tuần/chủ đề thì phải dùng.
+    # Ghi chú GV (tuỳ chọn)
+    teacher_note = (teacher_note or "").strip()
+    teacher_note_block = f"\n\nGHI CHÚ CỦA GIÁO VIÊN (ưu tiên tuân theo):\n{teacher_note}\n" if teacher_note else ""
 
-YÊU CẦU CHẤT LƯỢNG TỐI THIỂU (để tránh giáo án “khung”):
-- Phần Mục tiêu: ít nhất 6 ý (phân hóa kiến thức/kĩ năng/phẩm chất/năng lực), mỗi ý diễn giải rõ (>= 20 từ).
-- Phần Chuẩn bị: nêu rõ học liệu/thiết bị số, phần mềm (nếu có), phương án dự phòng.
-- Phần Tiến trình: tối thiểu 4 hoạt động (Khởi động, Hình thành kiến thức, Luyện tập, Vận dụng/Mở rộng).
-  Mỗi hoạt động cần: mục tiêu hoạt động, thời lượng, tổ chức (GV làm gì, HS làm gì), câu hỏi/phiếu học tập, sản phẩm, đánh giá.
-- Ít nhất 1 nội dung tích hợp năng lực số (phù hợp môn/lớp) nếu là môn Tin học hoặc teacher_note yêu cầu.
-- Có phần Điều chỉnh – Rút kinh nghiệm sau bài dạy (gợi ý tiêu chí quan sát).
-- Tổng nội dung (bỏ thẻ HTML) tối thiểu ~900 từ. Nếu bài ngắn vẫn phải đảm bảo chi tiết bằng hướng dẫn/câu hỏi/sản phẩm.
+    # Meta yêu cầu bài học
+    meta_block = json.dumps(req_meta or {}, ensure_ascii=False, indent=2)
 
-{note_block}{quality_block}
+    return f"""
+Bạn là chuyên gia soạn giáo án tiểu học theo GDPT 2018. Nhiệm vụ: tạo GIÁO ÁN CHI TIẾT, ĐỦ MỤC, DÙNG NỘP CHUYÊN MÔN NGAY.
 
-THÔNG TIN BÀI HỌC (req_meta – là nguồn sự thật):
-{json.dumps(req_meta, ensure_ascii=False, indent=2)}
+BẮT BUỘC:
+1) Chỉ xuất ra MỘT đối tượng JSON hợp lệ (không markdown, không giải thích).
+2) JSON phải TUÂN THỦ schema sau (đúng kiểu dữ liệu, đủ trường bắt buộc):
+{schema_json}
 
-SCHEMA JSON BẮT BUỘC:
-{json.dumps(schema, ensure_ascii=False)}
+3) Giáo án phải phù hợp: cấp học/lớp/môn/bài/chủ đề theo meta đầu vào, đúng ngữ cảnh chương trình và đặc thù môn học.
+4) renderHtml phải là HTML hoàn chỉnh (có <h1>, <h2>, <table>…), tiếng Việt chuẩn, không để trống nội dung.
+5) renderHtml phải có tối thiểu:
+   - Phần I: Thông tin chung (môn, lớp, bài, thời lượng, hình thức, thiết bị…)
+   - Phần II: Mục tiêu (Kiến thức/Kĩ năng/Phẩm chất/Năng lực; có chỉ báo/tiêu chí quan sát)
+   - Phần III: Chuẩn bị (GV/HS; học liệu, thiết bị, phần mềm; tài nguyên số nếu có)
+   - Phần IV: Tiến trình dạy học (BẢNG) với cột: Thời gian | Hoạt động của GV | Hoạt động của HS | Sản phẩm/Đánh giá
+       * Tối thiểu 4–5 hoạt động: Khởi động; Hình thành kiến thức/Khám phá; Luyện tập; Vận dụng; Củng cố/Dặn dò.
+       * Mỗi hoạt động: mô tả GV/HS song song, có câu hỏi gợi mở, dự kiến đáp án, sản phẩm, tiêu chí/phiếu quan sát.
+       * Bảng phải có tối thiểu 8 dòng hoạt động (<tr> của phần nội dung, không tính dòng tiêu đề).
+   - Phần V: Đánh giá (trong giờ và sau giờ; thang/tiêu chí; nhận xét)
+   - Phần VI: Điều chỉnh – Rút kinh nghiệm (dự kiến)
 
-GỢI Ý CẤU TRÚC renderHtml (bắt buộc có đủ, nhưng nội dung phải cụ thể):
-- Tiêu đề giáo án; Thông tin bài (môn/lớp/bộ sách/tên bài/tiết/thời lượng)
-- I. Mục tiêu
-- II. Chuẩn bị
-- III. Phương pháp/Kĩ thuật dạy học
-- IV. Tiến trình dạy học (bảng có cột: Thời gian | Hoạt động GV | Hoạt động HS | Sản phẩm/Đánh giá)
-- V. Điều chỉnh – Rút kinh nghiệm
-"""
+6) Độ dài: tối thiểu 900 từ (không tính thẻ HTML). Tránh viết gạch đầu dòng quá ngắn; cần mô tả đủ chi tiết để GV dạy được.
+7) Không được cắt ngắn giữa chừng. Nếu dài, hãy ưu tiên viết đầy đủ theo yêu cầu, tuyệt đối không bỏ sót bảng tiến trình.
+
+META ĐẦU VÀO (phải bám sát):
+{meta_block}
+{teacher_note_block}
+{qfb_block}
+
+GỢI Ý KHUÔN HTML (có thể tùy biến nhưng phải đủ ý):
+<h1>GIÁO ÁN …</h1>
+<h2>I. Thông tin chung</h2>...
+<h2>II. Mục tiêu</h2>...
+<h2>III. Chuẩn bị</h2>...
+<h2>IV. Tiến trình dạy học</h2>
+<table border="1" cellspacing="0" cellpadding="6">
+  <tr><th>Thời gian</th><th>Hoạt động của GV</th><th>Hoạt động của HS</th><th>Sản phẩm/Đánh giá</th></tr>
+  <tr><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+  ... (>=8 dòng hoạt động)
+</table>
+<h2>V. Đánh giá</h2>...
+<h2>VI. Điều chỉnh – Rút kinh nghiệm</h2>...
+
+Chỉ trả về JSON theo schema. 
+""".strip()
+
+
 def generate_lesson_plan_locked(
     api_key: str,
     meta_ppct: dict,
@@ -1407,7 +1429,7 @@ def generate_lesson_plan_locked(
     quality_feedback = ""
     payload_user = "Tạo GIÁO ÁN theo yêu cầu. Bắt buộc trả về JSON hợp lệ đúng schema. renderHtml phải đầy đủ nội dung chi tiết, không chỉ đề mục."
 
-    for attempt in range(1, 4):
+    for attempt in range(1, 6):
         # Mỗi lần thử đều nhắc lại ràng buộc và phản hồi chất lượng (nếu có)
         system_prompt = build_lesson_system_prompt_locked(LESSON_PLAN_SCHEMA, req_meta, teacher_note=teacher_note, quality_feedback=quality_feedback)
         try:
@@ -2978,8 +3000,6 @@ else:
         module_advisor()
     else:
         main_app()
-
-
 
 
 
