@@ -1349,10 +1349,11 @@ BẮT BUỘC:
        * Tối thiểu 4–5 hoạt động: Khởi động; Hình thành kiến thức/Khám phá; Luyện tập; Vận dụng; Củng cố/Dặn dò.
        * Mỗi hoạt động: mô tả GV/HS song song, có câu hỏi gợi mở, dự kiến đáp án, sản phẩm, tiêu chí/phiếu quan sát.
        * Bảng phải có tối thiểu 8 dòng hoạt động (<tr> của phần nội dung, không tính dòng tiêu đề).
+        - Tiến trình phải thể hiện **đủ 4 hoạt động chuẩn**: Khởi động – Hình thành kiến thức – Luyện tập – Vận dụng/Mở rộng. Mỗi hoạt động cần nêu: mục tiêu, nhiệm vụ, câu hỏi gợi mở, sản phẩm/dự kiến kết quả và tiêu chí đánh giá.
    - Phần V: Đánh giá (trong giờ và sau giờ; thang/tiêu chí; nhận xét)
    - Phần VI: Điều chỉnh – Rút kinh nghiệm (dự kiến)
 
-6) Độ dài: tối thiểu 900 từ (không tính thẻ HTML). Tránh viết gạch đầu dòng quá ngắn; cần mô tả đủ chi tiết để GV dạy được.
+6) Độ dài: tối thiểu 950 từ (khuyến nghị 1000–1200 từ để có dư an toàn) (không tính thẻ HTML). Tránh viết gạch đầu dòng quá ngắn; cần mô tả đủ chi tiết để GV dạy được.
 7) Không được cắt ngắn giữa chừng. Nếu dài, hãy ưu tiên viết đầy đủ theo yêu cầu, tuyệt đối không bỏ sót bảng tiến trình.
 
 META ĐẦU VÀO (phải bám sát):
@@ -1427,7 +1428,30 @@ def generate_lesson_plan_locked(
     # 3) Gọi model với cơ chế tự sửa + chốt chất lượng
     last_err = None
     quality_feedback = ""
-    payload_user = "Tạo GIÁO ÁN theo yêu cầu. Bắt buộc trả về JSON hợp lệ đúng schema. renderHtml phải đầy đủ nội dung chi tiết, không chỉ đề mục."
+    payload_user = f"""
+    Bạn hãy soạn **GIÁO ÁN CHI TIẾT** theo đúng meta và yêu cầu dưới đây.
+    
+    META/PPCT (nếu có): {json.dumps(meta_ppct, ensure_ascii=False)}
+    
+    THÔNG TIN BÀI HỌC:
+    - Cấp học: {cap_hoc}
+    - Môn học: {mon_hoc}
+    - Lớp: {lop}
+    - Tên bài/chủ đề: {ten_bai}
+    
+    YÊU CẦU BẮT BUỘC (để PASS schema):
+    - Có đủ các mục: I. Mục tiêu; II. Thiết bị & học liệu; III. Tiến trình dạy học; IV. Củng cố – Dặn dò; V. Điều chỉnh sau bài dạy.
+    - Trong **III. Tiến trình dạy học** phải có đủ 4 hoạt động: **Khởi động – Hình thành kiến thức – Luyện tập – Vận dụng/Mở rộng**.
+    - Bảng tiến trình: tối thiểu **8 dòng** (khuyến nghị 10–14 dòng). Mỗi dòng có mô tả song song việc làm của **GV** và **HS**.
+    - Thêm chi tiết: câu hỏi gợi mở, dự kiến sản phẩm, tiêu chí đánh giá/nhận xét trong từng hoạt động.
+    - Tổng độ dài nội dung HTML: **>= 950 từ**.
+    
+    YÊU CẦU BỔ SUNG TỪ NGƯỜI DÙNG:
+    - Mục tiêu bổ sung: {muc_tieu_them}
+    - Yêu cầu/điều chỉnh thêm: {yeu_cau_them}
+    
+    Ghi chú giáo viên (nếu có): {teacher_note}
+    """
 
     for attempt in range(1, 6):
         # Mỗi lần thử đều nhắc lại ràng buộc và phản hồi chất lượng (nếu có)
