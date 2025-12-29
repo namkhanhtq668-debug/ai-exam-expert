@@ -1596,6 +1596,14 @@ def build_lesson_system_prompt_locked(
     quality_feedback: str = "",
 ) -> str:
     """System prompt that forces a *detailed* Vietnam-style lesson plan, matching the user's template."""
+    # Lấy thông tin bài dạy từ req_meta để tránh phụ thuộc biến global/outer-scope.
+    cap_hoc = str((req_meta or {}).get('cap_hoc',''))
+    mon_hoc = str((req_meta or {}).get('mon_hoc',''))
+    lop = str((req_meta or {}).get('lop',''))
+    ten_bai = str((req_meta or {}).get('ten_bai',''))
+    muc_tieu_them = str((req_meta or {}).get('muc_tieu_them',''))
+    yeu_cau_them = str((req_meta or {}).get('yeu_cau_them',''))
+
     # Guardrails: ensure enough detail and correct 4-activity structure.
     # We ask for JSON ONLY to reduce formatting drift, then we render to HTML/Word.
     return f"""Bạn là chuyên gia soạn giáo án theo CT GDPT 2018 của Việt Nam (kế hoạch bài dạy theo cấu trúc phổ biến của Công văn 5512 và thực tiễn nhà trường).
@@ -3321,6 +3329,8 @@ else:
         module_advisor()
     else:
         main_app()
+
+
 
 
 
