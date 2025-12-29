@@ -722,7 +722,6 @@ def render_lesson_plan_html_from_schema(data: dict) -> str:
     sections = data.get("sections", {})
     # Render tối giản, ưu tiên lấy bảng ở III/hoat_dong
     html_parts = []
-    html_parts.append("<div style=\"font-family:'Times New Roman',serif;font-size:14pt;\">")
     html_parts.append(f"<h2 style='text-align:center'>GIÁO ÁN</h2>")
     html_parts.append(f"<p><b>Môn:</b> {meta.get('mon_hoc','')} &nbsp;&nbsp; <b>Lớp:</b> {meta.get('lop','')}</p>")
     html_parts.append(f"<p><b>Bài:</b> {meta.get('ten_bai','')}</p>")
@@ -753,7 +752,6 @@ def render_lesson_plan_html_from_schema(data: dict) -> str:
                         html_parts.append(f"<p><b>{k}:</b><br>- " + "<br>- ".join(map(str,v)) + "</p>")
                     elif isinstance(v, str) and v.strip():
                         html_parts.append(f"<p><b>{k}:</b> {v}</p>")
-    html_parts.append("</div>")
     return "\n".join(html_parts)
 
 def render_lesson_plan_html(data: dict) -> str:
@@ -976,81 +974,48 @@ class QuestionGeneratorYCCD:
 # ==============================================================================
 # [MỚI] 2.2. JSON SCHEMA KHÓA CỨNG (CÓ BẢNG)
 # ==============================================================================
-LESSON_PLAN_SCHEMA = {'type': 'object',
- 'additionalProperties': True,
- 'required': ['meta', 'muc_tieu', 'chuan_bi', 'tien_trinh_day_hoc', 'danh_gia', 'dieu_chinh'],
- 'properties': {'meta': {'type': 'object',
-                         'additionalProperties': True,
-                         'required': ['cap_hoc', 'mon_hoc', 'lop', 'ten_bai'],
-                         'properties': {'cap_hoc': {'type': 'string', 'minLength': 1},
-                                        'mon_hoc': {'type': 'string', 'minLength': 1},
-                                        'lop': {'type': 'string', 'minLength': 1},
-                                        'ten_bai': {'type': 'string', 'minLength': 1},
-                                        'thoi_luong': {'type': 'string'},
-                                        'tuan': {'type': 'string'},
-                                        'tiet': {'type': 'string'},
-                                        'bo_sach': {'type': 'string'},
-                                        'chu_de': {'type': 'string'},
-                                        'teacher_note': {'type': 'string'}}},
-                'muc_tieu': {'type': 'object',
-                             'additionalProperties': True,
-                             'required': ['dat', 'nang_luc', 'pham_chat'],
-                             'properties': {'dat': {'type': 'array',
-                                                    'minItems': 4,
-                                                    'items': {'type': 'string', 'minLength': 25}},
-                                            'nang_luc': {'type': 'array',
-                                                         'minItems': 2,
-                                                         'items': {'type': 'string', 'minLength': 20}},
-                                            'pham_chat': {'type': 'array',
-                                                          'minItems': 1,
-                                                          'items': {'type': 'string', 'minLength': 15}},
-                                            'nang_luc_so': {'type': 'array',
-                                                            'minItems': 1,
-                                                            'items': {'type': 'string', 'minLength': 20}}}},
-                'chuan_bi': {'type': 'object',
-                             'additionalProperties': True,
-                             'required': ['giao_vien', 'hoc_sinh'],
-                             'properties': {'giao_vien': {'type': 'array',
-                                                          'minItems': 3,
-                                                          'items': {'type': 'string', 'minLength': 15}},
-                                            'hoc_sinh': {'type': 'array',
-                                                         'minItems': 2,
-                                                         'items': {'type': 'string', 'minLength': 15}},
-                                            'hoc_lieu': {'type': 'array',
-                                                         'minItems': 2,
-                                                         'items': {'type': 'string', 'minLength': 15}}}},
-                'tien_trinh_day_hoc': {'type': 'array',
-                                       'minItems': 4,
-                                       'items': {'type': 'object',
-                                                 'additionalProperties': True,
-                                                 'required': ['ten_hoat_dong',
-                                                              'muc_tieu',
-                                                              'to_chuc',
-                                                              'san_pham',
-                                                              'danh_gia',
-                                                              'thoi_luong'],
-                                                 'properties': {'ten_hoat_dong': {'type': 'string',
-                                                                                  'minLength': 3},
-                                                                'muc_tieu': {'type': 'string',
-                                                                             'minLength': 30},
-                                                                'to_chuc': {'type': 'array',
-                                                                            'minItems': 4,
-                                                                            'items': {'type': 'string',
-                                                                                      'minLength': 30}},
-                                                                'san_pham': {'type': 'string',
-                                                                             'minLength': 20},
-                                                                'danh_gia': {'type': 'string',
-                                                                             'minLength': 30},
-                                                                'thoi_luong': {'type': 'string',
-                                                                               'minLength': 1}}}},
-                'danh_gia': {'type': 'object',
-                             'additionalProperties': True,
-                             'required': ['thuong_xuyen', 'dinh_ky'],
-                             'properties': {'thuong_xuyen': {'type': 'string', 'minLength': 60},
-                                            'dinh_ky': {'type': 'string', 'minLength': 60}}},
-                'dieu_chinh': {'type': 'string', 'minLength': 0},
-                'phu_luc': {'type': ['object', 'array', 'string', 'null']}}}
-
+LESSON_PLAN_SCHEMA = {
+  "type": "object",
+  "additionalProperties": True,
+  "required": ["meta", "sections"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": True,
+      "properties": {
+        "cap_hoc": {"type": "string"},
+        "mon_hoc": {"type": "string"},
+        "lop": {"type": "string"},
+        "ten_bai": {"type": "string"},
+        "thoi_luong": {"type": "string"},
+        "tiet_so": {"type": "string"},
+        "ngay_day": {"type": "string"},
+        "giao_vien": {"type": "string"},
+        "truong": {"type": "string"},
+        "chu_de": {"type": "string"},
+        "muc_tieu": {"type": "array", "items": {"type": "string"}},
+        "yeu_cau_can_dat": {"type": "array", "items": {"type": "string"}},
+        "pham_chat_nang_luc": {"type": "array", "items": {"type": "string"}},
+        "thiet_bi_hoc_lieu": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": True,
+        "required": ["title", "content"],
+        "properties": {
+          "title": {"type": "string"},
+          "content": {"type": ["string", "array", "object"]}
+        }
+      }
+    },
+    "appendix": {"type": ["object", "array", "string", "null"]},
+    "renderHtml": {"type": "string"}
+  }
+}
 
 # ==============================================================================
 # [PATCH 1/3] LESSON PLAN DATA-ONLY SCHEMA (CẤP SỞ) + VALIDATOR
@@ -1060,116 +1025,143 @@ LESSON_PLAN_SCHEMA = {'type': 'object',
 
 from jsonschema import validate, Draft202012Validator, ValidationError
 
-LESSON_PLAN_DATA_SCHEMA = {'type': 'object',
- 'additionalProperties': True,
- 'required': ['meta', 'muc_tieu', 'chuan_bi', 'tien_trinh_day_hoc', 'danh_gia', 'dieu_chinh'],
- 'properties': {'meta': {'type': 'object',
-                         'additionalProperties': True,
-                         'required': ['cap_hoc', 'mon_hoc', 'lop', 'ten_bai'],
-                         'properties': {'cap_hoc': {'type': 'string', 'minLength': 1},
-                                        'mon_hoc': {'type': 'string', 'minLength': 1},
-                                        'lop': {'type': 'string', 'minLength': 1},
-                                        'ten_bai': {'type': 'string', 'minLength': 1},
-                                        'thoi_luong': {'type': 'string'},
-                                        'tuan': {'type': 'string'},
-                                        'tiet': {'type': 'string'},
-                                        'bo_sach': {'type': 'string'},
-                                        'chu_de': {'type': 'string'},
-                                        'teacher_note': {'type': 'string'}}},
-                'muc_tieu': {'type': 'object',
-                             'additionalProperties': True,
-                             'required': ['dat', 'nang_luc', 'pham_chat'],
-                             'properties': {'dat': {'type': 'array',
-                                                    'minItems': 4,
-                                                    'items': {'type': 'string', 'minLength': 25}},
-                                            'nang_luc': {'type': 'array',
-                                                         'minItems': 2,
-                                                         'items': {'type': 'string', 'minLength': 20}},
-                                            'pham_chat': {'type': 'array',
-                                                          'minItems': 1,
-                                                          'items': {'type': 'string', 'minLength': 15}},
-                                            'nang_luc_so': {'type': 'array',
-                                                            'minItems': 1,
-                                                            'items': {'type': 'string', 'minLength': 20}}}},
-                'chuan_bi': {'type': 'object',
-                             'additionalProperties': True,
-                             'required': ['giao_vien', 'hoc_sinh'],
-                             'properties': {'giao_vien': {'type': 'array',
-                                                          'minItems': 3,
-                                                          'items': {'type': 'string', 'minLength': 15}},
-                                            'hoc_sinh': {'type': 'array',
-                                                         'minItems': 2,
-                                                         'items': {'type': 'string', 'minLength': 15}},
-                                            'hoc_lieu': {'type': 'array',
-                                                         'minItems': 2,
-                                                         'items': {'type': 'string', 'minLength': 15}}}},
-                'tien_trinh_day_hoc': {'type': 'array',
-                                       'minItems': 4,
-                                       'items': {'type': 'object',
-                                                 'additionalProperties': True,
-                                                 'required': ['ten_hoat_dong',
-                                                              'muc_tieu',
-                                                              'to_chuc',
-                                                              'san_pham',
-                                                              'danh_gia',
-                                                              'thoi_luong'],
-                                                 'properties': {'ten_hoat_dong': {'type': 'string',
-                                                                                  'minLength': 3},
-                                                                'muc_tieu': {'type': 'string',
-                                                                             'minLength': 30},
-                                                                'to_chuc': {'type': 'array',
-                                                                            'minItems': 4,
-                                                                            'items': {'type': 'string',
-                                                                                      'minLength': 30}},
-                                                                'san_pham': {'type': 'string',
-                                                                             'minLength': 20},
-                                                                'danh_gia': {'type': 'string',
-                                                                             'minLength': 30},
-                                                                'thoi_luong': {'type': 'string',
-                                                                               'minLength': 1}}}},
-                'danh_gia': {'type': 'object',
-                             'additionalProperties': True,
-                             'required': ['thuong_xuyen', 'dinh_ky'],
-                             'properties': {'thuong_xuyen': {'type': 'string', 'minLength': 60},
-                                            'dinh_ky': {'type': 'string', 'minLength': 60}}},
-                'dieu_chinh': {'type': 'string', 'minLength': 0},
-                'phu_luc': {'type': ['object', 'array', 'string', 'null']}}}
-
+LESSON_PLAN_DATA_SCHEMA = {
+    "type": "object",
+    "required": ["meta", "muc_tieu", "chuan_bi", "tien_trinh_day_hoc"],
+    "properties": {
+        "meta": {
+            "type": "object",
+            "required": ["cap_hoc", "mon_hoc", "lop", "ten_bai", "thoi_luong"],
+            "properties": {
+                "cap_hoc": {"type": "string"},
+                "mon_hoc": {"type": "string"},
+                "lop": {"type": "string"},
+                "bo_sach": {"type": "string"},
+                "tuan": {"type": "string"},
+                "tiet": {"type": "string"},
+                "ten_bai": {"type": "string"},
+                "ngay_day": {"type": "string"},
+                "thoi_luong": {"type": "string"},
+                "si_so": {"type": "string"},
+                "dia_diem": {"type": "string"}
+            },
+            "additionalProperties": True
+        },
+        "muc_tieu": {
+            "type": "object",
+            "required": ["pham_chat", "nang_luc", "kien_thuc", "ki_nang"],
+            "properties": {
+                "pham_chat": {"type": "array", "items": {"type": "string"}},
+                "nang_luc": {"type": "array", "items": {"type": "string"}},
+                "kien_thuc": {"type": "array", "items": {"type": "string"}},
+                "ki_nang": {"type": "array", "items": {"type": "string"}},
+                "thai_do": {"type": "array", "items": {"type": "string"}},
+                "tich_hop_nang_luc_so": {"type": "array", "items": {"type": "string"}}
+            },
+            "additionalProperties": True
+        },
+        "chuan_bi": {
+            "type": "object",
+            "required": ["giao_vien", "hoc_sinh"],
+            "properties": {
+                "giao_vien": {"type": "array", "items": {"type": "string"}},
+                "hoc_sinh": {"type": "array", "items": {"type": "string"}},
+                "phuong_phap_ky_thuat": {"type": "array", "items": {"type": "string"}}
+            },
+            "additionalProperties": True
+        },
+        "tien_trinh_day_hoc": {
+            "type": "array",
+            "minItems": 4,
+            "items": {
+                "type": "object",
+                "required": ["ten_hoat_dong", "muc_tieu", "thoi_gian", "to_chuc"],
+                "properties": {
+                    "ten_hoat_dong": {"type": "string"},
+                    "muc_tieu": {"type": "array", "items": {"type": "string"}},
+                    "thoi_gian": {"type": "string"},
+                    "san_pham": {"type": "array", "items": {"type": "string"}},
+                    "phuong_phap_ky_thuat": {"type": "array", "items": {"type": "string"}},
+                    "to_chuc": {
+                        "type": "object",
+                        "required": ["giao_vien", "hoc_sinh"],
+                        "properties": {
+                            "giao_vien": {"type": "array", "items": {"type": "string"}},
+                            "hoc_sinh": {"type": "array", "items": {"type": "string"}},
+                            "phan_hoa_ho_tro": {"type": "array", "items": {"type": "string"}},
+                            "danh_gia": {"type": "array", "items": {"type": "string"}}
+                        },
+                        "additionalProperties": True
+                    }
+                },
+                "additionalProperties": True
+            }
+        },
+        "danh_gia": {
+            "type": "object",
+            "properties": {
+                "tieu_chi": {"type": "array", "items": {"type": "string"}},
+                "cong_cu": {"type": "array", "items": {"type": "string"}},
+                "rubric_goi_y": {"type": "array", "items": {"type": "string"}}
+            },
+            "additionalProperties": True
+        },
+        "dieu_chinh": {"type": "string"},
+        "dieu_chinh_sau_day": {"type": "string"}
+    },
+    "additionalProperties": True
+}
 
 
 def validate_lesson_plan_data(data: dict) -> None:
     Draft202012Validator.check_schema(LESSON_PLAN_DATA_SCHEMA)
     validate(instance=data, schema=LESSON_PLAN_DATA_SCHEMA)
 
-def is_lesson_plan_detailed(data: dict) -> bool:
-    """
-    Kiểm tra chất lượng tối thiểu: tránh trường hợp chỉ có đề mục mà không có nội dung.
-    Không thay thế chấm tay, nhưng giúp tự động yêu cầu AI viết chi tiết hơn.
-    """
-    try:
-        tt = data.get("tien_trinh_day_hoc") or []
-        if len(tt) < 4:
-            return False
-        # Tổng số từ trong toàn bộ bước tổ chức
-        total_words = 0
-        for act in tt:
-            steps = act.get("to_chuc") or []
-            if len(steps) < 4:
-                return False
-            for s in steps:
-                total_words += len(str(s).split())
-        # Mục tiêu/Chuẩn bị phải có nội dung đủ
-        mt = data.get("muc_tieu") or {}
-        if len(mt.get("dat") or []) < 4:
-            return False
-        cb = data.get("chuan_bi") or {}
-        if len(cb.get("giao_vien") or []) < 3 or len(cb.get("hoc_sinh") or []) < 2:
-            return False
-        # Ngưỡng từ: đủ để không bị “rỗng”
-        return total_words >= 220
-    except Exception:
-        return False
+def quality_check_lesson_html(render_html: str) -> tuple[bool, str]:
+    """Heuristic quality gate to prevent 'khung đề mục' lesson plans.
 
+    Returns (ok, feedback). feedback is a short Vietnamese bullet list for the model to fix.
+    """
+    if not isinstance(render_html, str) or not render_html.strip():
+        return False, "- renderHtml rỗng hoặc không phải chuỗi."
+
+    # Remove tags for word count
+    text = re.sub(r"<[^>]+>", " ", render_html)
+    text = re.sub(r"\s+", " ", text).strip()
+    word_count = 0 if not text else len(text.split(" "))
+
+    issues = []
+
+    # Must include key headings
+    must_phrases = [
+        "I.", "II.", "III.", "IV.", "V.",
+        "Mục tiêu", "Chuẩn bị", "Tiến trình", "Rút kinh nghiệm"
+    ]
+    missing = [p for p in must_phrases if p not in render_html and p not in text]
+    if missing:
+        issues.append(f"- Thiếu các đề mục bắt buộc: {', '.join(missing[:8])}.")
+
+    # Must have a table-like structure for tiến trình
+    tr_count = len(re.findall(r"<tr\b", render_html, flags=re.IGNORECASE))
+    if tr_count < 8:
+        issues.append("- Bảng tiến trình dạy học quá ít dòng (cần tối thiểu 8 dòng/buổi).")
+
+    # Must mention both GV & HS actions
+    if ("Hoạt động GV" not in text and "Hoạt động của GV" not in text) or ("Hoạt động HS" not in text and "Hoạt động của HS" not in text):
+        issues.append("- Thiếu mô tả rõ hoạt động GV/HS trong tiến trình (cần thể hiện song song).")
+
+    # Ensure not just headings: require minimum length
+    if word_count < 900:
+        issues.append(f"- Nội dung còn quá ngắn ({word_count} từ). Cần bổ sung mô tả chi tiết, câu hỏi gợi mở, sản phẩm, tiêu chí đánh giá để đạt ~900 từ trở lên.")
+
+    # Require at least 4 activities keywords
+    activity_markers = re.findall(r"Hoạt động\s*\d+|Khởi động|Hình thành|Luyện tập|Vận dụng|Mở rộng", text, flags=re.IGNORECASE)
+    if len(set([a.lower() for a in activity_markers])) < 4:
+        issues.append("- Tiến trình chưa thể hiện đủ 4 hoạt động chuẩn (Khởi động – Hình thành – Luyện tập – Vận dụng/Mở rộng).")
+
+    ok = len(issues) == 0
+    feedback = "\n".join(issues) if issues else ""
+    return ok, feedback
 def ensure_complete_lesson_plan(data: dict) -> dict:
     """Bổ sung cấu trúc tối thiểu để giáo án luôn đủ các mục theo schema meta/mục tiêu/chuẩn bị/tiến trình/đánh giá.
 
@@ -1313,66 +1305,57 @@ def validate_lesson_plan(data: dict) -> None:
 # ==============================================================================
 # [MỚI] 2.3. HÀM TẠO PROMPT & GỌI AI (CHUẨN HÓA BẢNG 2 CỘT)
 # ==============================================================================
-def build_lesson_system_prompt_locked(meta: dict, teacher_note: str = "") -> str:
+def build_lesson_system_prompt_locked(schema: dict, req_meta: dict, teacher_note: str = "", quality_feedback: str = "") -> str:
+    """System prompt khóa định dạng cho module Soạn giáo án.
+
+    Mục tiêu:
+    - Bắt buộc trả về JSON đúng schema (có 'meta' và 'renderHtml').
+    - Nội dung trong renderHtml phải là một GIÁO ÁN HOÀN CHỈNH (không chỉ liệt kê đề mục),
+      đủ để giáo viên in/nộp chuyên môn.
+    - Bám chặt lớp/môn/bộ sách/tên bài theo req_meta và (nếu có) meta_ppct do hệ thống cung cấp.
     """
-    System prompt LOCKED: ép mô hình trả về dữ liệu giáo án CHI TIẾT theo schema LESSON_PLAN_DATA_SCHEMA.
-    """
-    meta = meta or {}
-    teacher_note = (teacher_note or meta.get("teacher_note") or "").strip()
 
-    cap_hoc = meta.get("cap_hoc") or meta.get("level") or ""
-    mon_hoc = meta.get("mon_hoc") or meta.get("mon") or meta.get("subject") or ""
-    lop = meta.get("lop") or meta.get("grade") or ""
-    ten_bai = meta.get("ten_bai") or meta.get("lesson_title") or meta.get("bai") or ""
+    # Lưu ý: teacher_note/quality_feedback chỉ là gợi ý bổ sung cho model, không phải dữ liệu bắt buộc.
+    note_block = f"\nGHI CHÚ CỦA GIÁO VIÊN (ưu tiên áp dụng nếu phù hợp):\n{teacher_note.strip()}\n" if teacher_note and teacher_note.strip() else ""
+    quality_block = f"\nPHẢN HỒI CHẤT LƯỢNG TỪ HỆ THỐNG (bắt buộc khắc phục):\n{quality_feedback.strip()}\n" if quality_feedback and quality_feedback.strip() else ""
 
-    return f"""
-VAI TRÒ: Bạn là giáo viên cốt cán, soạn GIÁO ÁN TIỂU HỌC để nộp chuyên môn. Viết theo định hướng phát triển phẩm chất, năng lực (GDPT 2018) và thể hiện rõ hoạt động của GV/HS.
+    # Khóa quy tắc xuất
+    return f"""Bạn là AI chuyên gia sư phạm tiểu học (GDPT 2018). Nhiệm vụ: soạn GIÁO ÁN HOÀN CHỈNH theo đúng mẫu chuẩn của nhà trường.
 
-THÔNG TIN BÀI DẠY (bắt buộc phản ánh đúng trong JSON):
-- Cấp học: {cap_hoc}
-- Môn học: {mon_hoc}
-- Lớp: {lop}
-- Tên bài: {ten_bai}
-- Tuần/Tiết/Thời lượng (nếu có): {meta.get("tuan","")} / {meta.get("tiet","")} / {meta.get("thoi_luong","")}
-- Bộ sách/Chủ đề (nếu có): {meta.get("bo_sach","")} / {meta.get("chu_de","")}
-- Ghi chú/PPCT (nếu có): {meta.get("ghi_chu","")}
+RÀNG BUỘC BẮT BUỘC (KHÔNG ĐƯỢC VI PHẠM):
+1) Bạn PHẢI trả về DUY NHẤT một đối tượng JSON hợp lệ theo schema bên dưới. Không thêm văn bản ngoài JSON.
+2) JSON phải có đủ 2 khóa: meta, renderHtml. Không đổi tên khóa.
+3) renderHtml phải là HTML hoàn chỉnh (có <style> hoặc CSS inline) và dùng font Times New Roman, cỡ 13–14pt.
+4) renderHtml phải có ĐẦY ĐỦ NỘI DUNG CHI TIẾT của một giáo án, không được chỉ liệt kê đề mục.
+   - Mỗi mục phải có nội dung cụ thể, có hướng dẫn triển khai, câu hỏi gợi mở, sản phẩm học tập, tiêu chí đánh giá.
+   - Tiến trình dạy học phải thể hiện rõ hoạt động GV/HS, thời lượng, phương pháp/kĩ thuật, phương tiện/thiết bị, sản phẩm.
+5) Bám đúng thông tin bài học theo req_meta (lớp/môn/bộ sách/tên bài/cấp học). Nếu meta_ppct có thông tin tiết/tuần/chủ đề thì phải dùng.
 
-YÊU CẦU CHI TIẾT (BẮT BUỘC):
-1) Mọi mục đều phải có nội dung cụ thể; tránh chung chung. Viết rõ: GV làm gì, HS làm gì, sản phẩm/đầu ra, thời lượng.
-2) “Tiến trình dạy học” bắt buộc đủ 4 hoạt động: Khởi động – Hình thành kiến thức – Luyện tập – Vận dụng/Mở rộng.
-   - Mỗi hoạt động phải có: mục tiêu hoạt động; các bước tổ chức (ít nhất 4 bước, câu lệnh sư phạm rõ); sản phẩm dự kiến; cách đánh giá.
-3) Có nội dung phân hóa (HS yếu/trung bình/khá giỏi) lồng ghép trong “to_chuc” hoặc “danh_gia”.
-4) Nếu môn học phù hợp, tích hợp năng lực số/chuyển đổi số: nêu công cụ, thao tác, an toàn, sản phẩm số.
-5) Không dùng dấu “...” trong nội dung (trừ phần “Điều chỉnh sau bài dạy” có thể để dòng chấm cho GV ghi bổ sung).
+YÊU CẦU CHẤT LƯỢNG TỐI THIỂU (để tránh giáo án “khung”):
+- Phần Mục tiêu: ít nhất 6 ý (phân hóa kiến thức/kĩ năng/phẩm chất/năng lực), mỗi ý diễn giải rõ (>= 20 từ).
+- Phần Chuẩn bị: nêu rõ học liệu/thiết bị số, phần mềm (nếu có), phương án dự phòng.
+- Phần Tiến trình: tối thiểu 4 hoạt động (Khởi động, Hình thành kiến thức, Luyện tập, Vận dụng/Mở rộng).
+  Mỗi hoạt động cần: mục tiêu hoạt động, thời lượng, tổ chức (GV làm gì, HS làm gì), câu hỏi/phiếu học tập, sản phẩm, đánh giá.
+- Ít nhất 1 nội dung tích hợp năng lực số (phù hợp môn/lớp) nếu là môn Tin học hoặc teacher_note yêu cầu.
+- Có phần Điều chỉnh – Rút kinh nghiệm sau bài dạy (gợi ý tiêu chí quan sát).
+- Tổng nội dung (bỏ thẻ HTML) tối thiểu ~900 từ. Nếu bài ngắn vẫn phải đảm bảo chi tiết bằng hướng dẫn/câu hỏi/sản phẩm.
 
-GHI CHÚ CỦA GIÁO VIÊN (nếu có, phải lồng ghép hợp lý): {teacher_note}
+{note_block}{quality_block}
 
-ĐỊNH DẠNG TRẢ VỀ (CỰC KỲ QUAN TRỌNG): CHỈ TRẢ VỀ JSON HỢP LỆ, KHÔNG kèm markdown, KHÔNG giải thích.
-JSON phải có đúng các khóa sau (đúng chính tả, đúng kiểu dữ liệu):
-- meta: object gồm cap_hoc, mon_hoc, lop, ten_bai (chuỗi không rỗng) và có thể có thoi_luong, tuan, tiet, bo_sach, chu_de.
-- muc_tieu: object gồm
-  - dat: mảng >=4 ý (mỗi ý >=25 ký tự, viết theo dạng “HS …”/“Học sinh …”)
-  - nang_luc: mảng >=2 ý
-  - pham_chat: mảng >=1 ý
-  - nang_luc_so: mảng >=1 ý (nếu không phù hợp vẫn nêu tối thiểu 1 ý về an toàn số)
-- chuan_bi: object gồm
-  - giao_vien: mảng >=3 ý (thiết bị, học liệu, phiếu học tập, bảng phụ…)
-  - hoc_sinh: mảng >=2 ý
-  - hoc_lieu: mảng >=2 ý (nếu có)
-- tien_trinh_day_hoc: mảng >=4 hoạt động. Mỗi hoạt động là object gồm:
-  - ten_hoat_dong (VD: “Khởi động”)
-  - muc_tieu (chuỗi >=30 ký tự)
-  - to_chuc: mảng >=4 bước, mỗi bước >=30 ký tự, viết rõ GV/HS.
-  - san_pham (chuỗi)
-  - danh_gia (chuỗi, nêu tiêu chí/câu hỏi đánh giá nhanh)
-  - thoi_luong (VD: “5 phút”)
-- danh_gia: object gồm thuong_xuyen và dinh_ky (mỗi mục là chuỗi nêu rõ công cụ/tiêu chí/cách chấm).
-- dieu_chinh: chuỗi (có thể để “………………………………………………………………” nếu là phần ghi sau dạy).
-- phu_luc: tùy chọn.
+THÔNG TIN BÀI HỌC (req_meta – là nguồn sự thật):
+{json.dumps(req_meta, ensure_ascii=False, indent=2)}
 
-Chỉ trả về 1 đối tượng JSON duy nhất.
-""".strip()
+SCHEMA JSON BẮT BUỘC:
+{json.dumps(schema, ensure_ascii=False)}
 
+GỢI Ý CẤU TRÚC renderHtml (bắt buộc có đủ, nhưng nội dung phải cụ thể):
+- Tiêu đề giáo án; Thông tin bài (môn/lớp/bộ sách/tên bài/tiết/thời lượng)
+- I. Mục tiêu
+- II. Chuẩn bị
+- III. Phương pháp/Kĩ thuật dạy học
+- IV. Tiến trình dạy học (bảng có cột: Thời gian | Hoạt động GV | Hoạt động HS | Sản phẩm/Đánh giá)
+- V. Điều chỉnh – Rút kinh nghiệm
+"""
 def generate_lesson_plan_locked(
     api_key: str,
     meta_ppct: dict,
@@ -1419,26 +1402,21 @@ def generate_lesson_plan_locked(
         "yeu_cau_them": yeu_cau_them or "",
         "teacher_note": teacher_note or "",
     }
-    system_prompt = build_lesson_system_prompt_locked(req_meta)
-
-    # 3) Gọi model với cơ chế tự sửa
+    # 3) Gọi model với cơ chế tự sửa + chốt chất lượng
     last_err = None
-    payload_user = "Tạo GIÁO ÁN theo yêu cầu. Bắt buộc trả về JSON hợp lệ đúng schema."
+    quality_feedback = ""
+    payload_user = "Tạo GIÁO ÁN theo yêu cầu. Bắt buộc trả về JSON hợp lệ đúng schema. renderHtml phải đầy đủ nội dung chi tiết, không chỉ đề mục."
 
     for attempt in range(1, 4):
+        # Mỗi lần thử đều nhắc lại ràng buộc và phản hồi chất lượng (nếu có)
+        system_prompt = build_lesson_system_prompt_locked(LESSON_PLAN_SCHEMA, req_meta, teacher_note=teacher_note, quality_feedback=quality_feedback)
         try:
             raw_text = call_llm_text(
                 api_key=api_key,
                 model_name=model_name,
                 system_prompt=system_prompt,
                 user_prompt=payload_user if attempt == 1 else (
-                    payload_user + """
-
-Lần trước JSON/schema sai HOẶC nội dung quá sơ lược (NOT_DETAILED). Hãy:
-- Sửa JSON để hợp lệ đúng schema.
-- Đồng thời viết CHI TIẾT hơn: mỗi hoạt động có đủ bước GV/HS, sản phẩm, đánh giá, thời lượng.
-- Không chỉ liệt kê đề mục.
-Sau đó xuất lại JSON hợp lệ đúng schema."""
+                    payload_user + "\n\nLần trước JSON/schema sai. Hãy sửa toàn bộ lỗi và xuất lại JSON hợp lệ đúng schema."
                     + ("\nChi tiết lỗi: " + str(last_err) if last_err else "")
                 ),
                 temperature=0.4,
@@ -1473,6 +1451,13 @@ Sau đó xuất lại JSON hợp lệ đúng schema."""
                     "table{border-collapse:collapse;} td,th{border:1px solid #000; padding:6px; vertical-align:top;}</style>\n"
                     + data["renderHtml"]
                 )
+
+            # 7) Cổng chất lượng: tránh giáo án chỉ có đề mục/thiếu nội dung
+            ok_q, fb = quality_check_lesson_html(data.get("renderHtml", ""))
+            if not ok_q:
+                last_err = fb
+                quality_feedback = fb
+                continue
 
             return data
 
@@ -1555,8 +1540,6 @@ def generate_lesson_plan_data_only(
             }
 
             validate_lesson_plan_data(data)
-            if not is_lesson_plan_detailed(data):
-                raise ValueError("NOT_DETAILED: Nội dung quá sơ lược (chỉ đề mục). Hãy viết chi tiết hơn theo yêu cầu.")
             return data
 
         except Exception as e:
@@ -2995,6 +2978,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
