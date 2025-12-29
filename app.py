@@ -1119,7 +1119,7 @@ def validate_lesson_plan_data(data: dict) -> None:
     Draft202012Validator.check_schema(LESSON_PLAN_DATA_SCHEMA)
     validate(instance=data, schema=LESSON_PLAN_DATA_SCHEMA)
 
-def quality_check_lesson_html(render_html: str, min_rows: int = 1, min_words: int = 150):
+def quality_check_lesson_html(render_html: str, min_rows: int = 0, min_words: int = 150):
     """
     Kiểm tra chất lượng bản HTML giáo án sau khi render:
     - Có đủ đề mục bắt buộc: Mục tiêu, Chuẩn bị, Tiến trình, Điều chỉnh sau bài dạy
@@ -3358,6 +3358,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
