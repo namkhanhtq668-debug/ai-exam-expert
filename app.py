@@ -1124,7 +1124,7 @@ def quality_check_lesson_html(render_html: str, min_rows: int = 0, min_words: in
     Kiểm tra chất lượng bản HTML giáo án sau khi render:
     - Có đủ đề mục bắt buộc: Mục tiêu, Chuẩn bị, Tiến trình, Điều chỉnh sau bài dạy
     - Bảng tiến trình có tối thiểu min_rows dòng (tính theo số hàng hoạt động trong bảng)
-    - Tiến trình thể hiện đủ 4 hoạt động chuẩn (Khởi động – Hình thành – Luyện tập – Vận dụng/Mở rộng)
+    - Tiến trình thể hiện đủ 4 hoạt động chuẩn (Khởi động – Hình thành – Luyện tập – Vận dụng)
     - Có mô tả song song hoạt động GV/HS trong tiến trình
     - Độ dài nội dung tối thiểu min_words từ
     Trả về: (ok: bool, feedback: str)
@@ -1148,14 +1148,14 @@ def quality_check_lesson_html(render_html: str, min_rows: int = 0, min_words: in
             "Khởi động": ["khởi động", "khoi dong"],
             "Hình thành": ["hình thành", "khám phá", "hinh thanh", "kham pha"],
             "Luyện tập": ["luyện tập", "thực hành", "luyen tap", "thuc hanh"],
-            "Vận dụng/Mở rộng": ["vận dụng", "mở rộng", "van dung", "mo rong"],
+            "Vận dụng": ["vận dụng", "van dung"],
         }
         missing_act = []
         for act, keys in act_keys.items():
             if not any(k in lower for k in keys):
                 missing_act.append(act)
         if missing_act:
-            issues.append("Tiến trình chưa thể hiện đủ 4 hoạt động chuẩn (Khởi động – Hình thành – Luyện tập – Vận dụng/Mở rộng).")
+            issues.append("Tiến trình chưa thể hiện đủ 4 hoạt động chuẩn (Khởi động – Hình thành – Luyện tập – Vận dụng).")
 
         # 3) số dòng bảng tiến trình: đếm <tr> (trừ header)
         tr_count = len(re.findall(r"<tr\b", html_text, flags=re.I))
@@ -1186,7 +1186,7 @@ def ensure_complete_lesson_plan(data: dict, min_rows_per_lesson: int = 10) -> di
     """
     Chuẩn hóa dữ liệu giáo án để đảm bảo:
     - Có đủ các mục bắt buộc (Mục tiêu, Chuẩn bị, Tiến trình, Điều chỉnh sau bài dạy)
-    - Tiến trình có đủ 4 hoạt động chuẩn (Khởi động – Hình thành – Luyện tập – Vận dụng/Mở rộng)
+    - Tiến trình có đủ 4 hoạt động chuẩn (Khởi động – Hình thành – Luyện tập – Vận dụng)
     - Tổng số dòng trong bảng tiến trình >= min_rows_per_lesson
     - Mỗi dòng có mô tả GV/HS song song và có câu hỏi gợi mở, sản phẩm, tiêu chí đánh giá tối thiểu.
     Lưu ý: Hàm này KHÔNG thay đổi cấu trúc module khác; chỉ "vá" dữ liệu lesson plan.
@@ -1238,7 +1238,7 @@ def ensure_complete_lesson_plan(data: dict, min_rows_per_lesson: int = 10) -> di
         "Hoạt động 1. Khởi động",
         "Hoạt động 2. Hình thành kiến thức",
         "Hoạt động 3. Luyện tập",
-        "Hoạt động 4. Vận dụng/Mở rộng",
+        "Hoạt động 4. Vận dụng",
     ]
 
     # Map các hoạt động hiện có theo tên gần đúng
@@ -1252,7 +1252,7 @@ def ensure_complete_lesson_plan(data: dict, min_rows_per_lesson: int = 10) -> di
         if "khởi" in s or "khoi" in s: return REQUIRED_ACTS[0]
         if "hình thành" in s or "khám phá" in s or "hinh thanh" in s: return REQUIRED_ACTS[1]
         if "luyện" in s or "thực hành" in s or "luyen" in s: return REQUIRED_ACTS[2]
-        if "vận dụng" in s or "mở rộng" in s or "van dung" in s: return REQUIRED_ACTS[3]
+        if "vận dụng" in s or "van dung" in s: return REQUIRED_ACTS[3]
         return ""
 
     norm_map = {}
@@ -1323,7 +1323,7 @@ def ensure_complete_lesson_plan(data: dict, min_rows_per_lesson: int = 10) -> di
              "Thực hiện nhiệm vụ vận dụng; trình bày sản phẩm.", 
              "Sản phẩm vận dụng (bài làm/phiếu/slide)", 
              "Đánh giá theo tiêu chí: đúng, sáng tạo, ứng dụng, hợp tác."),
-            ("3'", "Mở rộng & dặn dò: liên hệ thực tiễn; giao nhiệm vụ về nhà; gợi ý nguồn học liệu bổ sung.", 
+            ("3'", "Dặn dò: liên hệ thực tiễn; giao nhiệm vụ về nhà; gợi ý nguồn học liệu bổ sung.", 
              "Ghi nhiệm vụ; cam kết thực hiện; chuẩn bị bài sau.", 
              "Kế hoạch học tập ở nhà", 
              "Nhắc lại yêu cầu; kiểm tra HS đã nắm nhiệm vụ.")
@@ -1380,7 +1380,7 @@ def ensure_complete_lesson_plan(data: dict, min_rows_per_lesson: int = 10) -> di
             aidx = fill_order[i % len(fill_order)]
             extra = {
                 "thoi_gian": "3'",
-                "hoat_dong_gv": "GV mở rộng nhiệm vụ nhỏ: đặt thêm câu hỏi gợi mở mức vận dụng; yêu cầu HS giải thích lí do chọn đáp án/cách làm.",
+                "hoat_dong_gv": "GV giao nhiệm vụ nhỏ: đặt thêm câu hỏi gợi mở mức vận dụng; yêu cầu HS giải thích lí do chọn đáp án/cách làm.",
                 "hoat_dong_hs": "HS thảo luận nhanh, nêu lập luận; điều chỉnh sản phẩm theo góp ý.",
                 "san_pham": "Bổ sung/hoàn thiện sản phẩm (thêm lí giải hoặc ví dụ).",
                 "danh_gia": "Đánh giá theo tiêu chí: đúng – rõ – có lí giải; khuyến khích trình bày mạch lạc."
@@ -1423,7 +1423,7 @@ def enrich_lesson_plan_data_min_detail(data: dict, cap_hoc: str, mon_hoc: str, l
     """
     Deterministic enrichment to help lesson plans pass quality checks without relying on the model
     to always generate long/complete content.
-    - Ensures 4 standard phases: Khởi động – Hình thành kiến thức – Luyện tập – Vận dụng/Mở rộng
+    - Ensures 4 standard phases: Khởi động – Hình thành kiến thức – Luyện tập – Vận dụng
     - Ensures >= 8 rows in tiến trình (2 rows/phase by default)
     - Ensures mỗi dòng có mô tả GV/HS song song (>=2 bullet mỗi bên), sản phẩm, tiêu chí đánh giá
     """
@@ -1487,7 +1487,7 @@ def enrich_lesson_plan_data_min_detail(data: dict, cap_hoc: str, mon_hoc: str, l
             hs_base = [
                 "Làm bài tập; thao tác theo hướng dẫn; ghi lại quy trình/đáp án.",
                 "Chia sẻ cách làm; so sánh kết quả; sửa sai; Điều chỉnh sau bài dạy.",
-                "Vận dụng vào tình huống tương tự/ mở rộng trong thực tế."
+                "Vận dụng vào tình huống tương tự trong thực tế."
             ]
         return {
             "thoi_luong": "",
@@ -1498,7 +1498,7 @@ def enrich_lesson_plan_data_min_detail(data: dict, cap_hoc: str, mon_hoc: str, l
             "danh_gia": "Tiêu chí: đúng kiến thức/kĩ năng; trình bày rõ; hợp tác; hoàn thành đúng thời gian; tự đánh giá và điều chỉnh."
         }
 
-    phases = ["Khởi động", "Hình thành kiến thức", "Luyện tập", "Vận dụng/Mở rộng"]
+    phases = ["Khởi động", "Hình thành kiến thức", "Luyện tập", "Vận dụng"]
     existing = [str(r.get("hoat_dong","")).strip().lower() for r in norm_rows]
 
     # Ensure 2 rows/phase if plan is short
@@ -1524,7 +1524,7 @@ def enrich_lesson_plan_data_min_detail(data: dict, cap_hoc: str, mon_hoc: str, l
         rr["danh_gia"] = str(rr.get("danh_gia") or "").strip() or "Đánh giá: quan sát – hỏi đáp – chấm sản phẩm theo tiêu chí rõ ràng."
 
         # Ensure at least 8 rows and cover 4 standard activities
-    required_acts = ["Khởi động", "Hình thành kiến thức", "Luyện tập", "Vận dụng/Mở rộng"]
+    required_acts = ["Khởi động", "Hình thành kiến thức", "Luyện tập", "Vận dụng"]
     existing_text = " ".join((r.get("hoat_dong") or "") for r in norm_rows).lower()
 
     def _has_keyword(k: str) -> bool:
@@ -1542,7 +1542,7 @@ def enrich_lesson_plan_data_min_detail(data: dict, cap_hoc: str, mon_hoc: str, l
             "danh_gia": "Nhận xét – chốt kiến thức/kĩ năng – động viên"
         })
 
-    idx_map = {"Khởi động": 0, "Hình thành kiến thức": 1, "Luyện tập": 3, "Vận dụng/Mở rộng": 6}
+    idx_map = {"Khởi động": 0, "Hình thành kiến thức": 1, "Luyện tập": 3, "Vận dụng": 6}
     for act in required_acts:
         if not _has_keyword(act) and norm_rows:
             j = min(idx_map.get(act, 0), len(norm_rows) - 1)
@@ -1654,14 +1654,14 @@ YÊU CẦU CHẤT LƯỢNG (BẮT BUỘC)
    - Khởi động
    - Hình thành kiến thức mới
    - Luyện tập
-   - Vận dụng/Mở rộng
+   - Vận dụng
 3) Bảng tiến trình tối thiểu 10 dòng (mỗi dòng là một bước hoạt động cụ thể), thể hiện song song:
    - Hoạt động của GV (lời dẫn, tổ chức, câu hỏi gợi mở, dự kiến tình huống, cách hỗ trợ)
    - Hoạt động của HS (nhiệm vụ, thao tác, trao đổi, sản phẩm)
    - Sản phẩm/Minh chứng (phiếu học tập, bài làm, câu trả lời, thao tác trên máy tính…)
    - Tiêu chí đánh giá (đúng/sai, mức độ hoàn thành, rubrics đơn giản…)
 4) Phải đúng kiến thức phù hợp lứa tuổi lớp {lop} và đúng nội dung bài “{ten_bai}”. Không bịa nội dung ngoài chương trình.
-5) Văn phong sư phạm, rõ ràng, có phân hóa (hỗ trợ HS yếu, mở rộng cho HS khá giỏi), có dạy học tích cực, và có đánh giá trong quá trình.
+5) Văn phong sư phạm, rõ ràng, có phân hóa (hỗ trợ HS yếu, cho HS khá giỏi), có dạy học tích cực, và có đánh giá trong quá trình.
 
 ĐỊNH DẠNG ĐẦU RA (JSON DUY NHẤT, KHÔNG THÊM VĂN BẢN KHÁC)
 Trả về đúng một đối tượng JSON với các khóa sau (đúng chính tả):
@@ -1715,7 +1715,7 @@ Trả về đúng một đối tượng JSON với các khóa sau (đúng chính
       "cac_buoc": [{{"buoc":"Bước 1","gv":"...","hs":"...","san_pham":"...","danh_gia":"..."}}, {{"buoc":"Bước 2","gv":"...","hs":"...","san_pham":"...","danh_gia":"..."}}]
     }},
     {{
-      "hoat_dong": "Vận dụng/Mở rộng",
+      "hoat_dong": "Vận dụng",
       "muc_tieu": ["..."],
       "thoi_gian": "5 phút",
       "cac_buoc": [{{"buoc":"Bước 1","gv":"...","hs":"...","san_pham":"...","danh_gia":"..."}}]
@@ -1728,7 +1728,7 @@ Trả về đúng một đối tượng JSON với các khóa sau (đúng chính
 }}
 
 LƯU Ý QUAN TRỌNG
-- Mỗi hoạt động phải có ít nhất 2 bước (trừ Vận dụng/Mở rộng có thể 1-2 bước), tổng số bước (tổng các "cac_buoc" của cả 4 hoạt động) phải >= 10.
+- Mỗi hoạt động phải có ít nhất 2 bước (trừ Vận dụng có thể 1-2 bước), tổng số bước (tổng các "cac_buoc" của cả 4 hoạt động) phải >= 10.
 - Nội dung trong các trường "gv" và "hs" phải chi tiết (ít nhất 2-3 câu/bước), có câu hỏi gợi mở, dự kiến phản hồi, hỗ trợ.
 - Tuyệt đối không trả về Markdown, không kèm giải thích, chỉ trả JSON.
 """.strip()
@@ -1949,7 +1949,7 @@ Chỉ trả JSON.
                 {"ten_hoat_dong": "Khởi động", "thoi_gian": 5, "gv": ["...", "..."], "hs": ["...", "..."]},
                 {"ten_hoat_dong": "Khám phá/Hình thành kiến thức", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]},
                 {"ten_hoat_dong": "Luyện tập", "thoi_gian": 10, "gv": ["...", "..."], "hs": ["...", "..."]},
-                {"ten_hoat_dong": "Vận dụng/Mở rộng", "thoi_gian": 5, "gv": ["...", "..."], "hs": ["...", "..."]}
+                {"ten_hoat_dong": "Vận dụng", "thoi_gian": 5, "gv": ["...", "..."], "hs": ["...", "..."]}
             ]},
             "IV": {"dieu_chinh_sau_bai_day": "...................................................................................."}
         }
@@ -2808,7 +2808,7 @@ def module_lesson_plan():
         st.text_area("Hoạt động 1 – Khởi động (ý tưởng, trò chơi, dẫn nhập)", key=_lp_key("a1"), height=90)
         st.text_area("Hoạt động 2 – Hình thành kiến thức/Khám phá", key=_lp_key("a2"), height=90)
         st.text_area("Hoạt động 3 – Luyện tập", key=_lp_key("a3"), height=90)
-        st.text_area("Hoạt động 4 – Vận dụng/Mở rộng", key=_lp_key("a4"), height=90)
+        st.text_area("Hoạt động 4 – Vận dụng", key=_lp_key("a4"), height=90)
         st.markdown("</div>", unsafe_allow_html=True)
 
     elif active_page == "3) Phân hoá":
@@ -3358,6 +3358,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
