@@ -1118,50 +1118,48 @@ def validate_lesson_plan_data(data: dict) -> None:
     validate(instance=data, schema=LESSON_PLAN_DATA_SCHEMA)
 
 def quality_check_lesson_html(render_html: str) -> tuple[bool, str]:
-    """Heuristic quality gate to prevent 'khung đề mục' lesson plans.
+    """Heuristic quality gate to ensure lesson plans are sufficiently detailed and match the required structure."""
+    import re
 
-    Returns (ok, feedback). feedback is a short Vietnamese bullet list for the model to fix.
-    """
-    if not isinstance(render_html, str) or not render_html.strip():
-        return False, "- renderHtml rỗng hoặc không phải chuỗi."
-
-    # Remove tags for word count
-    text = re.sub(r"<[^>]+>", " ", render_html)
+    text = re.sub(r"<[^>]+>", " ", render_html or "")
     text = re.sub(r"\s+", " ", text).strip()
-    word_count = 0 if not text else len(text.split(" "))
+    word_count = len(re.findall(r"\w+", text, flags=re.UNICODE))
 
-    issues = []
+    issues: list[str] = []
 
-    # Must include key headings
-    must_phrases = [
-        "I.", "II.", "III.", "IV.", "V.",
-        "Mục tiêu", "Chuẩn bị", "Tiến trình", "Rút kinh nghiệm"
-    ]
-    missing = [p for p in must_phrases if p not in render_html and p not in text]
+    # 1) Required major headings (Vietnamese lesson-plan template)
+    must_phrases = ["Mục tiêu", "Chuẩn bị", "Tiến trình", "Rút kinh nghiệm"]
+    missing = [p for p in must_phrases if p.lower() not in text.lower()]
     if missing:
-        issues.append(f"- Thiếu các đề mục bắt buộc: {', '.join(missing[:8])}.")
+        issues.append(f"- Thiếu các đề mục bắt buộc: {', '.join(missing)}.")
 
-    # Must have a table-like structure for tiến trình
-    tr_count = len(re.findall(r"<tr\b", render_html, flags=re.IGNORECASE))
-    if tr_count < 8:
-        issues.append("- Bảng tiến trình dạy học quá ít dòng (cần tối thiểu 8 dòng/buổi).")
+    # 2) Teaching process table must be rich enough
+    tr_count = len(re.findall(r"<tr\b", render_html or "", flags=re.IGNORECASE))
+    if tr_count < 10:
+        issues.append("- Bảng tiến trình dạy học quá ít dòng (cần tối thiểu 10 dòng/buổi).")
 
-    # Must mention both GV & HS actions
-    if ("Hoạt động GV" not in text and "Hoạt động của GV" not in text) or ("Hoạt động HS" not in text and "Hoạt động của HS" not in text):
+    # 3) Must clearly show parallel teacher/student actions
+    has_gv = re.search(r"Hoạt\s*động\s*(của\s*)?GV|Giáo\s*viên", text, flags=re.IGNORECASE) is not None
+    has_hs = re.search(r"Hoạt\s*động\s*(của\s*)?HS|Học\s*sinh", text, flags=re.IGNORECASE) is not None
+    if not (has_gv and has_hs):
         issues.append("- Thiếu mô tả rõ hoạt động GV/HS trong tiến trình (cần thể hiện song song).")
 
-    # Ensure not just headings: require minimum length
-    if word_count < 900:
-        issues.append(f"- Nội dung còn quá ngắn ({word_count} từ). Cần bổ sung mô tả chi tiết, câu hỏi gợi mở, sản phẩm, tiêu chí đánh giá để đạt ~900 từ trở lên.")
+    # 4) Minimum detail / length (avoid heading-only outputs)
+    if word_count < 1100:
+        issues.append(
+            f"- Nội dung còn quá ngắn ({word_count} từ). Cần bổ sung mô tả chi tiết, câu hỏi gợi mở, sản phẩm, tiêu chí đánh giá để đạt ~1100 từ trở lên."
+        )
 
-    # Require at least 4 activities keywords
-    activity_markers = re.findall(r"Hoạt động\s*\d+|Khởi động|Hình thành|Luyện tập|Vận dụng|Mở rộng", text, flags=re.IGNORECASE)
-    if len(set([a.lower() for a in activity_markers])) < 4:
+    # 5) Require 4 standard activities explicitly present
+    markers = ["Khởi động", "Hình thành", "Luyện tập", "Vận dụng", "Mở rộng"]
+    hit = sum(1 for m in markers if re.search(m, text, flags=re.IGNORECASE))
+    if hit < 4:
         issues.append("- Tiến trình chưa thể hiện đủ 4 hoạt động chuẩn (Khởi động – Hình thành – Luyện tập – Vận dụng/Mở rộng).")
 
     ok = len(issues) == 0
     feedback = "\n".join(issues) if issues else ""
     return ok, feedback
+
 def ensure_complete_lesson_plan(data: dict) -> dict:
     """Bổ sung cấu trúc tối thiểu để giáo án luôn đủ các mục theo schema meta/mục tiêu/chuẩn bị/tiến trình/đánh giá.
 
@@ -1581,78 +1579,114 @@ def ensure_min_wordcount_html(html_text: str, min_words: int = 950) -> str:
     return (html_text or "") + appendix
 
 
-def build_lesson_system_prompt_locked(schema: dict, req_meta: dict, teacher_note: str = "", quality_feedback: str = "") -> str:
-    """System prompt khóa định dạng cho module Soạn giáo án.
+def build_lesson_system_prompt_locked(
+    cap_hoc: str,
+    mon_hoc: str,
+    lop: str,
+    ten_bai: str,
+    muc_tieu_them: str = "",
+    yeu_cau_them: str = "",
+    teacher_note: str = "",
+) -> str:
+    """System prompt that forces a *detailed* Vietnam-style lesson plan, matching the user's template."""
+    # Guardrails: ensure enough detail and correct 4-activity structure.
+    # We ask for JSON ONLY to reduce formatting drift, then we render to HTML/Word.
+    return f"""Bạn là chuyên gia soạn giáo án theo CT GDPT 2018 của Việt Nam (kế hoạch bài dạy theo cấu trúc phổ biến của Công văn 5512 và thực tiễn nhà trường).
+NHIỆM VỤ: Soạn 01 GIÁO ÁN CHI TIẾT, dùng được để nộp chuyên môn, đúng lớp/môn/bài.
 
-    Mục tiêu: AI trả về GIÁO ÁN ĐỦ NỘI DUNG – CHI TIẾT – ĐÚNG MẪU NỘP CHUYÊN MÔN.
-    Để giảm lỗi "đề mục có nhưng không có nội dung", prompt bắt buộc:
-    - Có đủ các phần theo cấu trúc giáo án phổ biến ở tiểu học.
-    - Có bảng tiến trình dạy học dạng HTML table, tối thiểu 8 dòng/buổi (tính theo <tr> của phần hoạt động, không kể tiêu đề bảng).
-    - Nội dung tối thiểu ~900 từ (không tính thẻ HTML), ưu tiên 1000–1400 từ.
-    - Hoạt động GV/HS phải thể hiện song song, có câu hỏi gợi mở, sản phẩm, tiêu chí đánh giá.
-    """
+THÔNG TIN BÀI DẠY
+- Cấp học: {cap_hoc}
+- Môn học: {mon_hoc}
+- Lớp: {lop}
+- Tên bài: {ten_bai}
+- Bổ sung mục tiêu (nếu có): {muc_tieu_them}
+- Yêu cầu thêm (nếu có): {yeu_cau_them}
+- Ghi chú giáo viên: {teacher_note}
 
-    # Lưu ý: Schema JSON phía dưới là "khung" để hệ thống parse/validate.
-    # Bạn PHẢI tuân theo schema khi xuất JSON.
-    schema_json = json.dumps(schema, ensure_ascii=False, indent=2)
+YÊU CẦU CHẤT LƯỢNG (BẮT BUỘC)
+1) Nội dung phải dài và chi tiết: tối thiểu ~1200 từ. Không viết chung chung, không liệt kê sơ sài.
+2) Tiến trình dạy học phải có đủ 4 hoạt động chuẩn:
+   - Khởi động
+   - Hình thành kiến thức mới
+   - Luyện tập
+   - Vận dụng/Mở rộng
+3) Bảng tiến trình tối thiểu 10 dòng (mỗi dòng là một bước hoạt động cụ thể), thể hiện song song:
+   - Hoạt động của GV (lời dẫn, tổ chức, câu hỏi gợi mở, dự kiến tình huống, cách hỗ trợ)
+   - Hoạt động của HS (nhiệm vụ, thao tác, trao đổi, sản phẩm)
+   - Sản phẩm/Minh chứng (phiếu học tập, bài làm, câu trả lời, thao tác trên máy tính…)
+   - Tiêu chí đánh giá (đúng/sai, mức độ hoàn thành, rubrics đơn giản…)
+4) Phải đúng kiến thức phù hợp lứa tuổi lớp {lop} và đúng nội dung bài “{ten_bai}”. Không bịa nội dung ngoài chương trình.
+5) Văn phong sư phạm, rõ ràng, có phân hóa (hỗ trợ HS yếu, mở rộng cho HS khá giỏi), có dạy học tích cực, và có đánh giá trong quá trình.
 
-    # Gợi ý ràng buộc chất lượng để mô hình tự sửa ở lần retry
-    qfb = (quality_feedback or "").strip()
-    qfb_block = f"\n\nPHẢN HỒI CHẤT LƯỢNG (cần khắc phục trong lần này):\n{qfb}\n" if qfb else ""
+ĐỊNH DẠNG ĐẦU RA (JSON DUY NHẤT, KHÔNG THÊM VĂN BẢN KHÁC)
+Trả về đúng một đối tượng JSON với các khóa sau (đúng chính tả):
+{{
+  "tieu_de": "...",
+  "thong_tin": {{
+    "cap_hoc": "{cap_hoc}",
+    "mon_hoc": "{mon_hoc}",
+    "lop": "{lop}",
+    "ten_bai": "{ten_bai}",
+    "thoi_luong": "1 tiết (35-40 phút)"
+  }},
+  "muc_tieu": {{
+    "pham_chat": ["..."],
+    "nang_luc_chung": ["..."],
+    "nang_luc_dac_thu": ["..."],
+    "kien_thuc": ["..."],
+    "ki_nang": ["..."],
+    "thai_do": ["..."]
+  }},
+  "chuan_bi": {{
+    "giao_vien": ["..."],
+    "hoc_sinh": ["..."],
+    "hoc_lieu": ["..."]
+  }},
+  "tien_trinh": [
+    {{
+      "hoat_dong": "Khởi động",
+      "muc_tieu": ["..."],
+      "thoi_gian": "5 phút",
+      "cac_buoc": [
+        {{
+          "buoc": "Bước 1",
+          "gv": "Mô tả chi tiết việc GV làm + câu hỏi gợi mở",
+          "hs": "Mô tả chi tiết việc HS làm/trao đổi",
+          "san_pham": "Kết quả mong đợi",
+          "danh_gia": "Tiêu chí/nhận xét nhanh"
+        }}
+      ]
+    }},
+    {{
+      "hoat_dong": "Hình thành kiến thức mới",
+      "muc_tieu": ["..."],
+      "thoi_gian": "15 phút",
+      "cac_buoc": [{{"buoc":"Bước 1","gv":"...","hs":"...","san_pham":"...","danh_gia":"..."}}, {{"buoc":"Bước 2","gv":"...","hs":"...","san_pham":"...","danh_gia":"..."}}]
+    }},
+    {{
+      "hoat_dong": "Luyện tập",
+      "muc_tieu": ["..."],
+      "thoi_gian": "10 phút",
+      "cac_buoc": [{{"buoc":"Bước 1","gv":"...","hs":"...","san_pham":"...","danh_gia":"..."}}, {{"buoc":"Bước 2","gv":"...","hs":"...","san_pham":"...","danh_gia":"..."}}]
+    }},
+    {{
+      "hoat_dong": "Vận dụng/Mở rộng",
+      "muc_tieu": ["..."],
+      "thoi_gian": "5 phút",
+      "cac_buoc": [{{"buoc":"Bước 1","gv":"...","hs":"...","san_pham":"...","danh_gia":"..."}}]
+    }}
+  ],
+  "rut_kinh_nghiem": {{
+    "dieu_chinh_sau_bai_day": ["..."],
+    "ghi_chu": ["..."]
+  }}
+}}
 
-    # Ghi chú GV (tuỳ chọn)
-    teacher_note = (teacher_note or "").strip()
-    teacher_note_block = f"\n\nGHI CHÚ CỦA GIÁO VIÊN (ưu tiên tuân theo):\n{teacher_note}\n" if teacher_note else ""
-
-    # Meta yêu cầu bài học
-    meta_block = json.dumps(req_meta or {}, ensure_ascii=False, indent=2)
-
-    return f"""
-Bạn là chuyên gia soạn giáo án tiểu học theo GDPT 2018. Nhiệm vụ: tạo GIÁO ÁN CHI TIẾT, ĐỦ MỤC, DÙNG NỘP CHUYÊN MÔN NGAY.
-
-BẮT BUỘC:
-1) Chỉ xuất ra MỘT đối tượng JSON hợp lệ (không markdown, không giải thích).
-2) JSON phải TUÂN THỦ schema sau (đúng kiểu dữ liệu, đủ trường bắt buộc):
-{schema_json}
-
-3) Giáo án phải phù hợp: cấp học/lớp/môn/bài/chủ đề theo meta đầu vào, đúng ngữ cảnh chương trình và đặc thù môn học.
-4) renderHtml phải là HTML hoàn chỉnh (có <h1>, <h2>, <table>…), tiếng Việt chuẩn, không để trống nội dung.
-5) renderHtml phải có tối thiểu:
-   - Phần I: Thông tin chung (môn, lớp, bài, thời lượng, hình thức, thiết bị…)
-   - Phần II: Mục tiêu (Kiến thức/Kĩ năng/Phẩm chất/Năng lực; có chỉ báo/tiêu chí quan sát)
-   - Phần III: Chuẩn bị (GV/HS; học liệu, thiết bị, phần mềm; tài nguyên số nếu có)
-   - Phần IV: Tiến trình dạy học (BẢNG) với cột: Thời gian | Hoạt động của GV | Hoạt động của HS | Sản phẩm/Đánh giá
-       * Tối thiểu 4–5 hoạt động: Khởi động; Hình thành kiến thức/Khám phá; Luyện tập; Vận dụng; Củng cố/Dặn dò.
-       * Mỗi hoạt động: mô tả GV/HS song song, có câu hỏi gợi mở, dự kiến đáp án, sản phẩm, tiêu chí/phiếu quan sát.
-       * Bảng phải có tối thiểu 8 dòng hoạt động (<tr> của phần nội dung, không tính dòng tiêu đề).
-   - Phần V: Đánh giá (trong giờ và sau giờ; thang/tiêu chí; nhận xét)
-   - Phần VI: Điều chỉnh – Rút kinh nghiệm (dự kiến)
-
-6) Độ dài: tối thiểu 900 từ (không tính thẻ HTML). Tránh viết gạch đầu dòng quá ngắn; cần mô tả đủ chi tiết để GV dạy được.
-7) Không được cắt ngắn giữa chừng. Nếu dài, hãy ưu tiên viết đầy đủ theo yêu cầu, tuyệt đối không bỏ sót bảng tiến trình.
-
-META ĐẦU VÀO (phải bám sát):
-{meta_block}
-{teacher_note_block}
-{qfb_block}
-
-GỢI Ý KHUÔN HTML (có thể tùy biến nhưng phải đủ ý):
-<h1>GIÁO ÁN …</h1>
-<h2>I. Thông tin chung</h2>...
-<h2>II. Mục tiêu</h2>...
-<h2>III. Chuẩn bị</h2>...
-<h2>IV. Tiến trình dạy học</h2>
-<table border="1" cellspacing="0" cellpadding="6">
-  <tr><th>Thời gian</th><th>Hoạt động của GV</th><th>Hoạt động của HS</th><th>Sản phẩm/Đánh giá</th></tr>
-  <tr><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-  ... (>=8 dòng hoạt động)
-</table>
-<h2>V. Đánh giá</h2>...
-<h2>VI. Điều chỉnh – Rút kinh nghiệm</h2>...
-
-Chỉ trả về JSON theo schema. 
+LƯU Ý QUAN TRỌNG
+- Mỗi hoạt động phải có ít nhất 2 bước (trừ Vận dụng/Mở rộng có thể 1-2 bước), tổng số bước (tổng các "cac_buoc" của cả 4 hoạt động) phải >= 10.
+- Nội dung trong các trường "gv" và "hs" phải chi tiết (ít nhất 2-3 câu/bước), có câu hỏi gợi mở, dự kiến phản hồi, hỗ trợ.
+- Tuyệt đối không trả về Markdown, không kèm giải thích, chỉ trả JSON.
 """.strip()
-
 
 def generate_lesson_plan_locked(
     api_key: str,
