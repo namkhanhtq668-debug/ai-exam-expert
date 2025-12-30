@@ -10,6 +10,13 @@ import time
 import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
+
+def html_escape(text: str) -> str:
+    import html
+    if not text:
+        return ""
+    return html.escape(str(text))
+
 # ==============================================================================
 # [MODULE NLS] DỮ LIỆU & CẤU HÌNH CHO SOẠN GIÁO ÁN NĂNG LỰC SỐ
 # ==============================================================================
@@ -2797,5 +2804,6 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
