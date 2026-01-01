@@ -846,125 +846,6 @@ LESSON_PLAN_SCHEMA = {
 }
 
 # ==============================================================================
-# [PATCH 1/3] LESSON PLAN DATA-ONLY SCHEMA (CẤP SỞ) + VALIDATOR
-# - AI CHỈ TRẢ JSON DATA, KHÔNG TRẢ HTML
-# - HỆ THỐNG TỰ RENDER HTML
-# ==============================================================================
-
-from jsonschema import validate, Draft202012Validator, ValidationError
-
-LESSON_PLAN_DATA_SCHEMA = {
-    "type": "object",
-    "required": ["meta", "sections"],
-    "additionalProperties": False,
-    "properties": {
-        "meta": {
-            "type": "object",
-            "required": ["cap_hoc", "mon", "lop", "bo_sach", "ppct", "ten_bai", "thoi_luong", "si_so"],
-            "additionalProperties": False,
-            "properties": {
-                "cap_hoc": {"type": "string", "minLength": 2},
-                "mon": {"type": "string", "minLength": 2},
-                "lop": {"type": "string", "minLength": 2},
-                "bo_sach": {"type": "string", "minLength": 2},
-                "ppct": {
-                    "type": "object",
-                    "required": ["tuan", "tiet", "bai_id"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "tuan": {"type": "integer", "minimum": 1, "maximum": 60},
-                        "tiet": {"type": "integer", "minimum": 1, "maximum": 30},
-                        "bai_id": {"type": "string", "minLength": 2},
-                        "ghi_chu": {"type": "string"}
-                    }
-                },
-                "ten_bai": {"type": "string", "minLength": 2},
-                "thoi_luong": {"type": "integer", "minimum": 30, "maximum": 120},
-                "si_so": {"type": "integer", "minimum": 10, "maximum": 60},
-                "ngay_day": {"type": "string"}
-            }
-        },
-        "sections": {
-            "type": "object",
-            "required": ["I", "II", "III", "IV"],
-            "additionalProperties": False,
-            "properties": {
-                "I": {
-                    "type": "object",
-                    "required": ["yeu_cau_can_dat"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "yeu_cau_can_dat": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-                        "pham_chat": {"type": "array", "items": {"type": "string"}},
-                        "nang_luc": {"type": "array", "items": {"type": "string"}},
-                        "nang_luc_dac_thu": {"type": "array", "items": {"type": "string"}},
-                        "nang_luc_so": {"type": "array", "items": {"type": "string"}}
-                    }
-                },
-                "II": {
-                    "type": "object",
-                    "required": ["giao_vien", "hoc_sinh"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "giao_vien": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-                        "hoc_sinh": {"type": "array", "minItems": 1, "items": {"type": "string"}}
-                    }
-                },
-                "III": {
-                    "type": "object",
-                    "required": ["hoat_dong"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "hoat_dong": {
-                            "type": "array",
-                            "minItems": 3,
-                            "items": {
-                                "type": "object",
-                                "required": ["ten_hoat_dong", "thoi_gian", "gv", "hs"],
-                                "additionalProperties": False,
-                                "properties": {
-                                    "ten_hoat_dong": {"type": "string", "minLength": 2},
-                                    "thoi_gian": {"type": "integer", "minimum": 1, "maximum": 60},
-                                    "muc_tieu": {"type": "array", "items": {"type": "string"}},
-                                    "noi_dung_cot_loi": {"type": "array", "items": {"type": "string"}},
-                                    "gv": {"type": "array", "minItems": 2, "items": {"type": "string"}},
-                                    "hs": {"type": "array", "minItems": 2, "items": {"type": "string"}}
-                                }
-                            }
-                        }
-                    }
-                },
-                "IV": {
-                    "type": "object",
-                    "required": ["dieu_chinh_sau_bai_day"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "dieu_chinh_sau_bai_day": {"type": "string", "minLength": 1}
-                    }
-                }
-            }
-        }
-    }
-}
-
-def validate_lesson_plan_data(data: dict) -> None:
-    Draft202012Validator.check_schema(LESSON_PLAN_DATA_SCHEMA)
-    validate(instance=data, schema=LESSON_PLAN_DATA_SCHEMA)
-
-def _schema_error_to_text(e: Exception) -> str:
-    if isinstance(e, ValidationError):
-        path = " → ".join([str(p) for p in e.path]) if e.path else "(root)"
-        return f"SchemaError at {path}: {e.message}"
-    return str(e)
-
-def validate_lesson_plan(data: dict) -> None:
-    try:
-        Draft202012Validator.check_schema(LESSON_PLAN_SCHEMA)
-        validate(instance=data, schema=LESSON_PLAN_SCHEMA)
-    except Exception as e:
-        print(f"Schema Warning: {e}")
-
-# ==============================================================================
 # [BẢN NÂNG CẤP] MODULE XỬ LÝ GIÁO ÁN CHI TIẾT (FIXED CONTENT)
 # ==============================================================================
 
@@ -2953,6 +2834,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
