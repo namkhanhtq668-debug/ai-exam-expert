@@ -581,7 +581,7 @@ def render_lesson_plan_html(data: dict) -> str:
     sec_IV = data.get("section_IV", {}) or {}
 
     def esc(s: str) -> str:
-        return html_escape(str(s or ""))
+        return _html_escape(str(s or ""))  # Dùng hàm _html_escape đã có sẵn
 
     def ul(items):
         items = items or []
@@ -2826,6 +2826,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
