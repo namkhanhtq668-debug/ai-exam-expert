@@ -548,9 +548,6 @@ def create_word_doc(html, title):
     """
     return "\ufeff" + doc_content
 
-# ==============================================================================
-# [PATCH 3/3] RENDER HTML TỪ JSON (BẢNG 2 CỘT GV/HS) - KHÓA MẪU
-# ==============================================================================
 
 # ==============================================================================
 # [PATCH 3/3] RENDER HTML TỪ JSON (BẢNG 2 CỘT GV/HS) - ĐÃ SỬA LỖI NAME ERROR
@@ -1267,10 +1264,6 @@ def quality_check_lesson_html(render_html: str) -> tuple[bool, str]:
     if len(text.split()) < 300: 
         return False, "Nội dung quá ngắn."
     return True, ""
-
-# ==============================================================================
-# HẾT PHẦN FIX - TIẾP TỤC CÁC PHẦN CODE CŨ (YCCDManager...)
-# ==============================================================================        
 
 # ==============================================================================
 # [MỚI] 2.3. HÀM TẠO PROMPT & GỌI AI (CHUẨN HÓA BẢNG 2 CỘT)
@@ -2746,6 +2739,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
