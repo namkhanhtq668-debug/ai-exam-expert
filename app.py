@@ -999,19 +999,27 @@ QUAN TRỌNG:
 """.strip()
 
 def enrich_lesson_plan_data(data: dict) -> dict:
-    """Tự động điền nội dung nếu AI trả về thiếu hoặc sơ sài."""
-    if "sections" not in data: return data
-    sections = data["sections"]
-    if "III" not in sections: sections["III"] = {"hoat_dong": []}
+    """Tự động điền nội dung thiếu nếu AI trả về sơ sài."""
+    # 1. Kiểm tra cấu trúc dữ liệu cơ bản
+    if "sections" not in data:
+        return data
     
-    acts = sections["III"]["hoat_dong"]
+    sections = data["sections"]
+    if "III" not in sections:
+        sections["III"] = {"hoat_dong": []}
+    
+    acts = sections["III"].get("hoat_dong", [])
+    
+    # 2. Tự động chèn các pha thiếu (Khởi động, Khám phá, Luyện tập, Vận dụng)
     required_phases = ["Khởi động", "Khám phá kiến thức", "Luyện tập", "Vận dụng"]
     existing_names = [str(a.get("ten", "")).lower() for a in acts]
     
-    # 1. Tự động chèn pha thiếu
+    # Nếu ít hơn 4 hoạt động, kiểm tra thiếu pha nào thì bổ sung
     if len(acts) < 4:
         for phase in required_phases:
-            if not any(phase.lower().split()[0] in name for name in existing_names):
+            # Kiểm tra từ khóa (ví dụ "khởi động" có trong tên hoạt động chưa)
+            key_word = phase.split()[0].lower()
+            if not any(key_word in name for name in existing_names):
                 acts.append({
                     "ten": phase, 
                     "thoi_gian": "5-7 phút", 
@@ -1019,26 +1027,24 @@ def enrich_lesson_plan_data(data: dict) -> dict:
                     "hs": ["HS tham gia hoạt động."]
                 })
     
-    # 2. Tự động làm giàu nội dung GV/HS nếu quá ngắn
+    # 3. Tự động làm giàu nội dung GV/HS nếu quá ngắn (ít hơn 2 ý)
     for act in acts:
-        if len(act.get("gv", [])) < 2:
-            act["gv"] = (act.get("gv", []) or []) + ["GV quan sát, hỗ trợ HS gặp khó khăn.", "GV nhận xét, chốt kiến thức."]
-        if len(act.get("hs", [])) < 2:
-            act["hs"] = (act.get("hs", []) or []) + ["HS lắng nghe, ghi chép.", "HS trình bày kết quả."]
+        # Chuẩn hóa về dạng list nếu đang là None
+        current_gv = act.get("gv", []) or []
+        current_hs = act.get("hs", []) or []
+        
+        # Nếu GV ít hơn 2 dòng -> thêm ý mặc định
+        if len(current_gv) < 2:
+            act["gv"] = current_gv + ["GV quan sát, hỗ trợ HS gặp khó khăn.", "GV nhận xét, chốt kiến thức."]
+            
+        # Nếu HS ít hơn 2 dòng -> thêm ý mặc định
+        if len(current_hs) < 2:
+            act["hs"] = current_hs + ["HS lắng nghe, ghi chép.", "HS trình bày kết quả."]
 
+    # 4. Cập nhật lại dữ liệu và trả về
     sections["III"]["hoat_dong"] = acts
     data["sections"] = sections
     return data
-
-    def enrich_lesson_plan_data(data: dict) -> dict:
-    "Tự động điền nội dung thiếu nếu AI trả về sơ sài."
-    if "sections" not in data: return data
-    sections = data["sections"]
-    if "III" not in sections: sections["III"] = {"hoat_dong": []}
-    
-    acts = sections["III"]["hoat_dong"]
-    required_phases = ["Khởi động", "Khám phá kiến thức", "Luyện tập", "Vận dụng"]
-    existing_names = [str(a.get("ten", "")).lower() for a in acts]
 
 def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, thoi_luong: int, si_so: int, teacher_note: str, model_name: str = "gemini-2.0-flash"):
     system_prompt = build_lesson_system_prompt_locked({**meta_ppct, "bo_sach": bo_sach, "thoi_luong": thoi_luong, "si_so": si_so}, teacher_note)
@@ -2762,6 +2768,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
