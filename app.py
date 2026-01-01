@@ -1031,7 +1031,7 @@ def enrich_lesson_plan_data(data: dict) -> dict:
     return data
 
     def enrich_lesson_plan_data(data: dict) -> dict:
-    ""Tự động điền nội dung thiếu nếu AI trả về sơ sài.""
+    "Tự động điền nội dung thiếu nếu AI trả về sơ sài."
     if "sections" not in data: return data
     sections = data["sections"]
     if "III" not in sections: sections["III"] = {"hoat_dong": []}
@@ -2762,6 +2762,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
