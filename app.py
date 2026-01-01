@@ -1039,28 +1039,6 @@ def enrich_lesson_plan_data(data: dict) -> dict:
     acts = sections["III"]["hoat_dong"]
     required_phases = ["Khởi động", "Khám phá kiến thức", "Luyện tập", "Vận dụng"]
     existing_names = [str(a.get("ten", "")).lower() for a in acts]
-    
-    # 1. Tự động chèn pha thiếu
-    if len(acts) < 4:
-        for phase in required_phases:
-            if not any(phase.lower().split()[0] in name for name in existing_names):
-                acts.append({
-                    "ten": phase, 
-                    "thoi_gian": "5-7 phút", 
-                    "gv": [f"GV tổ chức hoạt động {phase}.", "GV nêu mục tiêu và cách thực hiện."], 
-                    "hs": ["HS tham gia hoạt động.", "HS lắng nghe và ghi nhớ."]
-                })
-    
-    # 2. Làm giàu nội dung: Nếu dòng nào quá ngắn, tự thêm ý
-    for act in acts:
-        if len(act.get("gv", [])) < 2:
-            act["gv"] = list(act.get("gv", [])) + ["GV quan sát, hỗ trợ HS gặp khó khăn.", "GV nhận xét, chốt kiến thức."]
-        if len(act.get("hs", [])) < 2:
-            act["hs"] = list(act.get("hs", [])) + ["HS lắng nghe, ghi chép vào vở.", "HS trình bày kết quả trước lớp."]
-
-    sections["III"]["hoat_dong"] = acts
-    data["sections"] = sections
-    return data
 
 def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, thoi_luong: int, si_so: int, teacher_note: str, model_name: str = "gemini-2.0-flash"):
     system_prompt = build_lesson_system_prompt_locked({**meta_ppct, "bo_sach": bo_sach, "thoi_luong": thoi_luong, "si_so": si_so}, teacher_note)
@@ -2784,6 +2762,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
