@@ -1030,14 +1030,44 @@ def enrich_lesson_plan_data(data: dict) -> dict:
     data["sections"] = sections
     return data
 
-def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, thoi_luong: int, si_so: int, teacher_note: str, model_name: str = "gemini-2.0-flash"):
-    """Hàm gọi AI chính - Đã sửa để khớp tham số."""
-    # Gọi hàm prompt vừa định nghĩa ở trên
-    system_prompt = build_lesson_system_prompt_locked({**meta_ppct, "bo_sach": bo_sach, "thoi_luong": thoi_luong, "si_so": si_so}, teacher_note)
+    def enrich_lesson_plan_data(data: dict) -> dict:
+    """Tự động điền nội dung thiếu nếu AI trả về sơ sài."""
+    if "sections" not in data: return data
+    sections = data["sections"]
+    if "III" not in sections: sections["III"] = {"hoat_dong": []}
     
+    acts = sections["III"]["hoat_dong"]
+    required_phases = ["Khởi động", "Khám phá kiến thức", "Luyện tập", "Vận dụng"]
+    existing_names = [str(a.get("ten", "")).lower() for a in acts]
+    
+    # 1. Tự động chèn pha thiếu
+    if len(acts) < 4:
+        for phase in required_phases:
+            if not any(phase.lower().split()[0] in name for name in existing_names):
+                acts.append({
+                    "ten": phase, 
+                    "thoi_gian": "5-7 phút", 
+                    "gv": [f"GV tổ chức hoạt động {phase}.", "GV nêu mục tiêu và cách thực hiện."], 
+                    "hs": ["HS tham gia hoạt động.", "HS lắng nghe và ghi nhớ."]
+                })
+    
+    # 2. Làm giàu nội dung: Nếu dòng nào quá ngắn, tự thêm ý
+    for act in acts:
+        if len(act.get("gv", [])) < 2:
+            act["gv"] = list(act.get("gv", [])) + ["GV quan sát, hỗ trợ HS gặp khó khăn.", "GV nhận xét, chốt kiến thức."]
+        if len(act.get("hs", [])) < 2:
+            act["hs"] = list(act.get("hs", [])) + ["HS lắng nghe, ghi chép vào vở.", "HS trình bày kết quả trước lớp."]
+
+    sections["III"]["hoat_dong"] = acts
+    data["sections"] = sections
+    return data
+
+def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, thoi_luong: int, si_so: int, teacher_note: str, model_name: str = "gemini-2.0-flash"):
+    system_prompt = build_lesson_system_prompt_locked({**meta_ppct, "bo_sach": bo_sach, "thoi_luong": thoi_luong, "si_so": si_so}, teacher_note)
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
     
+    # Cấu hình an toàn
     safe_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -1055,42 +1085,60 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
     }
 
     try:
+        # Gọi AI
         res = model.generate_content(
             json.dumps(req, ensure_ascii=False), 
             generation_config={"response_mime_type": "application/json"}, 
             safety_settings=safe_settings
         )
         
-        # Parse JSON an toàn
-        data = json.loads(clean_json(res.text))
+        # Parse JSON
+        raw_text = clean_json(res.text)
+        data = json.loads(raw_text)
         
-        # Mapping Data từ AI (JSON) -> Renderer (HTML Structure)
+        # [QUAN TRỌNG] Mapping dữ liệu từ JSON AI sang cấu trúc hiển thị
         if "sections" not in data:
             data["sections"] = {}
-            # Mapping I
+            
+            # 1. Mục tiêu
             mt = data.get("muc_tieu", {})
             data["sections"]["I"] = {
                 "yeu_cau_can_dat": mt.get("yeu_cau_can_dat", []) or mt.get("kien_thuc", []),
                 "pham_chat": mt.get("pham_chat", []),
                 "nang_luc": mt.get("nang_luc", [])
             }
-            # Mapping II
+            
+            # 2. Chuẩn bị
             cb = data.get("chuan_bi", {})
             data["sections"]["II"] = {
                 "giao_vien": cb.get("giao_vien", []),
                 "hoc_sinh": cb.get("hoc_sinh", [])
             }
-            # Mapping III
+            
+            # 3. Tiến trình (Xử lý kỹ phần cac_buoc để lấy nội dung chi tiết)
             processed_activities = []
-            for act in data.get("tien_trinh", []):
+            raw_activities = data.get("tien_trinh", [])
+            
+            for act in raw_activities:
                 gv_steps = []
                 hs_steps = []
-                for step in act.get("cac_buoc", []):
-                    if "gv" in step: gv_steps.append(f"- {step['gv']}")
-                    if "hs" in step: hs_steps.append(f"- {step['hs']}")
                 
-                if not gv_steps and "gv" in act: gv_steps = [str(act["gv"])]
-                if not hs_steps and "hs" in act: hs_steps = [str(act["hs"])]
+                # Ưu tiên lấy từ mảng 'cac_buoc' vì nó chứa chi tiết từng lời thoại/hành động
+                if "cac_buoc" in act and isinstance(act["cac_buoc"], list):
+                    for step in act["cac_buoc"]:
+                        if "gv" in step: gv_steps.append(f"- {step['gv']}")
+                        if "hs" in step: hs_steps.append(f"- {step['hs']}")
+                
+                # Nếu không có cac_buoc, thử lấy trực tiếp (fallback)
+                if not gv_steps:
+                     gv = act.get("gv") or act.get("giao_vien")
+                     if isinstance(gv, list): gv_steps = gv
+                     elif isinstance(gv, str): gv_steps = [gv]
+                
+                if not hs_steps:
+                     hs = act.get("hs") or act.get("hoc_sinh")
+                     if isinstance(hs, list): hs_steps = hs
+                     elif isinstance(hs, str): hs_steps = [hs]
 
                 processed_activities.append({
                     "ten": act.get("hoat_dong", "Hoạt động"),
@@ -1098,32 +1146,33 @@ def generate_lesson_plan_locked(api_key: str, meta_ppct: dict, bo_sach: str, tho
                     "gv": gv_steps,
                     "hs": hs_steps
                 })
+            
             data["sections"]["III"] = {"hoat_dong": processed_activities}
-            # Mapping IV
+            
+            # 4. Rút kinh nghiệm
             rkn = data.get("rut_kinh_nghiem", {})
             val = rkn.get("dieu_chinh_sau_bai_day") or "................................"
             data["sections"]["IV"] = {"dieu_chinh_sau_bai_day": str(val)}
 
         if "meta" not in data: data["meta"] = req["meta"]
-
-        # Gọi hàm Enrichment
-        data = enrich_lesson_plan_data(data)
         
+        # Gọi hàm làm giàu nội dung
+        data = enrich_lesson_plan_data(data)
+
         validate_lesson_plan(data)
         return data
 
     except Exception as e:
-        return {"renderHtml": f"Lỗi sinh nội dung: {str(e)}", "meta": req["meta"], "sections": {}}        
+        return {"renderHtml": f"Lỗi sinh nội dung: {str(e)}", "title": "Lỗi"}    
 
 # ==============================================================================
 # [FIX] CÁC HÀM LOGIC BỊ THIẾU (DÁN VÀO SAU validate_lesson_plan)
 # ==============================================================================
 
 def build_lesson_system_prompt_locked(meta: dict, teacher_note: str) -> str:
-    """Tạo câu lệnh hệ thống (System Prompt) để ép AI trả về JSON chuẩn."""
     return f"""
 VAI TRÒ: Bạn là Giáo viên Tiểu học cốt cán (CTGDPT 2018).
-NHIỆM VỤ: Soạn Kế hoạch bài dạy (Giáo án) chi tiết.
+NHIỆM VỤ: Soạn KẾ HOẠCH BÀI DẠY (Giáo án) chi tiết.
 
 THÔNG TIN:
 - Bài: {meta.get('ten_bai')}
@@ -1133,39 +1182,25 @@ THÔNG TIN:
 
 GHI CHÚ GV: {teacher_note}
 
-YÊU CẦU OUTPUT JSON (KHÔNG MARKDOWN):
-Trả về JSON duy nhất chứa các trường sau:
+YÊU CẦU CẤU TRÚC JSON (BẮT BUỘC):
+Trả về JSON object duy nhất với các key sau (KHÔNG dùng markdown):
 1. "muc_tieu": {{ "yeu_cau_can_dat": [], "pham_chat": [], "nang_luc": [] }}
 2. "chuan_bi": {{ "giao_vien": [], "hoc_sinh": [] }}
 3. "tien_trinh": Mảng các hoạt động. Mỗi hoạt động gồm: 
-   {{ "hoat_dong": "Tên hoạt động", "thoi_gian": "số phút", "cac_buoc": [ {{ "gv": "HĐ Giáo viên", "hs": "HĐ Học sinh" }} ] }}
-4. "rut_kinh_nghiem": {{ "dieu_chinh_sau_bai_day": "nội dung" }}
+   {{ 
+     "hoat_dong": "Tên hoạt động (VD: Khởi động)", 
+     "thoi_gian": "số phút", 
+     "cac_buoc": [ 
+        {{ "gv": "Mô tả chi tiết hành động của GV (ít nhất 2 câu)", "hs": "Mô tả chi tiết hành động của HS" }},
+        {{ "gv": "Câu hỏi gợi mở/Dẫn dắt", "hs": "Câu trả lời dự kiến/Thực hành" }}
+     ] 
+   }}
+4. "rut_kinh_nghiem": {{ "dieu_chinh_sau_bai_day": "nội dung..." }}
 
 QUAN TRỌNG: 
-- "tien_trinh" phải đủ 4 pha: Khởi động, Khám phá, Luyện tập, Vận dụng.
-- Nội dung phải chi tiết, thể hiện rõ hoạt động của GV và HS.
+- "tien_trinh" phải có đủ 4 pha: Khởi động, Khám phá/Hình thành kiến thức, Luyện tập, Vận dụng.
+- Tuyệt đối KHÔNG viết tắt. Nội dung GV và HS phải viết thành câu hoàn chỉnh.
 """.strip()
-
-def enrich_lesson_plan_data(data: dict) -> dict:
-    """Tự động điền nội dung nếu AI trả về thiếu hoặc sơ sài."""
-    if "sections" not in data: return data
-    sections = data["sections"]
-    if "III" not in sections: sections["III"] = {"hoat_dong": []}
-    
-    acts = sections["III"]["hoat_dong"]
-    required_phases = ["Khởi động", "Khám phá kiến thức", "Luyện tập", "Vận dụng"]
-    existing_names = [str(a.get("ten", "")).lower() for a in acts]
-    
-    # 1. Tự động chèn pha thiếu
-    if len(acts) < 4:
-        for phase in required_phases:
-            if not any(phase.lower().split()[0] in name for name in existing_names):
-                acts.append({
-                    "ten": phase, 
-                    "thoi_gian": "5-7 phút", 
-                    "gv": [f"GV tổ chức hoạt động {phase}."], 
-                    "hs": ["HS tham gia hoạt động."]
-                })
     
     # 2. Tự động làm giàu nội dung GV/HS nếu quá ngắn
     for act in acts:
@@ -2749,6 +2784,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
