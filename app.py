@@ -2071,9 +2071,9 @@ def module_lesson_plan():
     _lp_init_state()
 
 
-st.markdown("""
-<style>
-  .lp-hero{
+    st.markdown("""
+    <style>
+      .lp-hero{
     background: linear-gradient(135deg, #0F172A 0%, #1D4ED8 55%, #60A5FA 100%);
     border-radius: 14px;
     padding: 18px 18px 14px 18px;
@@ -2081,14 +2081,14 @@ st.markdown("""
     border: 1px solid rgba(255,255,255,.18);
     box-shadow: 0 10px 18px rgba(2,6,23,.18);
     margin-bottom: 14px;
-  }
-  .lp-hero h2{margin:0; font-weight:800;}
-</style>
-""", unsafe_allow_html=True)
-
-  st.markdown("""<div class='lp-hero'>
+      }
+      .lp-hero h2{margin:0; font-weight:800;}
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""<div class='lp-hero'>
       <h2>📘 Soạn giáo án (Chuẩn CTGDPT 2018)</h2>
- <div style='opacity:.92;margin-top:6px'>
+      <div style='opacity:.92;margin-top:6px'>
         Nhập thông tin bài dạy + yêu cầu (nếu có) → hệ thống tạo giáo án HTML in A4.
       </div>
     </div>""", unsafe_allow_html=True)
@@ -2599,7 +2599,6 @@ else:
         module_advisor()
     else:
         main_app()
-
 
 
 
