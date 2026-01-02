@@ -10,6 +10,13 @@ import time
 import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
+
+def html_escape(text: str) -> str:
+    import html
+    if not text:
+        return ""
+    return html.escape(str(text))
+
 # ==============================================================================
 # [MODULE NLS] DỮ LIỆU & CẤU HÌNH CHO SOẠN GIÁO ÁN NĂNG LỰC SỐ
 # ==============================================================================
@@ -570,241 +577,216 @@ def _render_ul(items) -> str:
     return f"<ul>{lis or '<li>...</li>'}</ul>"
 
 def render_lesson_plan_html(data: dict) -> str:
-    """Render lesson plan JSON -> HTML, with enforced detail and a dense tiến trình table.
-    This renderer is designed to prevent outputs that only have headings.
+    """Render lesson plan (data-only JSON) -> HTML for viewing/printing.
+    - Input format: {"meta": {...}, "sections": {"I":..., "II":..., "III":..., "IV":...}}
+    - Enforces a clear, printable layout and a GV/HS table.
     """
     data = data or {}
     meta = data.get("meta", {}) or {}
-    sec_I = data.get("section_I", {}) or {}
-    sec_II = data.get("section_II", {}) or {}
-    sec_III = data.get("section_III", {}) or {}
-    sec_IV = data.get("section_IV", {}) or {}
+    sections = data.get("sections", {}) or {}
+
+    sec_I = sections.get("I", {}) or {}
+    sec_II = sections.get("II", {}) or {}
+    sec_III = sections.get("III", {}) or {}
+    sec_IV = sections.get("IV", {}) or {}
 
     def esc(s: str) -> str:
-        return _html_escape(str(s or ""))
+        return html_escape(str(s or ""))
 
     def ul(items):
         items = items or []
+        if isinstance(items, str):
+            items = [x.strip(" -\t") for x in re.split(r"\r?\n+", items) if x.strip()]
         if not items:
             return "<p>(Bổ sung nội dung chi tiết trong lần soạn sau.)</p>"
         return "<ul>" + "".join(f"<li>{esc(x)}</li>" for x in items if str(x).strip()) + "</ul>"
 
-    # --- Header / Meta ---
     title = esc(meta.get("ten_bai") or "GIÁO ÁN")
-    mon = esc(meta.get("mon_hoc") or "")
+    mon = esc(meta.get("mon") or "")
     lop = esc(meta.get("lop") or "")
     cap = esc(meta.get("cap_hoc") or "")
     thoi_luong = esc(meta.get("thoi_luong") or "")
+    bo_sach = esc(meta.get("bo_sach") or "")
+    ppct = meta.get("ppct", {}) or {}
+    tuan = esc(ppct.get("tuan") or "")
+    tiet = esc(ppct.get("tiet") or "")
+    bai_id = esc(ppct.get("bai_id") or "")
 
     html_parts = []
-    html_parts.append("""<!doctype html>
-<html lang="vi">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Giáo án</title>
-<style>
-  body{font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.35;color:#111;margin:0;padding:0;}
-  .lp-wrap{padding:18px;max-width:980px;margin:0 auto;}
-  h1{font-size:22px;margin:0 0 8px 0;}
-  h2{font-size:16px;margin:14px 0 6px 0;border-bottom:1px solid #ddd;padding-bottom:3px;}
-  h3{font-size:14px;margin:10px 0 4px 0;}
-  p{margin:6px 0;}
-  ul{margin:6px 0 6px 18px;}
-  table.lp-table{width:100%;border-collapse:collapse;table-layout:fixed;}
-  table.lp-table th, table.lp-table td{border:1px solid #333;padding:6px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word;}
-  table.lp-table th{font-weight:700;text-align:center;}
-  table.lp-table td.time{text-align:center;white-space:nowrap;}
-  table.lp-table col.c1{width:14%;}
-  table.lp-table col.c2{width:8%;}
-  table.lp-table col.c3{width:14%;}
-  table.lp-table col.c4{width:32%;}
-  table.lp-table col.c5{width:32%;}
-  @media print{
-    .lp-wrap{padding:0;max-width:none;margin:0;}
-    h2{page-break-after:avoid;}
-    table.lp-table{page-break-inside:auto;}
-    table.lp-table tr{page-break-inside:avoid;page-break-after:auto;}
-    thead{display:table-header-group;}
-  }
-</style>
-</head>
-<body>
-<div class="lp-wrap">
-""")
-    html_parts.append(f"<h1 style='text-align:center;'>GIÁO ÁN</h1>")
-    html_parts.append(f"<p><b>Môn:</b> {mon} &nbsp;&nbsp; <b>Lớp:</b> {lop} &nbsp;&nbsp; <b>Cấp học:</b> {cap}</p>")
-    html_parts.append(f"<p><b>Bài:</b> {title} &nbsp;&nbsp; <b>Thời lượng:</b> {thoi_luong}</p>")
+    html_parts.append("<h1 style='text-align:center; margin-bottom:4px;'>GIÁO ÁN</h1>")
+    html_parts.append(
+        f"<p style='margin:0;'><b>Môn:</b> {mon} &nbsp;&nbsp; <b>Lớp:</b> {lop} &nbsp;&nbsp; <b>Cấp học:</b> {cap}</p>"
+    )
+    if bo_sach:
+        html_parts.append(f"<p style='margin:0;'><b>Bộ sách:</b> {bo_sach}</p>")
+    html_parts.append(
+        f"<p style='margin:0;'><b>Bài:</b> {title} &nbsp;&nbsp; <b>Thời lượng:</b> {thoi_luong} phút</p>"
+    )
+    if tuan or tiet or bai_id:
+        html_parts.append(f"<p style='margin:0;'><b>PPCT:</b> Tuần {tuan} – Tiết {tiet} &nbsp;&nbsp; <b>Mã bài:</b> {bai_id}</p>")
+    html_parts.append("<hr style='border:0; border-top:1px solid #000; margin:10px 0;'/>")
 
-    # --- I. Objectives ---
-    html_parts.append("<h2>I. Mục tiêu</h2>")
-    html_parts.append("<h3>1. Yêu cầu cần đạt</h3>")
+    html_parts.append("<h2 style='margin:8px 0 4px;'>I. Mục tiêu (Yêu cầu cần đạt)</h2>")
+    html_parts.append("<h3 style='margin:6px 0 2px;'>1. Yêu cầu cần đạt</h3>")
     html_parts.append(ul(sec_I.get("yeu_cau_can_dat")))
-    html_parts.append("<h3>2. Năng lực</h3>")
+    html_parts.append("<h3 style='margin:6px 0 2px;'>2. Năng lực</h3>")
     html_parts.append(ul(sec_I.get("nang_luc")))
-    html_parts.append("<h3>3. Phẩm chất</h3>")
+    if sec_I.get("nang_luc_dac_thu"):
+        html_parts.append("<h3 style='margin:6px 0 2px;'>3. Năng lực đặc thù</h3>")
+        html_parts.append(ul(sec_I.get("nang_luc_dac_thu")))
+    if sec_I.get("nang_luc_so"):
+        html_parts.append("<h3 style='margin:6px 0 2px;'>4. Năng lực số</h3>")
+        html_parts.append(ul(sec_I.get("nang_luc_so")))
+    html_parts.append("<h3 style='margin:6px 0 2px;'>5. Phẩm chất</h3>")
     html_parts.append(ul(sec_I.get("pham_chat")))
 
-    # --- II. Preparation ---
-    html_parts.append("<h2>II. Chuẩn bị</h2>")
-    html_parts.append("<h3>1. Giáo viên</h3>")
+    html_parts.append("<h2 style='margin:10px 0 4px;'>II. Chuẩn bị</h2>")
+    html_parts.append("<h3 style='margin:6px 0 2px;'>1. Giáo viên</h3>")
     html_parts.append(ul(sec_II.get("giao_vien")))
-    html_parts.append("<h3>2. Học sinh</h3>")
+    html_parts.append("<h3 style='margin:6px 0 2px;'>2. Học sinh</h3>")
     html_parts.append(ul(sec_II.get("hoc_sinh")))
 
-    # --- III. Process: build a dense tiến trình table ---
-    html_parts.append("<h2>III. Tiến trình dạy học</h2>")
+    html_parts.append("<h2 style='margin:10px 0 6px;'>III. Tiến trình dạy học</h2>")
+
     hoat_dong = sec_III.get("hoat_dong") or []
-    # fallback: if model returned fewer activities, we still label 4 canonical activities
     canonical_names = ["Khởi động", "Hình thành kiến thức", "Luyện tập", "Vận dụng/Mở rộng"]
+
     if len(hoat_dong) < 4:
-        # extend with empty shells so renderer can still build table
         for k in range(len(hoat_dong), 4):
             hoat_dong.append({
                 "ten_hoat_dong": canonical_names[k],
                 "thoi_gian": 8,
-                "mo_ta": "",
-                "giao_vien": [],
-                "hoc_sinh": []
+                "muc_tieu": [],
+                "noi_dung_cot_loi": [],
+                "gv": [],
+                "hs": []
             })
 
-    # Create rows by pairing GV/HS steps; ensure >=10 rows total
+    def enrich_steps(role: str, steps: list, min_n: int):
+        steps = steps[:] if steps else []
+        while len(steps) < min_n:
+            n = len(steps) + 1
+            if role == "GV":
+                steps.append(f"Tổ chức bước {n}: nêu nhiệm vụ; đặt câu hỏi gợi mở; quan sát – hỗ trợ; chốt ý.")
+            else:
+                steps.append(f"Thực hiện bước {n}: làm việc cá nhân/nhóm; ghi kết quả; trao đổi; báo cáo ngắn gọn.")
+        return steps
+
     rows = []
     for idx, hd in enumerate(hoat_dong[:4]):
-        ten_hd = str(hd.get("ten_hoat_dong") or canonical_names[idx])
+        ten_hd = str(hd.get("ten_hoat_dong") or canonical_names[idx]).strip() or canonical_names[idx]
         tg = int(hd.get("thoi_gian") or 8)
-        mo_ta = str(hd.get("mo_ta") or "").strip()
-        gv_steps = [s for s in (hd.get("giao_vien") or []) if str(s).strip()]
-        hs_steps = [s for s in (hd.get("hoc_sinh") or []) if str(s).strip()]
 
-        # Deterministic enrichment if too few steps (prevents empty headings)
-        def enrich_steps(prefix: str, steps: list, min_n: int):
-            steps = steps[:] if steps else []
-            while len(steps) < min_n:
-                n = len(steps) + 1
-                if prefix == "GV":
-                    steps.append(f"Tổ chức bước {n}: nêu nhiệm vụ, đặt câu hỏi gợi mở, theo dõi và hỗ trợ nhóm/cá nhân; chốt ý chính.")
-                else:
-                    steps.append(f"Thực hiện bước {n}: làm việc cá nhân/nhóm theo yêu cầu; ghi kết quả vào vở/phiếu; báo cáo ngắn gọn.")
-            return steps
+        muc_tieu = hd.get("muc_tieu") or []
+        noi_dung = hd.get("noi_dung_cot_loi") or []
+        gv_steps = [s for s in (hd.get("gv") or []) if str(s).strip()]
+        hs_steps = [s for s in (hd.get("hs") or []) if str(s).strip()]
 
         gv_steps = enrich_steps("GV", gv_steps, 8)
         hs_steps = enrich_steps("HS", hs_steps, 8)
 
-        # split time roughly across steps
         step_n = max(len(gv_steps), len(hs_steps), 3)
         per = max(1, tg // step_n)
 
-        # add activity header row (with description)
+        header_notes = []
+        if muc_tieu:
+            header_notes.append("Mục tiêu: " + "; ".join([str(x) for x in muc_tieu[:3]]))
+        if noi_dung:
+            header_notes.append("Nội dung: " + "; ".join([str(x) for x in noi_dung[:3]]))
+        header_text = " | ".join(header_notes) if header_notes else "Nêu mục tiêu, yêu cầu và cách tổ chức hoạt động."
+
         rows.append({
             "hoat_dong": ten_hd,
             "thoi_gian": tg,
-            "muc": "Mục tiêu & tổ chức",
-            "gv": ("Giới thiệu hoạt động; " + mo_ta) if mo_ta else "Giới thiệu hoạt động, nêu mục tiêu và cách thực hiện.",
-            "hs": "Lắng nghe, nắm yêu cầu, chuẩn bị thực hiện."
+            "noi_dung": header_text,
+            "gv": "Giới thiệu hoạt động; nêu nhiệm vụ; phổ biến tiêu chí đánh giá; phân công – điều hành.",
+            "hs": "Lắng nghe; xác định nhiệm vụ; chuẩn bị thực hiện; thống nhất cách làm."
         })
 
         for s_i in range(step_n):
             rows.append({
                 "hoat_dong": ten_hd,
                 "thoi_gian": per,
-                "muc": f"Bước {s_i+1}",
+                "noi_dung": f"Bước {s_i+1}",
                 "gv": gv_steps[s_i] if s_i < len(gv_steps) else gv_steps[-1],
                 "hs": hs_steps[s_i] if s_i < len(hs_steps) else hs_steps[-1],
             })
 
-        # add summary row
         rows.append({
             "hoat_dong": ten_hd,
             "thoi_gian": max(1, tg - per*step_n),
-            "muc": "Chốt – đánh giá nhanh",
-            "gv": "Nhận xét, củng cố kiến thức/kĩ năng; nêu tiêu chí đánh giá sản phẩm; liên hệ thực tiễn.",
-            "hs": "Tự đánh giá, điều chỉnh; hoàn thiện sản phẩm; ghi nhớ nội dung trọng tâm."
+            "noi_dung": "Chốt – đánh giá nhanh",
+            "gv": "Nhận xét; củng cố kiến thức/kĩ năng; giao nhiệm vụ tiếp theo; liên hệ thực tiễn.",
+            "hs": "Tự đánh giá; điều chỉnh; hoàn thiện sản phẩm; ghi nhớ nội dung trọng tâm."
         })
 
-    # Ensure minimum total rows >= 10
-    if len(rows) < 10:
-        for k in range(10 - len(rows)):
-            rows.append({
-                "hoat_dong": "Bổ sung",
-                "thoi_gian": 1,
-                "muc": f"Bước bổ sung {k+1}",
-                "gv": "Đặt câu hỏi gợi mở, hỗ trợ cá nhân; hướng dẫn tiêu chí kiểm tra nhanh.",
-                "hs": "Trả lời ngắn; hoàn thiện phần còn thiếu; nộp sản phẩm/phiếu học tập."
-            })
-
-    # Build HTML table
-    html_parts.append("<table class='lp-table'>")
-    html_parts.append("<colgroup><col class='c1'/><col class='c2'/><col class='c3'/><col class='c4'/><col class='c5'/></colgroup>")
-    html_parts.append("<thead><tr><th>Hoạt động</th><th>Thời gian (phút)</th><th>Mục tiêu / Nội dung</th><th>Hoạt động của GV</th><th>Hoạt động của HS</th></tr></thead>")
-    html_parts.append("<tbody>")
+    html_parts.append(
+        "<table border='1' cellspacing='0' cellpadding='6' style='width:100%; border-collapse:collapse; font-size:13pt;'>"
+    )
+    html_parts.append(
+        "<tr>"
+        "<th style='width:16%;'>Hoạt động</th>"
+        "<th style='width:10%;'>Thời gian<br/>(phút)</th>"
+        "<th style='width:18%;'>Nội dung</th>"
+        "<th>Hoạt động của GV</th>"
+        "<th>Hoạt động của HS</th>"
+        "</tr>"
+    )
     for r in rows:
         html_parts.append(
             "<tr>"
             f"<td>{esc(r['hoat_dong'])}</td>"
-            f"<td class='time'>{esc(r['thoi_gian'])}</td>"
-            f"<td>{esc(r['muc'])}</td>"
+            f"<td style='text-align:center;'>{esc(r['thoi_gian'])}</td>"
+            f"<td>{esc(r['noi_dung'])}</td>"
             f"<td>{esc(r['gv'])}</td>"
             f"<td>{esc(r['hs'])}</td>"
             "</tr>"
         )
-    html_parts.append("</tbody></table>")
+    html_parts.append("</table>")
 
-    # --- IV. Reflection ---
-    html_parts.append("<h2>IV. Rút kinh nghiệm / Điều chỉnh sau bài dạy</h2>")
-    rk = sec_IV.get("dieu_chinh_sau_bai_day") or sec_IV.get("rut_kinh_nghiem") or []
-    if not rk:
-        rk = [
-            "Mức độ đạt mục tiêu: đa số HS hoàn thành nhiệm vụ; một số HS cần hỗ trợ thêm ở bước luyện tập.",
-            "Điều chỉnh thời gian: tăng thời lượng cho hoạt động luyện tập/nhóm; rút ngắn phần giới thiệu.",
-            "Tăng cường câu hỏi gợi mở theo mức độ (nhận biết → thông hiểu → vận dụng).",
-            "Bổ sung học liệu/phiếu học tập phân hoá cho HS còn chậm và HS khá giỏi.",
-            "Tăng cơ hội báo cáo – phản hồi; sử dụng tiêu chí đánh giá rõ ràng cho sản phẩm.",
-            "Dự kiến lần sau: mở rộng bài tập vận dụng gắn thực tiễn; tăng hoạt động trải nghiệm.",
-        ]
+    html_parts.append("<h2 style='margin:10px 0 4px;'>IV. Điều chỉnh sau bài dạy</h2>")
+    rk = sec_IV.get("dieu_chinh_sau_bai_day") or ""
+    if not str(rk).strip():
+        rk = "\n".join([
+            "- Mức độ đạt mục tiêu: ..........................................................",
+            "- Thuận lợi/Khó khăn: ............................................................",
+            "- Điều chỉnh thời gian: ..........................................................",
+            "- Điều chỉnh phương pháp/hình thức: .............................................",
+            "- Bổ sung học liệu/thiết bị: ....................................................",
+            "- Ghi chú khác: ..................................................................",
+        ])
     html_parts.append(ul(rk))
-    html_parts.append("</div></body></html>")
 
     html_out = "\n".join(html_parts)
 
-    # --- Enforce minimum word count (>=1100) to satisfy quality schema/validators ---
     def strip_tags(s: str) -> str:
         return re.sub(r"<[^>]+>", " ", s or "")
+
     def word_count(s: str) -> int:
         return len([w for w in re.split(r"\s+", strip_tags(s)) if w.strip()])
-    min_words = 1100
-    wc = word_count(html_out)
-    if wc < min_words:
-        # Append a rich appendix until reaching the threshold
-        html_out += "\n<h2>PHỤ LỤC: Câu hỏi gợi mở – Sản phẩm – Tiêu chí đánh giá</h2>"
-        extra_blocks = []
-        for idx, name in enumerate(canonical_names):
-            extra_blocks.append(f"<h3>{idx+1}. {esc(name)}</h3>")
-            extra_blocks.append("<b>Câu hỏi gợi mở:</b><ul>" + "".join([
-                "<li>Vì sao em chọn cách làm đó? Em có thể giải thích bằng lời của mình không?</li>",
-                "<li>Nếu thay đổi dữ kiện/điều kiện, kết quả sẽ như thế nào?</li>",
-                "<li>Em có thể nêu một ví dụ tương tự trong thực tế?</li>",
-                "<li>Khi gặp khó khăn, em sẽ nhờ ai hỗ trợ và theo cách nào?</li>",
-            ]) + "</ul>")
-            extra_blocks.append("<b>Sản phẩm học tập:</b><ul>" + "".join([
-                "<li>Phiếu học tập/vở ghi: trình bày rõ ràng, đầy đủ bước làm.</li>",
-                "<li>Bảng nhóm/slide: tóm tắt ý chính, có minh hoạ (nếu phù hợp).</li>",
-                "<li>Bài tập luyện tập/vận dụng: đáp án kèm giải thích ngắn.</li>",
-            ]) + "</ul>")
-            extra_blocks.append("<b>Tiêu chí đánh giá:</b><ul>" + "".join([
-                "<li>Đúng yêu cầu nhiệm vụ; có lí do/giải thích.</li>",
-                "<li>Trình bày mạch lạc; sử dụng thuật ngữ phù hợp.</li>",
-                "<li>Hợp tác nhóm tích cực; biết lắng nghe và phản hồi.</li>",
-                "<li>Vận dụng được vào tình huống mới; có sáng tạo.</li>",
-            ]) + "</ul>")
-        html_out += "\n" + "\n".join(extra_blocks)
 
-        # If still short, append a differentiation paragraph (deterministic)
-        if word_count(html_out) < min_words:
-            html_out += "\n<h2>PHÂN HÓA – HỖ TRỢ</h2>\n"
-            html_out += "<p><b>Hỗ trợ HS còn chậm:</b> GV cung cấp gợi ý theo từng bước, mẫu trình bày, câu hỏi lựa chọn; kiểm tra nhanh sau mỗi bước; khuyến khích HS trình bày miệng trước khi viết.</p>"
-            html_out += "<p><b>Mở rộng cho HS khá giỏi:</b> giao nhiệm vụ nâng cao, yêu cầu giải thích nhiều cách; khuyến khích đặt câu hỏi ngược; liên hệ thực tiễn, tự đề xuất tình huống tương tự để giải quyết.</p>"
-            html_out += "<p><b>Tích hợp năng lực số (nếu có điều kiện):</b> HS sử dụng thiết bị số để tra cứu học liệu, tạo sản phẩm (văn bản/slide/ảnh minh hoạ), chia sẻ kết quả; thực hành an toàn – bảo mật thông tin khi sử dụng Internet.</p>"
+    min_words = 900
+    if word_count(html_out) < min_words:
+        html_out += "\n<h2>PHỤ LỤC: Câu hỏi gợi mở – Sản phẩm – Tiêu chí đánh giá</h2>"
+        for idx, name in enumerate(canonical_names):
+            html_out += f"\n<h3>{idx+1}. {esc(name)}</h3>"
+            html_out += "<b>Câu hỏi gợi mở:</b>" + ul([
+                "Vì sao em chọn cách làm đó? Em có thể giải thích bằng lời của mình không?",
+                "Nếu thay đổi dữ kiện/điều kiện, kết quả sẽ như thế nào?",
+                "Em có thể nêu một ví dụ tương tự trong thực tế không?",
+                "Khi gặp khó khăn, em sẽ nhờ ai hỗ trợ và theo cách nào?",
+            ])
+            html_out += "<b>Sản phẩm học tập:</b>" + ul([
+                "Phiếu học tập/vở ghi: trình bày rõ ràng, đầy đủ bước làm.",
+                "Bảng nhóm/slide: tóm tắt ý chính, có minh hoạ (nếu phù hợp).",
+                "Bài tập luyện tập/vận dụng: đáp án kèm giải thích ngắn.",
+            ])
+            html_out += "<b>Tiêu chí đánh giá:</b>" + ul([
+                "Đúng yêu cầu nhiệm vụ; có lí do/giải thích.",
+                "Trình bày mạch lạc; sử dụng thuật ngữ phù hợp.",
+                "Hợp tác tích cực; biết lắng nghe và phản hồi.",
+                "Vận dụng vào tình huống mới; có sáng tạo phù hợp.",
+            ])
 
     return html_out
 def get_knowledge_context(subject, grade, book, scope):
@@ -1251,9 +1233,14 @@ def generate_lesson_plan_locked(
 
             raw = json.loads(clean_json(res.text))
 
+            # Model may return {"sections": {...}} or directly {"I":...,"II":...}
+            sections_raw = raw.get("sections") if isinstance(raw, dict) else None
+            if not isinstance(sections_raw, dict):
+                sections_raw = raw if isinstance(raw, dict) else {}
+
             data = {
                 "meta": req_meta,
-                "sections": raw.get("sections", {})
+                "sections": sections_raw
             }
 
             validate_lesson_plan_data(data)  # bắt buộc đúng schema
@@ -1295,52 +1282,86 @@ Chỉ trả JSON
 # ==============================================================================
 
 def build_lesson_system_prompt_data_only(meta: dict, teacher_note: str) -> str:
-    """System prompt for generating a *detailed* lesson plan JSON following LESSON_PLAN_SCHEMA.
-    This is intentionally strict to avoid outputs that only contain headings.
+    """System prompt for generating a *detailed* lesson-plan DATA JSON.
+    Output MUST match LESSON_PLAN_DATA_SCHEMA (meta + sections). We will ignore AI 'meta' if provided,
+    but schema must be consistent to avoid empty headings.
     """
     meta = meta or {}
     teacher_note = (teacher_note or "").strip()
 
-    # Normalize meta fields for clarity in the prompt
     cap_hoc = str(meta.get("cap_hoc") or meta.get("level") or "")
-    mon_hoc = str(meta.get("mon_hoc") or meta.get("mon") or meta.get("subject") or "")
+    mon_hoc = str(meta.get("mon") or meta.get("mon_hoc") or meta.get("subject") or "")
     lop = str(meta.get("lop") or meta.get("grade") or "")
     ten_bai = str(meta.get("ten_bai") or meta.get("lesson_title") or meta.get("bai") or "")
 
-    return f"""Bạn là chuyên gia soạn giáo án theo định hướng chương trình GDPT 2018.
-Nhiệm vụ: Sinh duy nhất 01 đối tượng JSON hợp lệ theo schema, với NỘI DUNG CHI TIẾT, có thể dùng nộp chuyên môn.
+    # Provide a compact template (easier for model than a huge JSON Schema)
+    template = {
+        "sections": {
+            "I": {
+                "yeu_cau_can_dat": ["..."],
+                "pham_chat": ["..."],
+                "nang_luc": ["..."],
+                "nang_luc_dac_thu": ["..."],
+                "nang_luc_so": ["..."]
+            },
+            "II": {
+                "giao_vien": ["..."],
+                "hoc_sinh": ["..."]
+            },
+            "III": {
+                "hoat_dong": [
+                    {
+                        "ten_hoat_dong": "Khởi động",
+                        "thoi_gian": 8,
+                        "muc_tieu": ["..."],
+                        "noi_dung_cot_loi": ["..."],
+                        "gv": ["..."],
+                        "hs": ["..."]
+                    }
+                ]
+            },
+            "IV": {
+                "dieu_chinh_sau_bai_day": "- ...\n- ...\n- ..."
+            }
+        }
+    }
 
-Bối cảnh bài dạy:
+    return f"""Bạn là chuyên gia soạn GIÁO ÁN theo CTGDPT 2018 (hồ sơ chuyên môn), văn phong sư phạm, chi tiết để có thể in ấn nộp tổ chuyên môn.
+
+BỐI CẢNH:
 - Cấp học: {cap_hoc}
 - Môn học: {mon_hoc}
 - Lớp: {lop}
 - Tên bài: {ten_bai}
 
-Yêu cầu bắt buộc về độ chi tiết:
-1) Phần I (Mục tiêu): mỗi nhóm mục tiêu có tối thiểu 4 ý; diễn đạt đo lường được (HS làm được gì).
-2) Phần II (Chuẩn bị): tối thiểu 6 ý cho GV và 6 ý cho HS; nêu rõ học liệu/thiết bị/phiếu học tập.
-3) Phần III (Tiến trình): bắt buộc đủ 4 hoạt động theo cấu trúc:
-   - Khởi động
-   - Hình thành kiến thức
-   - Luyện tập
-   - Vận dụng/Mở rộng
-   Với MỖI hoạt động:
-   - thoi_gian: số phút (tối thiểu 5)
-   - mo_ta: tối thiểu 2–3 câu
-   - giao_vien: tối thiểu 8 gạch đầu dòng (có câu hỏi gợi mở, cách tổ chức, tiêu chí quan sát)
-   - hoc_sinh: tối thiểu 8 gạch đầu dòng (nhiệm vụ, sản phẩm, cách báo cáo)
-4) Phần IV (Rút kinh nghiệm / Điều chỉnh sau bài dạy): tối thiểu 6 ý; nêu cụ thể điều chỉnh/khó khăn/dự kiến lần sau.
+YÊU CẦU BẮT BUỘC VỀ CHẤT LƯỢNG (KHÔNG ĐƯỢC VIẾT CHUNG CHUNG):
+1) Phần I:
+   - yeu_cau_can_dat: tối thiểu 6 ý, đo lường được (HS làm được gì).
+   - nang_luc + pham_chat: mỗi mục tối thiểu 4 ý.
+   - nếu phù hợp: nang_luc_dac_thu và/hoặc nang_luc_so tối thiểu 3 ý.
+2) Phần II:
+   - giao_vien: tối thiểu 6 ý (học liệu, thiết bị, phiếu học tập, phương án tổ chức).
+   - hoc_sinh: tối thiểu 6 ý (SGK, vở, đồ dùng, chuẩn bị trước giờ học).
+3) Phần III (Tiến trình):
+   - BẮT BUỘC đủ 4 hoạt động theo thứ tự: Khởi động; Hình thành kiến thức; Luyện tập; Vận dụng/Mở rộng.
+   - MỖI hoạt động:
+     + thoi_gian: tối thiểu 5 phút
+     + muc_tieu: tối thiểu 3 ý
+     + noi_dung_cot_loi: tối thiểu 3 ý (kiến thức/kĩ năng trọng tâm)
+     + gv: tối thiểu 8 gạch đầu dòng (tổ chức, câu hỏi gợi mở, quan sát, đánh giá, hỗ trợ)
+     + hs: tối thiểu 8 gạch đầu dòng (nhiệm vụ, cách làm, sản phẩm, báo cáo/phản hồi)
+4) Phần IV:
+   - dieu_chinh_sau_bai_day là 1 CHUỖI nhiều dòng, mỗi dòng bắt đầu bằng "- " (tối thiểu 6 dòng), nêu rõ điều chỉnh/khó khăn/dự kiến.
 
-Lưu ý quan trọng:
-- Không được trả về văn bản ngoài JSON.
-- Không được để chuỗi rỗng, không dùng '...' thay nội dung.
-- Các gạch đầu dòng phải là nội dung thực, liên quan trực tiếp bài học.
-- Ưu tiên ngôn ngữ chuẩn sư phạm, đúng tiếng Việt.
+GHI CHÚ CỦA GIÁO VIÊN (nếu có): {teacher_note}
 
-Ghi chú thêm của giáo viên (nếu có): {teacher_note}
+ĐỊNH DẠNG OUTPUT:
+- CHỈ TRẢ VỀ JSON. KHÔNG giải thích.
+- JSON phải theo đúng cấu trúc mẫu dưới đây (không dùng "..." trong kết quả thật).
+- Bạn được phép trả về "sections" như mẫu; nếu có trả thêm "meta" thì vẫn phải hợp lệ.
 
-Hãy tạo JSON theo schema sau (không kèm giải thích):
-{json.dumps(LESSON_PLAN_SCHEMA, ensure_ascii=False)}
+MẪU JSON (tham khảo cấu trúc):
+{json.dumps(template, ensure_ascii=False, indent=2)}
 """.strip()
 def generate_lesson_plan_data_only(
     api_key: str,
@@ -1409,9 +1430,14 @@ def generate_lesson_plan_data_only(
 
             raw = json.loads(clean_json(res.text))
 
+            # Model may return {"sections": {...}} or directly {"I":...,"II":...}
+            sections_raw = raw.get("sections") if isinstance(raw, dict) else None
+            if not isinstance(sections_raw, dict):
+                sections_raw = raw if isinstance(raw, dict) else {}
+
             data = {
                 "meta": req_meta,
-                "sections": raw.get("sections", {})
+                "sections": sections_raw
             }
 
             validate_lesson_plan_data(data)
