@@ -581,7 +581,7 @@ def render_lesson_plan_html(data: dict) -> str:
     sec_IV = data.get("section_IV", {}) or {}
 
     def esc(s: str) -> str:
-        return html_escape(str(s or ""))
+        return _html_escape(str(s or ""))
 
     def ul(items):
         items = items or []
@@ -597,6 +597,41 @@ def render_lesson_plan_html(data: dict) -> str:
     thoi_luong = esc(meta.get("thoi_luong") or "")
 
     html_parts = []
+    html_parts.append("""<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Giáo án</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.35;color:#111;margin:0;padding:0;}
+  .lp-wrap{padding:18px;max-width:980px;margin:0 auto;}
+  h1{font-size:22px;margin:0 0 8px 0;}
+  h2{font-size:16px;margin:14px 0 6px 0;border-bottom:1px solid #ddd;padding-bottom:3px;}
+  h3{font-size:14px;margin:10px 0 4px 0;}
+  p{margin:6px 0;}
+  ul{margin:6px 0 6px 18px;}
+  table.lp-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+  table.lp-table th, table.lp-table td{border:1px solid #333;padding:6px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word;}
+  table.lp-table th{font-weight:700;text-align:center;}
+  table.lp-table td.time{text-align:center;white-space:nowrap;}
+  table.lp-table col.c1{width:14%;}
+  table.lp-table col.c2{width:8%;}
+  table.lp-table col.c3{width:14%;}
+  table.lp-table col.c4{width:32%;}
+  table.lp-table col.c5{width:32%;}
+  @media print{
+    .lp-wrap{padding:0;max-width:none;margin:0;}
+    h2{page-break-after:avoid;}
+    table.lp-table{page-break-inside:auto;}
+    table.lp-table tr{page-break-inside:avoid;page-break-after:auto;}
+    thead{display:table-header-group;}
+  }
+</style>
+</head>
+<body>
+<div class="lp-wrap">
+""")
     html_parts.append(f"<h1 style='text-align:center;'>GIÁO ÁN</h1>")
     html_parts.append(f"<p><b>Môn:</b> {mon} &nbsp;&nbsp; <b>Lớp:</b> {lop} &nbsp;&nbsp; <b>Cấp học:</b> {cap}</p>")
     html_parts.append(f"<p><b>Bài:</b> {title} &nbsp;&nbsp; <b>Thời lượng:</b> {thoi_luong}</p>")
@@ -699,19 +734,21 @@ def render_lesson_plan_html(data: dict) -> str:
             })
 
     # Build HTML table
-    html_parts.append("<table border='1' cellspacing='0' cellpadding='6' style='width:100%; border-collapse:collapse;'>")
-    html_parts.append("<tr><th>Hoạt động</th><th>Thời gian (phút)</th><th>Nội dung</th><th>Hoạt động của GV</th><th>Hoạt động của HS</th></tr>")
+    html_parts.append("<table class='lp-table'>")
+    html_parts.append("<colgroup><col class='c1'/><col class='c2'/><col class='c3'/><col class='c4'/><col class='c5'/></colgroup>")
+    html_parts.append("<thead><tr><th>Hoạt động</th><th>Thời gian (phút)</th><th>Mục tiêu / Nội dung</th><th>Hoạt động của GV</th><th>Hoạt động của HS</th></tr></thead>")
+    html_parts.append("<tbody>")
     for r in rows:
         html_parts.append(
             "<tr>"
             f"<td>{esc(r['hoat_dong'])}</td>"
-            f"<td style='text-align:center;'>{esc(r['thoi_gian'])}</td>"
+            f"<td class='time'>{esc(r['thoi_gian'])}</td>"
             f"<td>{esc(r['muc'])}</td>"
             f"<td>{esc(r['gv'])}</td>"
             f"<td>{esc(r['hs'])}</td>"
             "</tr>"
         )
-    html_parts.append("</table>")
+    html_parts.append("</tbody></table>")
 
     # --- IV. Reflection ---
     html_parts.append("<h2>IV. Rút kinh nghiệm / Điều chỉnh sau bài dạy</h2>")
@@ -726,6 +763,7 @@ def render_lesson_plan_html(data: dict) -> str:
             "Dự kiến lần sau: mở rộng bài tập vận dụng gắn thực tiễn; tăng hoạt động trải nghiệm.",
         ]
     html_parts.append(ul(rk))
+    html_parts.append("</div></body></html>")
 
     html_out = "\n".join(html_parts)
 
