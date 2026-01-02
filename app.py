@@ -504,6 +504,98 @@ def read_file_content(uploaded_file, file_type):
     except: return ""
     return content
 
+
+# =========================
+# [NEW] HỖ TRỢ ĐỌC PDF (kể cả PDF scan/ảnh) cho MODULE SOẠN GIÁO ÁN
+# - Ưu tiên trích xuất text trực tiếp (nhanh)
+# - Nếu PDF là ảnh (text rất ít) -> thử OCR (cần cài thêm pdf2image + pytesseract)
+# =========================
+import hashlib
+
+def _hash_bytes(b: bytes) -> str:
+    try:
+        return hashlib.sha256(b).hexdigest()
+    except Exception:
+        return str(len(b))
+
+@st.cache_data(show_spinner=False)
+def extract_text_from_pdf_bytes(pdf_bytes: bytes, max_pages: int = 6, ocr_if_needed: bool = True) -> str:
+    """Trả về text đã trích từ PDF. Nếu PDF scan và có OCR tools thì OCR.
+    Giới hạn số trang để tránh nặng VPS. Trả về chuỗi đã được cắt ngắn (<= 12000 ký tự).
+    """
+    if not pdf_bytes:
+        return ""
+    text_parts = []
+
+    # 1) Thử extract text trực tiếp (PyPDF2 / pypdf)
+    try:
+        try:
+            from pypdf import PdfReader
+        except Exception:
+            from PyPDF2 import PdfReader  # type: ignore
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        n = min(len(reader.pages), max_pages)
+        for i in range(n):
+            try:
+                t = reader.pages[i].extract_text() or ""
+                t = re.sub(r"\s+", " ", t).strip()
+                if t:
+                    text_parts.append(t)
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    direct_text = "\n\n".join(text_parts).strip()
+    # Nếu đã có text đủ dùng -> trả luôn
+    if len(direct_text) >= 300 or (not ocr_if_needed):
+        return direct_text[:12000]
+
+    # 2) Nếu text quá ít, thử OCR (PDF scan)
+    # Cần: pdf2image + pytesseract (+ poppler cho pdf2image)
+    try:
+        from pdf2image import convert_from_bytes  # type: ignore
+        import pytesseract  # type: ignore
+    except Exception:
+        # Không có OCR deps -> trả direct_text (có thể rỗng)
+        return direct_text[:12000]
+
+    try:
+        images = convert_from_bytes(pdf_bytes, dpi=220, first_page=1, last_page=max_pages)
+        ocr_texts = []
+        for img in images:
+            try:
+                # Tiếng Việt: nếu máy có gói vie; nếu không, vẫn OCR được nhưng kém hơn
+                try:
+                    t = pytesseract.image_to_string(img, lang="vie")
+                except Exception:
+                    t = pytesseract.image_to_string(img)
+                t = re.sub(r"\s+", " ", t).strip()
+                if t:
+                    ocr_texts.append(t)
+            except Exception:
+                continue
+        ocr_text = "\n\n".join(ocr_texts).strip()
+        # Nếu OCR vẫn rỗng -> fallback direct_text
+        out = ocr_text if ocr_text else direct_text
+        return out[:12000]
+    except Exception:
+        return direct_text[:12000]
+
+def build_pdf_context_for_teacher_note(pdf_text: str) -> str:
+    pdf_text = (pdf_text or "").strip()
+    if not pdf_text:
+        return ""
+    # Nhắc AI: bám sát nội dung PDF, tránh bịa
+    return (
+        "\n\n[NỘI DUNG TRÍCH TỪ PDF/ẢNH BÀI HỌC – ƯU TIÊN BÁM SÁT]\n"
+        "- Đây là nội dung trích xuất từ tài liệu người dùng tải lên.\n"
+        "- Khi soạn giáo án: ưu tiên bám sát đúng thuật ngữ, ví dụ, bài tập, yêu cầu trong tài liệu.\n"
+        "- Không tự bịa thêm bài tập/đề mục không có trong tài liệu (trừ khi GV yêu cầu bổ sung).\n"
+        f"\n{pdf_text}\n"
+    )
+
+
 # [FIX] HÀM LÀM SẠCH JSON CHUẨN (KHÔNG ĐƯỢC XÓA)
 def clean_json(text):
     text = text.strip()
@@ -2283,6 +2375,26 @@ def module_lesson_plan():
             height=120,
             placeholder="Ví dụ: trình chiếu, phiếu học tập điện tử, trò chơi Quiz..."
         )
+        
+        # [NEW] Tải PDF bài học (thường là PDF scan/ảnh SGK) để AI bám sát nội dung
+        pdf_file = st.file_uploader(
+            "📄 Tải lên PDF bài học (khuyến nghị – giúp giáo án đúng SGK hơn)",
+            type=["pdf"],
+            key=_lp_key("pdf_upload")
+        )
+        if pdf_file is not None:
+            try:
+                pdf_bytes = pdf_file.getvalue()
+                pdf_text = extract_text_from_pdf_bytes(pdf_bytes, max_pages=6, ocr_if_needed=True)
+                st.session_state[_lp_key("pdf_text")] = pdf_text
+                if pdf_text and len(pdf_text) > 50:
+                    st.success(f"✅ Đã trích xuất nội dung từ PDF (khoảng {len(pdf_text)} ký tự, tối đa 6 trang).")
+                else:
+                    st.warning("⚠️ PDF có rất ít chữ (có thể là scan/ảnh). Nếu muốn OCR tốt hơn, hãy cài thêm pdf2image + pytesseract trên VPS.")
+            except Exception as _e:
+                st.session_state[_lp_key("pdf_text")] = ""
+                st.warning(f"⚠️ Không đọc được PDF: {_e}")
+
         st.markdown("</div>", unsafe_allow_html=True)
 
     else:  # "6) Xem trước & Xuất"
@@ -2378,6 +2490,11 @@ def module_lesson_plan():
         Đánh giá trong giờ: {st.session_state.get(_lp_key("assess"), "")}
         Đồ dùng: {st.session_state.get(_lp_key("materials"), "")}
         """
+        # [NEW] Nếu có PDF bài học -> đưa vào ngữ cảnh để AI bám sát nội dung SGK
+        pdf_note = build_pdf_context_for_teacher_note(st.session_state.get(_lp_key("pdf_text"), ""))
+        if pdf_note:
+            teacher_note = (teacher_note or "") + pdf_note
+
         
         # Meta ảo để truyền vào hàm generate locked
         meta_ppct = {
