@@ -596,6 +596,85 @@ def build_pdf_context_for_teacher_note(pdf_text: str) -> str:
     )
 
 
+
+def extract_text_from_upload(file, max_pages: int = 6, ocr_if_needed: bool = True) -> str:
+    """Trích text từ 1 uploaded file (pdf/docx/image). Không làm sập app nếu thiếu thư viện."""
+    if not file:
+        return ""
+
+    name = (getattr(file, "name", "") or "").lower()
+    data = file.getvalue() if hasattr(file, "getvalue") else None
+    if not data:
+        return ""
+
+    # DOCX
+    if name.endswith(".docx"):
+        try:
+            d = docx.Document(io.BytesIO(data))
+            return "\n".join([p.text for p in d.paragraphs]).strip()
+        except Exception:
+            return ""
+
+    # PDF
+    if name.endswith(".pdf"):
+        try:
+            return extract_text_from_pdf_bytes(data, max_pages=max_pages, ocr_if_needed=ocr_if_needed) or ""
+        except Exception:
+            return ""
+
+    # IMAGE (jpg/png)
+    if name.endswith((".png", ".jpg", ".jpeg")):
+        if not ocr_if_needed:
+            return ""
+        try:
+            from PIL import Image  # type: ignore
+            import pytesseract  # type: ignore
+            img = Image.open(io.BytesIO(data))
+            try:
+                text = pytesseract.image_to_string(img, lang="vie")
+            except Exception:
+                text = pytesseract.image_to_string(img)
+            return re.sub(r"\s+", " ", (text or "")).strip()
+        except Exception:
+            return ""
+
+    return ""
+
+
+def build_uploaded_materials_context(lesson_files, ppct_file, max_pages: int, try_ocr: bool) -> str:
+    """Ghép nội dung file upload thành 1 đoạn context sạch để AI bám sát."""
+    parts = []
+
+    # PPCT
+    if ppct_file:
+        ppct_txt = extract_text_from_upload(ppct_file, max_pages=max_pages, ocr_if_needed=try_ocr)
+        ppct_txt = (ppct_txt or "").strip()
+        if ppct_txt:
+            parts.append(
+                "[PPCT/KHDH (ƯU TIÊN)]\n"
+                "Bám 100% nội dung dưới đây khi soạn:\n"
+                f"{ppct_txt[:8000]}"
+            )
+
+    # Lesson files
+    if lesson_files:
+        merged = []
+        for f in lesson_files:
+            t = extract_text_from_upload(f, max_pages=max_pages, ocr_if_needed=try_ocr)
+            t = (t or "").strip()
+            if t:
+                merged.append(f"[FILE: {getattr(f,'name','file')}]" + "\n" + t[:8000])
+        if merged:
+            parts.append(
+                "[NỘI DUNG BÀI HỌC (SGK/TÀI LIỆU)]\n"
+                "Ưu tiên bám sát thuật ngữ, ví dụ, bài tập, yêu cầu trong các file dưới đây. "
+                "Không tự bịa thêm bài tập nếu không cần.\n\n"
+                + "\n\n".join(merged)
+            )
+
+    return ("\n\n" + "\n\n".join(parts)).strip()
+
+
 # [FIX] HÀM LÀM SẠCH JSON CHUẨN (KHÔNG ĐƯỢC XÓA)
 def clean_json(text):
     text = text.strip()
@@ -2133,35 +2212,116 @@ def module_lesson_plan():
         with r3c2:
             class_size = st.number_input("Sĩ số (tuỳ chọn)", min_value=10, max_value=60, value=40, step=1, key=_lp_key("class_size"))
 
-        st.markdown("### Nội dung để AI bám đúng (khuyến nghị điền)")
-        c1, c2 = st.columns(2)
-        with c1:
-            objectives = st.text_area(
-                "Mục tiêu (GV nhập – tuỳ chọn)",
-                key=_lp_key("objectives"),
-                height=120,
-                placeholder="Ví dụ: Ôn tập quy tắc cộng/trừ/nhân/chia số thập phân; rèn đặt tính; giải bài toán lời văn..."
+        
+        # =========================
+        # UI KHỐI "TÀI LIỆU BÀI HỌC + GHI CHÚ" (TỐI ƯU)
+        # =========================
+        st.markdown("### 📌 Tài liệu bài học & Ghi chú (khuyến nghị để giáo án bám chuẩn SGK)")
+
+        with st.expander("📎 Tải tài liệu bài học (ƯU TIÊN) – PDF/Ảnh/Word", expanded=True):
+            c_up1, c_up2 = st.columns([2, 1])
+
+            with c_up1:
+                lesson_files = st.file_uploader(
+                    "1) SGK / Bài học / Phiếu học tập (PDF, ảnh, Word)",
+                    type=["pdf", "docx", "png", "jpg", "jpeg"],
+                    accept_multiple_files=True,
+                    key=_lp_key("lesson_files"),
+                    help="Khuyến nghị: tải trang SGK/bài học dạng PDF hoặc ảnh chụp rõ nét. AI sẽ bám nội dung này để soạn đúng bài."
+                )
+
+            with c_up2:
+                ppct_file = st.file_uploader(
+                    "2) PPCT / KHDH của trường (tùy chọn)",
+                    type=["docx", "pdf"],
+                    accept_multiple_files=False,
+                    key=_lp_key("ppct_file"),
+                    help="Nếu có, AI sẽ ưu tiên PPCT/KHDH để đúng tuần/tiết/nội dung."
+                )
+
+            opt1, opt2, opt3 = st.columns([1, 1, 1])
+            with opt1:
+                max_pages = st.number_input(
+                    "Giới hạn trang PDF",
+                    min_value=1, max_value=15, value=6, step=1,
+                    key=_lp_key("pdf_max_pages"),
+                    help="Giới hạn để VPS chạy nhanh. Nếu bài dài, tăng lên 8–10."
+                )
+            with opt2:
+                try_ocr = st.checkbox(
+                    "OCR nếu PDF là ảnh (khuyến nghị)",
+                    value=True,
+                    key=_lp_key("pdf_try_ocr"),
+                    help="Bật nếu SGK là PDF scan/ảnh. VPS cần cài pdf2image + pytesseract."
+                )
+            with opt3:
+                show_extract = st.checkbox(
+                    "Xem trước nội dung trích xuất",
+                    value=False,
+                    key=_lp_key("show_extract"),
+                )
+
+        st.divider()
+
+        st.markdown("#### ✅ Gợi ý nhanh (bấm chọn)")
+        g1, g2, g3, g4 = st.columns(4)
+        with g1:
+            goal_chip = st.multiselect(
+                "Mục tiêu chính",
+                ["Hình thành kiến thức mới", "Củng cố kiến thức", "Luyện tập", "Vận dụng", "Ôn tập", "Kiểm tra"],
+                default=[],
+                key=_lp_key("goal_chip")
             )
-        with c2:
+        with g2:
+            method_chip = st.multiselect(
+                "Hình thức tổ chức",
+                ["Cặp đôi", "Nhóm 4", "Cá nhân", "Trò chơi", "Thảo luận", "Trình bày"],
+                default=[],
+                key=_lp_key("method_chip")
+            )
+        with g3:
+            diff_chip = st.multiselect(
+                "Phân hoá (nếu có)",
+                ["Bài cơ bản", "Bài nâng cao", "Hỗ trợ HS yếu", "Thử thách HS giỏi"],
+                default=[],
+                key=_lp_key("diff_chip")
+            )
+        with g4:
+            assess_chip = st.multiselect(
+                "Đánh giá trong giờ",
+                ["Quan sát", "Hỏi-đáp", "Phiếu học tập", "Bảng con", "Sản phẩm nhóm"],
+                default=[],
+                key=_lp_key("assess_chip")
+            )
+
+        c_txt1, c_txt2 = st.columns(2)
+        with c_txt1:
+            objectives = st.text_area(
+                "Mục tiêu (bổ sung nếu cần)",
+                key=_lp_key("objectives"),
+                height=110,
+                placeholder="Ví dụ: Nhấn mạnh kỹ năng đặt tính; rèn trình bày; tăng bài toán lời văn..."
+            )
+        with c_txt2:
             yccd = st.text_area(
-                "Yêu cầu cần đạt (GV nhập – tuỳ chọn)",
+                "Yêu cầu cần đạt (bổ sung nếu cần)",
                 key=_lp_key("yccd"),
-                height=120,
-                placeholder="Gợi ý: HS thực hiện đúng phép tính; vận dụng giải bài toán; trình bày rõ ràng; tự kiểm tra kết quả..."
+                height=110,
+                placeholder="Nếu không nhập, AI sẽ tự xác định theo SGK/CTGDPT 2018."
             )
 
         materials = st.text_area(
-            "Đồ dùng / học liệu (tuỳ chọn)",
+            "Đồ dùng / học liệu (tùy chọn)",
             key=_lp_key("materials"),
             height=90,
-            placeholder="Ví dụ: SGK, bảng phụ, phiếu học tập, bảng con, máy chiếu (nếu có)..."
+            placeholder="Gợi ý: SGK, bảng phụ, phiếu học tập, bảng con, tranh ảnh, máy chiếu..."
         )
 
         special = st.text_area(
-            "Yêu cầu đặc biệt (tuỳ chọn)",
+            "Yêu cầu điều chỉnh (tùy chọn)",
             key=_lp_key("special"),
             height=90,
-            placeholder="Ví dụ: Có trò chơi khởi động 3 phút; tăng luyện tập; ưu tiên hoạt động cặp đôi; có 1 bài phân hoá..."
+            placeholder="Ví dụ: Có trò chơi 3 phút; tăng luyện tập; ưu tiên cặp đôi; có 1 bài phân hoá..."
         )
 
         b1, b2 = st.columns([1.2, 1.0])
@@ -2210,6 +2370,42 @@ YÊU CẦU CHẤT LƯỢNG:
 - Trong tiến trình, mỗi dòng phải là NHIỆM VỤ HỌC TẬP CỤ THỂ (có bài tập/ví dụ/câu hỏi).
 - Với Toán: phải có ví dụ số cụ thể + bài tập luyện tập và đáp án/nhận xét dự kiến.
 """.strip()
+        # Lấy dữ liệu từ upload (nếu có) để AI bám sát SGK
+        lesson_files = st.session_state.get(_lp_key("lesson_files"), None)
+        ppct_file = st.session_state.get(_lp_key("ppct_file"), None)
+        max_pages = int(st.session_state.get(_lp_key("pdf_max_pages"), 6))
+        try_ocr = bool(st.session_state.get(_lp_key("pdf_try_ocr"), True))
+
+        uploaded_ctx = build_uploaded_materials_context(
+            lesson_files=lesson_files,
+            ppct_file=ppct_file,
+            max_pages=max_pages,
+            try_ocr=try_ocr
+        )
+
+        # Gắn chip gợi ý để AI hiểu ý nhanh nhưng không làm loãng
+        goal_chip = st.session_state.get(_lp_key("goal_chip"), [])
+        method_chip = st.session_state.get(_lp_key("method_chip"), [])
+        diff_chip = st.session_state.get(_lp_key("diff_chip"), [])
+        assess_chip = st.session_state.get(_lp_key("assess_chip"), [])
+
+        chip_note = f"""GỢI Ý NHANH (GV chọn):
+- Mục tiêu chính: {", ".join(goal_chip) if goal_chip else "Không chọn"}
+- Hình thức tổ chức: {", ".join(method_chip) if method_chip else "Không chọn"}
+- Phân hoá: {", ".join(diff_chip) if diff_chip else "Không chọn"}
+- Đánh giá trong giờ: {", ".join(assess_chip) if assess_chip else "Không chọn"}""".strip()
+
+        teacher_note = f"""{teacher_note}
+
+{chip_note}
+
+{uploaded_ctx if uploaded_ctx else ""}""".strip()
+
+        # (Tuỳ chọn) xem trước nội dung trích xuất
+        if st.session_state.get(_lp_key("show_extract"), False) and uploaded_ctx:
+            st.info("📌 Nội dung trích xuất để AI bám:")
+            st.text_area("Preview", uploaded_ctx[:12000], height=220)
+
 
         try:
             data = generate_lesson_plan_data_only(
