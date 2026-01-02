@@ -102,7 +102,7 @@ def generate_nls_lesson_plan(api_key, lesson_content, distribution_content, text
     """
     
     try:
-        response = model.generate_content(user_prompt)
+        response = model.generate_content(user_prompt, generation_config={'response_mime_type':'application/json'})
         return response.text
     except Exception as e:
         return f"Lỗi AI: {str(e)}"
@@ -1281,30 +1281,42 @@ def generate_lesson_plan_locked(
             last_err = _schema_error_to_text(e)
             repair_note = f"""
 [SCHEMA_REPAIR]
-Bạn vừa trả JSON KHÔNG đạt schema.
+Bạn vừa trả JSON KHÔNG đạt schema hoặc thiếu chi tiết.
 LỖI: {last_err}
 
-YÊU CẦU:
-- Chỉ trả JSON gồm "meta" và "sections"
-- sections phải có đủ I, II, III, IV
-- III.hoat_dong >= 3; mỗi hoạt động có ten_hoat_dong, thoi_gian, gv>=2, hs>=2
-- Không tạo HTML
-Chỉ trả JSON
+YÊU CẦU BẮT BUỘC (chỉ trả JSON, không kèm chữ):
+- Root chỉ gồm object JSON có khóa "sections".
+- sections phải có đủ: I, II, III, IV.
+- I: yeu_cau_can_dat (>=5 ý cụ thể), nang_luc (>=3), pham_chat (>=2).
+- II: giao_vien (>=4 ý), hoc_sinh (>=3).
+- III: BẮT BUỘC có khóa "bang". III.bang là mảng các dòng bảng (>=10 dòng; tối thiểu 6).
+  * Mỗi dòng có đủ: hoat_dong, thoi_gian, noi_dung, giao_vien, hoc_sinh.
+  * hoat_dong chỉ nhận: "Khởi động", "Hình thành kiến thức", "Luyện tập", "Vận dụng/Mở rộng".
+  * noi_dung phải là nhiệm vụ học tập CỤ THỂ (có bài tập/ ví dụ số cho Toán), KHÔNG "Bước 1/2".
+- IV: dieu_chinh_sau_bai_day là mảng gạch đầu dòng (>=3 ý).
+Chỉ trả JSON.
 """
-            base_req = {"meta": req_meta, "note": teacher_note + "\n" + repair_note}
 
+            base_req = {"meta": req_meta, "note": teacher_note + "\n" + repair_note}
     # fallback an toàn
     return {
         "meta": req_meta,
         "sections": {
-            "I": {"yeu_cau_can_dat": [f"(Lỗi tạo dữ liệu) {last_err}"]},
+            "I": {
+                "yeu_cau_can_dat": [f"(Lỗi tạo dữ liệu) {last_err}"],
+                "nang_luc": ["(Chưa có nội dung)"],
+                "pham_chat": ["(Chưa có nội dung)"]
+            },
             "II": {"giao_vien": ["..."], "hoc_sinh": ["..."]},
-            "III": {"hoat_dong": [
-                {"ten_hoat_dong": "Khởi động", "thoi_gian": 5, "gv": ["...", "..."], "hs": ["...", "..."]},
-                {"ten_hoat_dong": "Hình thành kiến thức", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]},
-                {"ten_hoat_dong": "Luyện tập/Vận dụng", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]}
+            "III": {"bang": [
+                {"hoat_dong":"Khởi động","thoi_gian":4,"noi_dung":"(Lỗi tạo dữ liệu) Chưa tạo được tiến trình. Vui lòng bấm TẠO LẠI.","giao_vien":"Thông báo lỗi và yêu cầu tạo lại.","hoc_sinh":"Lắng nghe và ghi nhận."},
+                {"hoat_dong":"Khởi động","thoi_gian":4,"noi_dung":"(Lỗi tạo dữ liệu) Thiếu dữ liệu bảng.","giao_vien":"Thông báo lỗi.","hoc_sinh":"Ghi nhận."},
+                {"hoat_dong":"Hình thành kiến thức","thoi_gian":8,"noi_dung":"(Lỗi tạo dữ liệu) Thiếu nội dung cụ thể.","giao_vien":"Thông báo lỗi.","hoc_sinh":"Ghi nhận."},
+                {"hoat_dong":"Luyện tập","thoi_gian":8,"noi_dung":"(Lỗi tạo dữ liệu) Thiếu bài tập/ví dụ.","giao_vien":"Thông báo lỗi.","hoc_sinh":"Ghi nhận."},
+                {"hoat_dong":"Vận dụng/Mở rộng","thoi_gian":6,"noi_dung":"(Lỗi tạo dữ liệu) Thiếu vận dụng.","giao_vien":"Thông báo lỗi.","hoc_sinh":"Ghi nhận."},
+                {"hoat_dong":"Vận dụng/Mở rộng","thoi_gian":5,"noi_dung":"(Lỗi tạo dữ liệu) Kết thúc.","giao_vien":"Thông báo lỗi.","hoc_sinh":"Ghi nhận."}
             ]},
-            "IV": {"dieu_chinh_sau_bai_day": "...................................................................................."}
+            "IV": {"dieu_chinh_sau_bai_day": ["(Chưa có nội dung)"]}
         }
     }
 
@@ -1349,6 +1361,7 @@ Yêu cầu bắt buộc về độ chi tiết:
    - Tổng thời gian các dòng xấp xỉ thoi_luong (lệch tối đa 2 phút).
    - KHÔNG dùng từ "Bước 1/2..." hay "Nhiệm vụ 1/2..." hay câu chung chung kiểu: "giao nhiệm vụ, quan sát, hỗ trợ".
    - Mỗi dòng phải có CHI TIẾT đủ để giáo viên dùng ngay (giống mẫu giáo án chuẩn).
+   - Với môn Toán: trong toàn bộ bảng phải có ÍT NHẤT 4 bài/ ví dụ CỤ THỂ có số liệu (ví dụ: 12,5 + 3,47; 45,6 : 3; bài toán lời văn có số thập phân) và nêu đáp án dự kiến/ cách làm ngắn gọn trong 'giao_vien' hoặc 'noi_dung'.
 
    Nếu người dùng có cung cấp "SGK trang ...", "Bài ...", "Tiết ..." trong ghi chú, hãy bám theo đúng.
 4) Phần IV (Rút kinh nghiệm / Điều chỉnh sau bài dạy): tối thiểu 6 ý; nêu cụ thể điều chỉnh/khó khăn/dự kiến lần sau.
@@ -1444,30 +1457,42 @@ def generate_lesson_plan_data_only(
 
             repair_note = f"""
 [SCHEMA_REPAIR]
-Bạn vừa trả JSON KHÔNG đạt schema.
+Bạn vừa trả JSON KHÔNG đạt schema hoặc thiếu chi tiết.
 LỖI: {last_err}
 
-YÊU CẦU:
-- Chỉ trả JSON gồm "meta" và "sections"
-- sections phải có đủ I, II, III, IV
-- III.hoat_dong >= 3; mỗi hoạt động có ten_hoat_dong, thoi_gian, gv>=2, hs>=2.
-- Không tạo HTML.
+YÊU CẦU BẮT BUỘC (chỉ trả JSON, không kèm chữ):
+- Root chỉ gồm object JSON có khóa "sections".
+- sections phải có đủ: I, II, III, IV.
+- I: yeu_cau_can_dat (>=5 ý cụ thể), nang_luc (>=3), pham_chat (>=2).
+- II: giao_vien (>=4 ý), hoc_sinh (>=3).
+- III: BẮT BUỘC có khóa "bang". III.bang là mảng các dòng bảng (>=10 dòng; tối thiểu 6).
+  * Mỗi dòng có đủ: hoat_dong, thoi_gian, noi_dung, giao_vien, hoc_sinh.
+  * hoat_dong chỉ nhận: "Khởi động", "Hình thành kiến thức", "Luyện tập", "Vận dụng/Mở rộng".
+  * noi_dung phải là nhiệm vụ học tập CỤ THỂ (có bài tập/ ví dụ số cho Toán), KHÔNG "Bước 1/2".
+- IV: dieu_chinh_sau_bai_day là mảng gạch đầu dòng (>=3 ý).
 Chỉ trả JSON.
 """
-            base_req = {"meta": req_meta, "note": teacher_note + "\n" + repair_note}
 
+            base_req = {"meta": req_meta, "note": teacher_note + "\n" + repair_note}
     # fallback an toàn
     return {
         "meta": req_meta,
         "sections": {
-            "I": {"yeu_cau_can_dat": [f"(Lỗi tạo dữ liệu) {last_err}"]},
+            "I": {
+                "yeu_cau_can_dat": [f"(Lỗi tạo dữ liệu) {last_err}"],
+                "nang_luc": ["(Chưa có nội dung)"],
+                "pham_chat": ["(Chưa có nội dung)"]
+            },
             "II": {"giao_vien": ["..."], "hoc_sinh": ["..."]},
-            "III": {"hoat_dong": [
-                {"ten_hoat_dong": "Khởi động", "thoi_gian": 5, "gv": ["...", "..."], "hs": ["...", "..."]},
-                {"ten_hoat_dong": "Hình thành kiến thức", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]},
-                {"ten_hoat_dong": "Luyện tập/Vận dụng", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]}
+            "III": {"bang": [
+                {"hoat_dong":"Khởi động","thoi_gian":4,"noi_dung":"(Lỗi tạo dữ liệu) Chưa tạo được tiến trình. Vui lòng bấm TẠO LẠI.","giao_vien":"Thông báo lỗi và yêu cầu tạo lại.","hoc_sinh":"Lắng nghe và ghi nhận."},
+                {"hoat_dong":"Khởi động","thoi_gian":4,"noi_dung":"(Lỗi tạo dữ liệu) Thiếu dữ liệu bảng.","giao_vien":"Thông báo lỗi.","hoc_sinh":"Ghi nhận."},
+                {"hoat_dong":"Hình thành kiến thức","thoi_gian":8,"noi_dung":"(Lỗi tạo dữ liệu) Thiếu nội dung cụ thể.","giao_vien":"Thông báo lỗi.","hoc_sinh":"Ghi nhận."},
+                {"hoat_dong":"Luyện tập","thoi_gian":8,"noi_dung":"(Lỗi tạo dữ liệu) Thiếu bài tập/ví dụ.","giao_vien":"Thông báo lỗi.","hoc_sinh":"Ghi nhận."},
+                {"hoat_dong":"Vận dụng/Mở rộng","thoi_gian":6,"noi_dung":"(Lỗi tạo dữ liệu) Thiếu vận dụng.","giao_vien":"Thông báo lỗi.","hoc_sinh":"Ghi nhận."},
+                {"hoat_dong":"Vận dụng/Mở rộng","thoi_gian":5,"noi_dung":"(Lỗi tạo dữ liệu) Kết thúc.","giao_vien":"Thông báo lỗi.","hoc_sinh":"Ghi nhận."}
             ]},
-            "IV": {"dieu_chinh_sau_bai_day": "...................................................................................."}
+            "IV": {"dieu_chinh_sau_bai_day": ["(Chưa có nội dung)"]}
         }
     }
 
