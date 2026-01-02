@@ -2086,9 +2086,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-    st.markdown("""<div class='lp-hero'>
+  st.markdown("""<div class='lp-hero'>
       <h2>📘 Soạn giáo án (Chuẩn CTGDPT 2018)</h2>
-      <div style='opacity:.92;margin-top:6px'>
+ <div style='opacity:.92;margin-top:6px'>
         Nhập thông tin bài dạy + yêu cầu (nếu có) → hệ thống tạo giáo án HTML in A4.
       </div>
     </div>""", unsafe_allow_html=True)
@@ -2599,6 +2599,7 @@ else:
         module_advisor()
     else:
         main_app()
+
 
 
 
