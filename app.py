@@ -577,15 +577,18 @@ def _render_ul(items) -> str:
     return f"<ul>{lis or '<li>...</li>'}</ul>"
 
 def render_lesson_plan_html(data: dict) -> str:
-    """Render lesson plan JSON -> HTML, with enforced detail and a dense tiến trình table.
-    This renderer is designed to prevent outputs that only have headings.
+    """Render lesson plan JSON -> HTML (print-ready).
+    NOTE: Data source of truth is data['sections'] following LESSON_PLAN_DATA_SCHEMA.
     """
     data = data or {}
     meta = data.get("meta", {}) or {}
-    sec_I = data.get("section_I", {}) or {}
-    sec_II = data.get("section_II", {}) or {}
-    sec_III = data.get("section_III", {}) or {}
-    sec_IV = data.get("section_IV", {}) or {}
+
+    # Prefer new schema: data['sections'] with keys I/II/III/IV
+    sections = data.get("sections", {}) or {}
+    sec_I = sections.get("I") or data.get("section_I", {}) or {}
+    sec_II = sections.get("II") or data.get("section_II", {}) or {}
+    sec_III = sections.get("III") or data.get("section_III", {}) or {}
+    sec_IV = sections.get("IV") or data.get("section_IV", {}) or {}
 
     def esc(s: str) -> str:
         return html_escape(str(s or ""))
@@ -593,7 +596,7 @@ def render_lesson_plan_html(data: dict) -> str:
     def ul(items):
         items = items or []
         if not items:
-            return "<p>(Bổ sung nội dung chi tiết trong lần soạn sau.)</p>"
+            return "<p></p>"
         return "<ul>" + "".join(f"<li>{esc(x)}</li>" for x in items if str(x).strip()) + "</ul>"
 
     # --- Header / Meta ---
@@ -1089,9 +1092,15 @@ def validate_lesson_plan_data(data: dict) -> None:
 def ensure_lesson_plan_quality(data: dict) -> None:
     """Heuristic quality gate to prevent template-like outputs in lesson plans."""
     bad_phrases = [
-        "Bổ sung nội dung", "bổ sung nội dung", "Tổ chức bước", "Thực hiện bước",
+        "Bổ sung nội dung", "bổ sung nội dung",
+        "Tổ chức bước", "Thực hiện bước",
         "Bước 1", "Bước 2", "Bước 3", "Bước 4", "Bước 5", "Bước 6", "Bước 7", "Bước 8",
-        "Mục tiêu & tổ chức"
+        "Mục tiêu & tổ chức",
+        # Generic/template labels that are NOT acceptable in a standard lesson plan
+        "Nhiệm vụ 1", "Nhiệm vụ 2", "Nhiệm vụ 3", "Nhiệm vụ 4",
+        "Giao nhiệm vụ; quan sát; hỗ trợ; chốt",
+        "Lắng nghe; xác định nhiệm vụ",
+        "(Bổ sung nội dung",
     ]
 
     def walk(obj):
@@ -1110,6 +1119,19 @@ def ensure_lesson_plan_quality(data: dict) -> None:
     walk(data)
 
     sections = data.get("sections") or {}
+
+    # Require essential content in sections I/II (avoid empty headings rendered as placeholders)
+    sec1 = (sections.get("I") or {})
+    yccds = [str(x).strip() for x in (sec1.get("yeu_cau_can_dat") or []) if str(x).strip()]
+    if len(yccds) < 3:
+        raise ValueError("Lesson quality check failed: I.yeu_cau_can_dat quá ít (cần >=3 gạch đầu dòng).")
+
+    sec2 = (sections.get("II") or {})
+    gv_prep = [str(x).strip() for x in (sec2.get("giao_vien") or []) if str(x).strip()]
+    hs_prep = [str(x).strip() for x in (sec2.get("hoc_sinh") or []) if str(x).strip()]
+    if len(gv_prep) < 2 or len(hs_prep) < 1:
+        raise ValueError("Lesson quality check failed: II. chuẩn bị thiếu (GV>=2, HS>=1).")
+
     sec3 = sections.get("III") or {}
     activities = sec3.get("hoat_dong") or []
     if not isinstance(activities, list) or len(activities) < 3:
@@ -1331,6 +1353,9 @@ YÊU CẦU CHUYÊN MÔN (bắt buộc):
 3) Tiến trình (III):
    - Gồm 4 hoạt động: Khởi động, Hình thành kiến thức, Luyện tập, Vận dụng/Mở rộng.
    - MỖI hoạt động phải có 'nhiem_vu' (tối thiểu 2 nhiệm vụ).
+   - Tên nhiệm vụ/ô 'muc_tieu_noi_dung' phải là nội dung THỰC, KHÔNG đặt 'Nhiệm vụ 1/2', KHÔNG ghi chung chung.
+     + Nếu môn Toán: ưu tiên đặt theo dạng 'Bài 1 (SGK tr.xx): ...', 'Bài 2: ...', kèm dữ liệu số cụ thể (số thập phân, phép tính, bài toán có lời văn).
+     + Nếu có học liệu (video/slide/phiếu): nêu rõ trong nhiệm vụ Khởi động hoặc Chuẩn bị.
    - Mỗi nhiệm vụ là 01 dòng bảng và phải có:
        * thoi_gian (phút)
        * muc_tieu_noi_dung: ghi RÕ nội dung toán học/nhiệm vụ học tập (có ví dụ/bài tập/câu hỏi cụ thể nếu phù hợp)
