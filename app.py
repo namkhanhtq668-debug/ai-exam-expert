@@ -2649,6 +2649,256 @@ def module_advisor():
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================================================================
+# [LESSON PLAN SIMPLE v1] – TẠO GIÁO ÁN "NHƯ CHAT BÌNH THƯỜNG" (HTML TRỰC TIẾP)
+# ==============================================================================
+
+def _lp2_uid():
+    return st.session_state.get("user", {}).get("email", "guest")
+
+def _lp2_key(name: str) -> str:
+    return f"lp2_{name}_{_lp2_uid()}"
+
+def _lp2_api_key():
+    return st.session_state.get("api_key") or SYSTEM_GOOGLE_KEY
+
+def _lp2_extract_from_upload(uploaded_file) -> str:
+    if not uploaded_file:
+        return ""
+    name = (uploaded_file.name or "").lower()
+    try:
+        if name.endswith(".pdf"):
+            pdf_bytes = uploaded_file.getvalue()
+            txt = extract_text_from_pdf_bytes(pdf_bytes, max_pages=6, ocr_if_needed=True)
+            return txt or ""
+        if name.endswith(".docx"):
+            return read_file_content(uploaded_file, "docx") or ""
+        if name.endswith(".txt"):
+            return uploaded_file.getvalue().decode("utf-8", errors="ignore")
+    except Exception:
+        return ""
+    return ""
+
+def generate_lesson_plan_html_simple(
+    api_key: str,
+    cap_hoc: str,
+    mon: str,
+    lop: str,
+    bo_sach: str,
+    tuan: int,
+    tiet: int,
+    ten_bai: str,
+    thoi_luong: int,
+    si_so: int,
+    lesson_context: str,
+    teacher_note: str,
+    model_name: str = "gemini-2.0-flash",
+) -> str:
+    """Trả về HTML hoàn chỉnh (không JSON)."""
+    genai.configure(api_key=api_key)
+
+    system_instruction = """Bạn là GIÁO VIÊN cốt cán, chuyên soạn KẾ HOẠCH BÀI DẠY theo CTGDPT 2018.
+YÊU CẦU BẮT BUỘC:
+- ĐẦU RA: CHỈ TRẢ VỀ 01 KHỐI HTML HOÀN CHỈNH (không markdown, không giải thích).
+- Font: Times New Roman, cỡ 13pt; in A4 đẹp.
+- Có 4 phần:
+  I. Yêu cầu cần đạt (Kiến thức/Kĩ năng; Năng lực; Phẩm chất; Năng lực đặc thù nếu có; Năng lực số nếu phù hợp).
+  II. Đồ dùng dạy – học (GV/HS).
+  III. Các hoạt động dạy – học chủ yếu: BẮT BUỘC là <table border="1"> 2 cột:
+      Cột 1: Hoạt động của Giáo viên
+      Cột 2: Hoạt động của Học sinh
+     Chia 3 hoạt động lớn: Khởi động; Khám phá/Hình thành kiến thức; Luyện tập/Vận dụng.
+     VIẾT CHI TIẾT: câu hỏi gợi mở, ví dụ minh họa, bài tập cụ thể, dự kiến đáp án/nhận xét.
+  IV. Điều chỉnh sau bài dạy: để dòng chấm.
+- KHÔNG dùng các cụm 'Bước 1/2', 'Nhiệm vụ 1/2', 'Bổ sung nội dung' chung chung.
+- Nếu có NỘI DUNG BÀI HỌC từ file (PDF/DOCX): phải bám sát thuật ngữ, ví dụ, bài tập trong đó. Không tự bịa ngoài tài liệu trừ khi ghi chú GV yêu cầu.
+"""
+
+    lesson_context = (lesson_context or "").strip()
+    ctx_block = ""
+    if lesson_context:
+        ctx_block = "\n\n[NỘI DUNG BÀI HỌC TRÍCH TỪ TÀI LIỆU GV TẢI LÊN – ƯU TIÊN BÁM SÁT]\n" + lesson_context[:12000]
+
+    prompt = f"""THÔNG TIN BÀI DẠY:
+- Cấp học: {cap_hoc}
+- Môn: {mon}
+- Lớp: {lop}
+- Bộ sách: {bo_sach}
+- Tuần/Tiết (PPCT): {tuan}/{tiet}
+- Tên bài: {ten_bai}
+- Thời lượng: {thoi_luong} phút
+- Sĩ số: {si_so}
+
+GHI CHÚ/ĐIỀU CHỈNH CỦA GV:
+{teacher_note.strip() if teacher_note else "(Không có)"}
+{ctx_block}
+
+HÃY SOẠN GIÁO ÁN HTML HOÀN CHỈNH THEO ĐÚNG YÊU CẦU.
+"""
+
+    model = genai.GenerativeModel(model_name, system_instruction=system_instruction)
+
+    safe_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    ]
+
+    res = model.generate_content(prompt, safety_settings=safe_settings)
+    html = (res.text or "").strip()
+
+    if "```" in html:
+        parts = re.split(r"```(?:html)?", html)
+        if len(parts) >= 2:
+            html = parts[1].strip()
+
+    if "<html" not in html.lower():
+        html = f"""<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"/>
+<style>
+  @page {{ size: 21cm 29.7cm; margin: 2cm; }}
+  body{{font-family:'Times New Roman',serif;font-size:13pt;line-height:1.35;color:#111;}}
+  table{{width:100%;border-collapse:collapse;table-layout:fixed;}}
+  td,th{{border:1px solid #000;padding:6px;vertical-align:top;word-wrap:break-word;}}
+  th{{text-align:center;font-weight:700;background:#f2f2f2;}}
+  h1{{text-align:center;font-size:18pt;margin:0 0 10px 0;}}
+  h2{{font-size:14pt;margin:12px 0 6px 0;}}
+</style>
+</head><body>
+{html}
+</body></html>"""
+    return html
+
+def module_lesson_plan():
+    """Module soạn giáo án (tối giản + AI trả HTML trực tiếp)."""
+    st.markdown("""<div style="background:linear-gradient(135deg,#0F172A 0%,#1D4ED8 55%,#60A5FA 100%);
+      border-radius:14px;padding:16px 18px;color:#fff;border:1px solid rgba(255,255,255,.18);
+      box-shadow:0 10px 18px rgba(2,6,23,.18);margin-bottom:14px;">
+      <h2 style="margin:0;font-weight:800;">📘 Soạn giáo án (HTML – Chuẩn CTGDPT 2018)</h2>
+      <div style="opacity:.92;margin-top:6px;">Tối giản: nhập thông tin + (tuỳ chọn) tải PDF/DOCX bài học → AI soạn chi tiết, có bảng GV/HS.</div>
+    </div>""", unsafe_allow_html=True)
+
+    with st.form(key=_lp2_key("form"), clear_on_submit=False):
+        r1c1, r1c2, r1c3, r1c4 = st.columns([1.1, 1.2, 1.0, 1.2])
+        with r1c1:
+            st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=1, key=_lp2_key("year"))
+        with r1c2:
+            cap_hoc = st.radio("Cấp học", ["Tiểu học", "THCS", "THPT"], horizontal=True, key=_lp2_key("cap_hoc"))
+        curr_lvl = "tieu_hoc" if cap_hoc == "Tiểu học" else "thcs" if cap_hoc == "THCS" else "thpt"
+        edu = EDUCATION_DATA[curr_lvl]
+        with r1c3:
+            lop = st.selectbox("Khối lớp", edu["grades"], key=_lp2_key("lop"))
+        with r1c4:
+            mon = st.selectbox("Môn học", edu["subjects"], key=_lp2_key("mon"))
+
+        r2c1, r2c2, r2c3 = st.columns([2.0, 1.0, 1.0])
+        with r2c1:
+            bo_sach = st.selectbox("Bộ sách", BOOKS_LIST, key=_lp2_key("bo_sach"))
+        with r2c2:
+            tuan = st.number_input("Tuần (PPCT)", min_value=1, max_value=40, value=1, step=1, key=_lp2_key("tuan"))
+        with r2c3:
+            tiet = st.number_input("Tiết (PPCT)", min_value=1, max_value=10, value=1, step=1, key=_lp2_key("tiet"))
+
+        ten_bai = st.text_input("Tên bài học (PPCT)", key=_lp2_key("ten_bai"))
+
+        r3c1, r3c2 = st.columns([1.2, 1.0])
+        with r3c1:
+            thoi_luong = st.number_input("Thời lượng (phút)", min_value=20, max_value=60, value=40, step=1, key=_lp2_key("thoi_luong"))
+        with r3c2:
+            si_so = st.number_input("Sĩ số (tuỳ chọn)", min_value=10, max_value=60, value=40, step=1, key=_lp2_key("si_so"))
+
+        st.markdown("### Tài liệu bài học (tuỳ chọn nhưng khuyến nghị)")
+        up1, up2 = st.columns([1.2, 1.8])
+        with up1:
+            lesson_file = st.file_uploader("Tải PDF/DOCX/TXT bài học", type=["pdf","docx","txt"], key=_lp2_key("lesson_file"))
+        with up2:
+            show_preview = st.checkbox("Xem trước nội dung trích xuất", value=False, key=_lp2_key("show_preview"))
+
+        teacher_note = st.text_area(
+            "Ghi chú GV (tuỳ chọn)",
+            key=_lp2_key("teacher_note"),
+            height=110,
+            placeholder="Ví dụ: Có trò chơi khởi động 3 phút; tăng luyện tập; ưu tiên hoạt động cặp đôi; có 1 bài phân hoá..."
+        )
+
+        b1, b2 = st.columns([1.2, 1.0])
+        with b1:
+            submit = st.form_submit_button("⚡ TẠO GIÁO ÁN", type="primary", use_container_width=True)
+        with b2:
+            reset = st.form_submit_button("🧹 XÓA KẾT QUẢ", use_container_width=True)
+
+    if reset:
+        st.session_state[_lp2_key("html")] = ""
+
+    lesson_ctx = _lp2_extract_from_upload(lesson_file) if lesson_file else ""
+    if lesson_file and show_preview:
+        st.markdown("#### Preview nội dung trích xuất")
+        st.text_area("Nội dung trích xuất", value=(lesson_ctx[:6000] if lesson_ctx else "(Không trích xuất được text từ file)"), height=220)
+
+    if submit:
+        if not ten_bai.strip():
+            st.error("❌ Vui lòng nhập Tên bài học (PPCT).")
+            st.stop()
+
+        if lesson_file and not lesson_ctx.strip():
+            st.warning("⚠️ File tải lên không trích xuất được text. Nếu PDF là scan ảnh, VPS cần pdf2image + pytesseract + poppler.")
+
+        api_key_use = _lp2_api_key()
+        if not api_key_use:
+            st.error("❌ Chưa có API Key.")
+            st.stop()
+
+        with st.spinner("🤖 AI đang soạn giáo án..."):
+            try:
+                html = generate_lesson_plan_html_simple(
+                    api_key=api_key_use,
+                    cap_hoc=cap_hoc,
+                    mon=mon,
+                    lop=lop,
+                    bo_sach=bo_sach,
+                    tuan=int(tuan),
+                    tiet=int(tiet),
+                    ten_bai=ten_bai.strip(),
+                    thoi_luong=int(thoi_luong),
+                    si_so=int(si_so),
+                    lesson_context=lesson_ctx,
+                    teacher_note=teacher_note or "",
+                    model_name="gemini-2.0-flash",
+                )
+                st.session_state[_lp2_key("html")] = html
+                st.session_state[_lp2_key("title")] = f"GiaoAn_{mon}_{lop}_{ten_bai.strip()}"
+                st.success("✅ Đã tạo giáo án!")
+            except Exception as e:
+                st.error(f"❌ Lỗi khi tạo giáo án: {e}")
+
+    html = st.session_state.get(_lp2_key("html"), "")
+    if html:
+        st.markdown("## Xem trước (A4)")
+        st.components.v1.html(html, height=780, scrolling=True)
+
+        st.markdown("## Tải về")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.download_button(
+                "⬇️ Tải Word (.doc)",
+                data=create_word_doc(html, st.session_state.get(_lp2_key("title"), "GiaoAn")),
+                file_name=f"{st.session_state.get(_lp2_key('title'),'GiaoAn')}.doc",
+                mime="application/msword",
+                type="primary",
+                use_container_width=True,
+                key=_lp2_key("dl_doc"),
+            )
+        with c2:
+            st.download_button(
+                "⬇️ Tải HTML",
+                data=html.encode("utf-8"),
+                file_name=f"{st.session_state.get(_lp2_key('title'),'GiaoAn')}.html",
+                mime="text/html",
+                use_container_width=True,
+                key=_lp2_key("dl_html"),
+                )
+
+# ==============================================================================
 # ENTRY POINT (ỔN ĐỊNH: sidebar + router theo current_page)
 # ==============================================================================
 if "current_page" not in st.session_state:
