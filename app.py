@@ -5,6 +5,7 @@ import pandas as pd
 import docx
 import json
 import re
+import textwrap
 import io
 import time
 import requests
@@ -415,7 +416,7 @@ LEGAL_DOCUMENTS = [
 # ==============================================================================
 # 3. GIAO DIỆN & CSS (CẬP NHẬT CSS CHO BẢNG)
 # ==============================================================================
-st.markdown("""
+st.markdown(textwrap.dedent('''
 <style>
     /* ===== Dashboard KPI ===== */
 .kpi-card{
@@ -479,7 +480,7 @@ st.markdown("""
 .paper-view th { background-color: #f2f2f2; font-weight: bold; }
 
 </style>
-""", unsafe_allow_html=True)
+'''), unsafe_allow_html=True)
 
 # ==============================================================================
 # 4. HÀM XỬ LÝ LOGIC
@@ -2222,7 +2223,7 @@ def main_app():
                     my_bar.empty()
     
     st.markdown("---")
-    st.markdown("""<div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;"><strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>SĐT: 0918198687</div>""", unsafe_allow_html=True)            
+    st.markdown(textwrap.dedent('''<div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;"><strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>SĐT: 0918198687</div>'''), unsafe_allow_html=True)            
 
 # ==============================================================================
 # 7A. MODULE: TRỢ LÝ SOẠN GIÁO ÁN (TỔNG QUÁT TẤT CẢ MÔN/CẤP/BỘ SÁCH)
@@ -2658,12 +2659,12 @@ def dashboard_screen():
             </div>""", unsafe_allow_html=True
         )
 
-    st.markdown("""<div class='module-card highlight'>
+    st.markdown(textwrap.dedent('''<div class='module-card highlight'>
         <div class='module-badge'>NẠP VIP / CỘNG ĐIỂM</div>
         <div class='module-title'>Quét VietQR → xác minh SePay tự động</div>
         <div class='module-desc'>Nạp <b>{VIP_TOPUP_AMOUNT_VND:,.0f}đ</b> được <b>{VIP_TOPUP_POINTS} điểm</b>. Điểm dùng cho 3 module: Soạn giáo án, Ra đề – KTĐG, Năng lực số.</div>
         <div class='module-meta'>Sau khi chuyển khoản, bấm “Kích hoạt” để hệ thống tự xác minh.</div>
-    </div>""", unsafe_allow_html=True)
+    </div>'''), unsafe_allow_html=True)
 
     # --- Nạp VIP ---
     if not client or not username:
@@ -2709,7 +2710,7 @@ def dashboard_screen():
                 st.rerun()
 
     # --- 4 cards giới thiệu ---
-    st.markdown("""<style>
+    st.markdown(textwrap.dedent('''<style>
       .dash-grid {display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px;}
       .dash-card {background:#fff; border:1px solid #E2E8F0; border-radius:14px; padding:16px;}
       .dash-title {font-weight:800; font-size:15px; color:#0F172A; margin:0 0 6px 0;}
@@ -2738,10 +2739,10 @@ def dashboard_screen():
         <div style="margin-top:10px"><span class="dash-badge">Advisor</span></div>
       </div>
     </div>
-    """, unsafe_allow_html=True)
+    '''), unsafe_allow_html=True)
 def module_digital():
     # --- CSS Tùy chỉnh cho Module NLS (Giống giao diện React) ---
-    st.markdown("""
+    st.markdown(textwrap.dedent('''
     <style>
         .nls-container { background-color: #F8FAFC; padding: 20px; border-radius: 15px; }
         .nls-header { 
@@ -2765,17 +2766,17 @@ def module_digital():
         }
         .nls-btn:hover { opacity: 0.9; }
     </style>
-    """, unsafe_allow_html=True)
+    '''), unsafe_allow_html=True)
 
     # --- Header ---
-    st.markdown("""
+    st.markdown(textwrap.dedent('''
     <div class="nls-header">
         <div>
             <h2 style="margin:0; font-size: 22px;">💻 AI EXAM - SOẠN GIÁO ÁN NLS</h2>
             <p style="margin:5px 0 0 0; opacity: 0.9; font-size: 14px;">Hệ thống tích hợp Năng lực số tự động cho Giáo viên</p>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    '''), unsafe_allow_html=True)
 
     # --- Layout Chính: 2 Cột (Form bên trái, Hướng dẫn bên phải) ---
     col_left, col_right = st.columns([2, 1])
@@ -2851,7 +2852,7 @@ def module_digital():
 
     with col_right:
         # Sidebar thông tin (Giống UI React)
-        st.markdown("""
+        st.markdown(textwrap.dedent('''
         <div class="nls-card" style="background:#EFF6FF; border:1px solid #BFDBFE;">
             <h4 style="color:#1E3A8A; margin-top:0;">💡 Hướng dẫn nhanh</h4>
             <ol style="font-size:14px; padding-left:15px; color:#334155;">
@@ -2861,9 +2862,9 @@ def module_digital():
                 <li>Bấm <b>Bắt đầu</b> và đợi kết quả.</li>
             </ol>
         </div>
-        """, unsafe_allow_html=True)
+        '''), unsafe_allow_html=True)
 
-        st.markdown("""
+        st.markdown(textwrap.dedent('''
         <div class="nls-card">
             <h4 style="color:#1E3A8A; margin-top:0;">🌐 Các miền Năng lực số</h4>
             <ul style="font-size:13px; padding-left:15px; color:#475569;">
@@ -2875,7 +2876,7 @@ def module_digital():
                 <li><b>Ứng dụng AI (Mới)</b></li>
             </ul>
         </div>
-        """, unsafe_allow_html=True)
+        '''), unsafe_allow_html=True)
 
     # --- Hiển thị kết quả ---
     if 'nls_result' in st.session_state and st.session_state['nls_result']:
@@ -3028,12 +3029,12 @@ HÃY SOẠN GIÁO ÁN HTML HOÀN CHỈNH THEO ĐÚNG YÊU CẦU.
 
 def module_lesson_plan():
     """Module soạn giáo án (tối giản + AI trả HTML trực tiếp)."""
-    st.markdown("""<div style="background:linear-gradient(135deg,#0F172A 0%,#1D4ED8 55%,#60A5FA 100%);
+    st.markdown(textwrap.dedent('''<div style="background:linear-gradient(135deg,#0F172A 0%,#1D4ED8 55%,#60A5FA 100%);
       border-radius:14px;padding:16px 18px;color:#fff;border:1px solid rgba(255,255,255,.18);
       box-shadow:0 10px 18px rgba(2,6,23,.18);margin-bottom:14px;">
       <h2 style="margin:0;font-weight:800;">📘 Soạn giáo án (HTML – Chuẩn CTGDPT 2018)</h2>
       <div style="opacity:.92;margin-top:6px;">Tối giản: nhập thông tin + (tuỳ chọn) tải PDF/DOCX bài học → AI soạn chi tiết, có bảng GV/HS.</div>
-    </div>""", unsafe_allow_html=True)
+    </div>'''), unsafe_allow_html=True)
 
     with st.form(key=_lp2_key("form"), clear_on_submit=False):
         r1c1, r1c2, r1c3, r1c4 = st.columns([1.1, 1.2, 1.0, 1.2])
@@ -3220,5 +3221,3 @@ else:
         module_advisor()
     else:
         main_app()
-
-
