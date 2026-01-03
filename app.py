@@ -11,6 +11,13 @@ import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 
+# [NEW] OpenAI (tùy chọn) cho Module Soạn giáo án
+try:
+    from openai import OpenAI
+except Exception:
+    OpenAI = None
+
+
 def html_escape(text: str) -> str:
     import html
     if not text:
@@ -133,6 +140,12 @@ BANK_ID = "VietinBank"
 BANK_ACC = "107878907329"
 BANK_NAME = "TRAN THANH TUAN"
 PRICE_VIP = 50000
+# --- [NEW] HỆ THỐNG ĐIỂM VIP (POINTS) ---
+VIP_TOPUP_POINTS = 550  # 50k = 550 điểm
+POINT_COST_LESSON_PLAN = 30
+POINT_COST_EXAM = 30
+POINT_COST_NLS = 30
+
 
 # Lấy API Key từ Secrets
 try:
@@ -140,11 +153,13 @@ try:
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     SYSTEM_GOOGLE_KEY = st.secrets.get("GOOGLE_API_KEY", "")
     SEPAY_API_TOKEN = st.secrets.get("SEPAY_API_TOKEN", "")
+    OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "")
 except:
     SUPABASE_URL = ""
     SUPABASE_KEY = ""
     SYSTEM_GOOGLE_KEY = ""
     SEPAY_API_TOKEN = ""
+    OPENAI_API_KEY = ""
 
 st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="collapsed")
 
@@ -489,6 +504,54 @@ def init_supabase():
     try: return create_client(SUPABASE_URL, SUPABASE_KEY)
     except: return None
 
+
+
+# =========================
+# [NEW] POINTS HELPERS (users_pro.points_balance)
+# - Tự động fallback 0 nếu DB chưa có cột
+# =========================
+def get_points_balance(user_row: dict) -> int:
+    try:
+        return int(user_row.get("points_balance", 0) or 0)
+    except Exception:
+        return 0
+
+def fetch_user_row(client, email: str) -> dict:
+    try:
+        res = client.table("users_pro").select("*").eq("username", email).execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return {}
+
+def update_points_balance(client, email: str, new_points: int) -> bool:
+    try:
+        client.table("users_pro").update({"points_balance": int(new_points)}).eq("username", email).execute()
+        return True
+    except Exception:
+        return False
+
+def add_points(client, email: str, add_amt: int) -> int:
+    row = fetch_user_row(client, email)
+    cur = get_points_balance(row)
+    new_points = max(0, cur + int(add_amt))
+    ok = update_points_balance(client, email, new_points)
+    return new_points if ok else cur
+
+def deduct_points(client, email: str, cost: int) -> tuple[bool, int, str]:
+    row = fetch_user_row(client, email)
+    cur = get_points_balance(row)
+    cost = int(cost or 0)
+    if cost <= 0:
+        return True, cur, ""
+    if cur < cost:
+        return False, cur, f"Không đủ điểm (cần {cost}, hiện có {cur}). Vui lòng nạp VIP để dùng tiếp."
+    new_points = cur - cost
+    ok = update_points_balance(client, email, new_points)
+    if not ok:
+        return False, cur, "Không cập nhật được điểm (DB chưa có cột points_balance?)."
+    return True, new_points, ""
 def read_file_content(uploaded_file, file_type):
     if not uploaded_file: return ""
     try:
@@ -695,6 +758,59 @@ def clean_json(text):
         if end_idx != -1: return text[:end_idx+1]
         return text
 
+
+
+# ==============================================================================
+# [NEW] OPENAI HELPER (Responses API) - dùng cho Module Soạn giáo án
+# ==============================================================================
+def _get_openai_key():
+    # Ưu tiên key người dùng nhập ở tab "Hồ sơ", fallback secrets
+    return st.session_state.get("openai_api_key", "") or globals().get("OPENAI_API_KEY", "")
+
+def openai_generate_text(prompt: str, system: str = "", model: str = "o4-mini", temperature: float = 0.7) -> str:
+    """Gọi OpenAI Responses API và trả về text. Có fallback model nếu model không tồn tại."""
+    if OpenAI is None:
+        raise RuntimeError("Chưa cài thư viện openai. Hãy chạy: pip install -U openai")
+    api_key = _get_openai_key()
+    if not api_key:
+        raise RuntimeError("Chưa có OPENAI_API_KEY (secrets hoặc người dùng nhập).")
+    client = OpenAI(api_key=api_key)
+
+    input_items = []
+    if system:
+        input_items.append({"role": "system", "content": system})
+    input_items.append({"role": "user", "content": prompt})
+
+    last_err = None
+    for m in [model, "gpt-4o-mini", "gpt-4o"]:
+        try:
+            resp = client.responses.create(
+                model=m,
+                input=input_items,
+                temperature=temperature,
+            )
+            out = getattr(resp, "output_text", None)
+            if out:
+                return out
+            # Fallback: duyệt cấu trúc output/content
+            parts = []
+            for item in getattr(resp, "output", []) or []:
+                for c in getattr(item, "content", []) or []:
+                    t = getattr(c, "text", None)
+                    if t:
+                        parts.append(t)
+            if parts:
+                return "\n".join(parts)
+            return str(resp)
+        except Exception as e:
+            last_err = e
+            continue
+    raise last_err or RuntimeError("OpenAI call failed")
+
+def openai_generate_json(prompt: str, system: str = "", model: str = "o4-mini", temperature: float = 0.4) -> dict:
+    """Yêu cầu model trả JSON; parse bằng clean_json để chịu lỗi format."""
+    txt = openai_generate_text(prompt=prompt, system=system, model=model, temperature=temperature)
+    return json.loads(clean_json(txt))
 # [CẬP NHẬT] Hàm tạo File Word chuẩn Font XML VÀ CÓ BẢNG
 def create_word_doc(html, title):
     doc_content = f"""
@@ -824,38 +940,38 @@ def render_lesson_plan_html(data: dict) -> str:
         "<tbody>" + "".join(rows) + "</tbody></table>"
     )
 
-    html = (
-    "<!doctype html><html lang='vi'><head><meta charset='utf-8'/>"
-    + css +
-    "</head><body>"
-    "<div class='wrap'>"
-    "<h1>GIÁO ÁN</h1>"
-    "<div class='meta'>"
-    f"<p><b>Môn:</b> {esc(meta.get('mon'))} &nbsp;&nbsp; <b>Lớp:</b> {esc(meta.get('lop'))} &nbsp;&nbsp; <b>Cấp:</b> {esc(meta.get('cap_hoc'))}</p>"
-    f"<p><b>Bài:</b> {esc(meta.get('ten_bai'))} &nbsp;&nbsp; <b>Thời lượng:</b> {esc(meta.get('thoi_luong'))} phút &nbsp;&nbsp; <b>Bộ sách:</b> {esc(meta.get('bo_sach'))}</p>"
-    "</div>"
-    "<h2>I. Yêu cầu cần đạt</h2>"
-    "<h3>1) Yêu cầu cần đạt</h3>"
-    + ul(yccd) +
-    "<h3>2) Năng lực</h3>"
-    + ul(nang_luc) +
-    "<h3>3) Phẩm chất</h3>"
-    + ul(pham_chat) +
-    "<h3>4) Năng lực đặc thù (nếu có)</h3>"
-    + ul(nldac) +
-    "<h3>5) Năng lực số (nếu có)</h3>"
-    + ul(nlso) +
-    "<h2>II. Đồ dùng dạy – học</h2>"
-    "<h3>1) Giáo viên</h3>"
-    + ul(gv_dd) +
-    "<h3>2) Học sinh</h3>"
-    + ul(hs_dd) +
-    "<h2>III. Các hoạt động dạy – học chủ yếu</h2>"
-    + table_html +
-    "<h2>IV. Điều chỉnh sau bài dạy (nếu có)</h2>"
-    + (f"<p>{esc(dieu_chinh)}</p>" if dieu_chinh else "<p>……………………………………………………………………………………………<br/>……………………………………………………………………………………………<br/>……………………………………………………………………………………………</p>")
-    + "</div></body></html>"
-    )
+    html = f"""<!doctype html><html lang='vi'><head><meta charset='utf-8'/>{css}</head><body>
+    <div class='wrap'>
+      <h1>GIÁO ÁN</h1>
+      <div class='meta'>
+        <p><b>Môn:</b> {esc(meta.get('mon'))} &nbsp;&nbsp; <b>Lớp:</b> {esc(meta.get('lop'))} &nbsp;&nbsp; <b>Cấp:</b> {esc(meta.get('cap_hoc'))}</p>
+        <p><b>Bài:</b> {esc(meta.get('ten_bai'))} &nbsp;&nbsp; <b>Thời lượng:</b> {esc(meta.get('thoi_luong'))} phút &nbsp;&nbsp; <b>Bộ sách:</b> {esc(meta.get('bo_sach'))}</p>
+      </div>
+
+      <h2>I. Yêu cầu cần đạt</h2>
+      <h3>1) Yêu cầu cần đạt</h3>
+      {ul(yccd)}
+      <h3>2) Năng lực</h3>
+      {ul(nang_luc)}
+      <h3>3) Phẩm chất</h3>
+      {ul(pham_chat)}
+      <h3>4) Năng lực đặc thù (nếu có)</h3>
+      {ul(nldac)}
+      <h3>5) Năng lực số (nếu có)</h3>
+      {ul(nlso)}
+
+      <h2>II. Đồ dùng dạy – học</h2>
+      <h3>1) Giáo viên</h3>
+      {ul(gv_dd)}
+      <h3>2) Học sinh</h3>
+      {ul(hs_dd)}
+
+      <h2>III. Các hoạt động dạy – học chủ yếu</h2>
+      {table_html}
+
+      <h2>IV. Điều chỉnh sau bài dạy (nếu có)</h2>
+      <p>{esc(dieu_chinh) if dieu_chinh else "……………………………………………………………………………………………<br/>……………………………………………………………………………………………<br/>……………………………………………………………………………………………"}</p>
+    </div></body></html>"""
     return html
 
 def get_knowledge_context(subject, grade, book, scope):
@@ -886,7 +1002,106 @@ def check_sepay_transaction(amount, content_search):
                     return True
     except:
         return False
-    return False
+
+
+# ==============================================================================
+# [VIP TOPUP] UI NẠP VIP (SEPAY/VIETQR) - TÁI SỬ DỤNG Ở DASHBOARD & TAB VIP
+# ==============================================================================
+def render_vip_topup(user: dict, is_admin: bool = False, key_prefix: str = "vip"):
+    """Hiển thị khối Nâng cấp VIP + QR VietQR + nút kích hoạt tự động SePay.
+    - Dùng lại logic check_sepay_transaction() và bảng users_pro như hiện tại.
+    - key_prefix để tránh trùng key giữa Dashboard và Tab VIP.
+    """
+    st.markdown("<h3 style='text-align: center; color: #1E3A8A;'>🚀 BẢNG GIÁ & NÂNG CẤP VIP</h3>", unsafe_allow_html=True)
+
+    col_free, col_pro = st.columns(2)
+    with col_free:
+        st.markdown(
+            f"""<div class="pricing-card"><h3>Gói FREE</h3>
+            <div class="price-tag">0đ</div>
+            <div class="feature-list">✅ Tạo thử <b>{MAX_FREE_USAGE} đề</b><br>
+            ❌ Tải file Word<br>❌ Xem đáp án chi tiết<br>❌ Hỗ trợ kỹ thuật</div></div>""",
+            unsafe_allow_html=True,
+        )
+    with col_pro:
+        st.markdown(
+            f"""<div class="pricing-card" style="border: 2px solid #2563EB;"><h3 style="color: #2563EB;">Gói PRO VIP</h3>
+            <div class="price-tag">{PRICE_VIP:,.0f}đ / gói</div>
+            <div class="feature-list">✅ <b>Tạo tối đa {MAX_PRO_USAGE} đề</b><br>
+            ✅ <b>Tải file Word chuẩn</b><br>✅ <b>Xem & Tải Đáp án/Ma trận</b><br>
+            ✅ Hỗ trợ ưu tiên 24/7</div></div>""",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("---")
+    st.subheader("📲 QUÉT MÃ QR ĐỂ THANH TOÁN TỰ ĐỘNG")
+
+    c1, c2 = st.columns([1, 2])
+    with c1:
+        ref_code_input = st.text_input(
+            "Mã giới thiệu (Để tặng lượt khi mua Pro):",
+            key=f"{key_prefix}_ref_code",
+        )
+
+    current_price = PRICE_VIP
+
+    # [QUAN TRỌNG] THÊM TIỀN TỐ "SEVQR" VÀO NỘI DUNG ĐỂ SEPAY NHẬN DIỆN
+    final_content_ck = f"SEVQR NAP VIP {user.get('email')}"
+    show_qr = True
+
+    # [LOGIC] CHECK MÃ GIỚI THIỆU ĐỂ ẨN/HIỆN QR (KHÔNG GIẢM GIÁ)
+    if ref_code_input:
+        client = init_supabase()
+        if client:
+            check_ref = client.table('users_pro').select("*").eq('username', ref_code_input).execute()
+            if check_ref.data and ref_code_input != user.get('email'):
+                st.success(f"✅ Mã hợp lệ! Bạn sẽ được tặng thêm {BONUS_PRO_REF} lượt khi kích hoạt Pro.")
+                final_content_ck = f"SEVQR NAP VIP {user.get('email')} REF {ref_code_input}"
+                show_qr = True
+            elif ref_code_input == user.get('email'):
+                st.warning("Bạn không thể tự giới thiệu chính mình.")
+                show_qr = True
+            else:
+                st.error("❌ Mã giới thiệu không tồn tại! (Vui lòng nhập đúng hoặc xóa đi để thanh toán).")
+                show_qr = False
+
+    if show_qr:
+        import urllib.parse
+        encoded_content = urllib.parse.quote(final_content_ck)
+        qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_ACC}-compact.png?amount={current_price}&addInfo={encoded_content}&accountName={BANK_NAME}"
+
+        c_qr1, c_qr2 = st.columns([1, 2])
+        with c_qr1:
+            try:
+                st.image(qr_url, caption=f"Mã QR ({current_price:,.0f}đ)", width=300)
+            except Exception:
+                st.error("Không tải được QR. Vui lòng chuyển khoản thủ công.")
+
+        with c_qr2:
+            st.info(
+                f"**Nội dung chuyển khoản:** `{final_content_ck}`\n\n"
+                "1. Quét mã QR.\n"
+                "2. Bấm nút **'KÍCH HOẠT NGAY'** bên dưới sau khi chuyển khoản."
+            )
+
+            if st.button("🚀 KÍCH HOẠT NGAY (Sau khi đã CK)", type="primary", key=f"{key_prefix}_btn_activate"):
+                if check_sepay_transaction(current_price, final_content_ck):
+                    client = init_supabase()
+                    if client:
+                        # Lấy trạng thái hiện tại để kiểm tra có phải lần đầu không
+                        curr_user_db = client.table('users_pro').select("*").eq('username', user.get('email')).execute()
+                        is_first_time = False
+                        if curr_user_db.data:
+                            if curr_user_db.data[0].get('role') == 'free':
+                                is_first_time = True
+
+                        # 1) Update người mua lên Pro (Reset lượt)
+                        bonus_add = BONUS_PRO_REF if (ref_code_input and is_first_time) else 0
+                        # Tính điểm mới (cộng dồn)
+                buyer_row = fetch_user_row(client, user.get('email'))
+                cur_points = get_points_balance(buyer_row)
+                new_points = cur_points + VIP_TOPUP_POINTS
+
 
 # ==============================================================================
 # [MỚI - ĐÃ SỬA LỖI JSON] MODULE QUẢN LÝ YÊU CẦU CẦN ĐẠT (KHÔNG CẦN FILE JSON)
@@ -1530,8 +1745,8 @@ YÊU CẦU BẮT BUỘC (chỉ trả JSON):
 - III:
   * bắt buộc có 'bang' là mảng.
   * bang phải có >= 12 dòng 'row' (không tính header).
-  * header mẫu: {{"kieu":"header","tieu_de":"1. Khởi động:"}}
-  * row mẫu: {{"kieu":"row","thoi_gian":4,"giao_vien":"...","hoc_sinh":"..."}}
+  * header mẫu: {"kieu":"header","tieu_de":"1. Khởi động:"}
+  * row mẫu: {"kieu":"row","thoi_gian":4,"giao_vien":"...","hoc_sinh":"..."}
   * CẤM 'Bước 1/2' hoặc 'Nhiệm vụ 1/2'. Viết nhiệm vụ học tập CỤ THỂ.
   * Nếu Toán: phải có 'Bài 1/2/...' hoặc 'Ví dụ...' và có số liệu/phép tính cụ thể.
 - IV:
@@ -1575,7 +1790,7 @@ def main_app():
     c1, c2, c3 = st.columns([3, 0.8, 0.8])
     with c1:
         st.markdown(f"<div class='header-text'>🎓 {APP_CONFIG['name']}</div>", unsafe_allow_html=True)
-        st.caption(f"User: {user.get('fullname', user.get('email', 'Guest'))} | Role: {user.get('role', '').upper()}")
+        st.caption(f"User: {user.get('fullname', user.get('email', 'Guest'))} | Role: {user.get('role', '').upper()} | Điểm: {int(user.get('points',0) or 0)}")
     
     # Nút RESET
     with c2:
@@ -1669,12 +1884,21 @@ def main_app():
                             
                             # [NÂNG CẤP] TÍNH TỔNG LƯỢT DÙNG (CÓ BONUS)
                             bonus_turns = user_data.get('bonus_turns', 0)
-                            limit_check = MAX_PRO_USAGE if db_role == 'pro' else (MAX_FREE_USAGE + bonus_turns)
+                            points_balance = get_points_balance(user_data)
 
-                            if usage_count >= limit_check:
-                                st.error(f"🔒 HẾT LƯỢT! (Bạn đã dùng {usage_count}/{limit_check}). Vui lòng gia hạn hoặc giới thiệu bạn bè.")
-                                st.info("💎 Vào tab 'NÂNG CẤP VIP' để gia hạn.")
+                            # VIP (PRO) dùng hệ điểm; FREE dùng limit lượt (cũ)
+                            if db_role == 'pro':
+                                if points_balance < POINT_COST_EXAM:
+                                    st.error(f"🔒 Không đủ điểm để tạo đề (cần {POINT_COST_EXAM}, hiện có {points_balance}).")
+                                    st.info("💎 Vào tab 'NÂNG CẤP VIP' để nạp thêm điểm.")
+                                    return
                             else:
+                                limit_check = MAX_FREE_USAGE + bonus_turns
+                                if usage_count >= limit_check:
+                                    st.error(f"🔒 HẾT LƯỢT! Bạn đã dùng {usage_count}/{limit_check} lượt FREE.")
+                                    st.info("💎 Vào tab 'NÂNG CẤP VIP' để gia hạn.")
+                                    return
+                            
                                 # 3. NẾU ĐƯỢC PHÉP -> CHẠY AI
                                 api_key = st.session_state.get('api_key', '')
                                 
@@ -1827,7 +2051,10 @@ def main_app():
                                             st.session_state['dossier'] = new_exams + st.session_state['dossier']
                                             client.table('users_pro').update({'usage_count': usage_count + 1}).eq('username', user.get('email')).execute()
                                             
-                                            st.success(f"✅ Tạo thành công! (Đã dùng: {usage_count + 1}/{limit_check})")
+                                            if db_role == 'pro':
+                                                st.success(f"✅ Tạo thành công! (Đã trừ {POINT_COST_EXAM} điểm, còn {st.session_state['user'].get('points',0)} điểm)")
+                                            else:
+                                                st.success(f"✅ Tạo thành công! (Đã dùng: {usage_count + 1}/{limit_check})")
                                         except Exception as e: st.error(f"Lỗi AI: {e}")
                     except Exception as e: st.error(f"Lỗi DB: {e}")
                 else: st.error("Lỗi kết nối.")
@@ -1876,93 +2103,8 @@ def main_app():
     
     # --- [NÂNG CẤP] TAB 5: NÂNG CẤP VIP & THANH TOÁN (LOGIC SEVQR) ---
     with tabs[4]:
-        st.markdown("<h3 style='text-align: center; color: #1E3A8A;'>🚀 BẢNG GIÁ & NÂNG CẤP VIP</h3>", unsafe_allow_html=True)
-        col_free, col_pro = st.columns(2)
-        with col_free:
-            st.markdown(f"""<div class="pricing-card"><h3>Gói FREE</h3><div class="price-tag">0đ</div><div class="feature-list">✅ Tạo thử <b>{MAX_FREE_USAGE} đề</b><br>❌ Tải file Word<br>❌ Xem đáp án chi tiết<br>❌ Hỗ trợ kỹ thuật</div></div>""", unsafe_allow_html=True)
-        with col_pro:
-            st.markdown(f"""<div class="pricing-card" style="border: 2px solid #2563EB;"><h3 style="color: #2563EB;">Gói PRO VIP</h3><div class="price-tag">{PRICE_VIP:,.0f}đ / gói</div><div class="feature-list">✅ <b>Tạo tối đa {MAX_PRO_USAGE} đề</b><br>✅ <b>Tải file Word chuẩn</b><br>✅ <b>Xem & Tải Đáp án/Ma trận</b><br>✅ Hỗ trợ ưu tiên 24/7</div></div>""", unsafe_allow_html=True)
-        
-        st.markdown("---")
-        st.subheader("📲 QUÉT MÃ QR ĐỂ THANH TOÁN TỰ ĐỘNG")
-        
-        c1, c2 = st.columns([1, 2])
-        with c1:
-            ref_code_input = st.text_input("Mã giới thiệu (Để tặng lượt khi mua Pro):")
-            
-        current_price = PRICE_VIP
-        # [QUAN TRỌNG] THÊM TIỀN TỐ "SEVQR" VÀO NỘI DUNG ĐỂ SEPAY NHẬN DIỆN
-        final_content_ck = f"SEVQR NAP VIP {user.get('email')}"
-        show_qr = True
-        
-        # [LOGIC MỚI] CHECK MÃ GIỚI THIỆU ĐỂ ẨN/HIỆN QR (KHÔNG GIẢM GIÁ)
-        if ref_code_input:
-            client = init_supabase()
-            if client:
-                check_ref = client.table('users_pro').select("*").eq('username', ref_code_input).execute()
-                if check_ref.data and ref_code_input != user.get('email'):
-                    st.success(f"✅ Mã hợp lệ! Bạn sẽ được tặng thêm {BONUS_PRO_REF} lượt khi kích hoạt Pro.")
-                    final_content_ck = f"SEVQR NAP VIP {user.get('email')} REF {ref_code_input}"
-                    show_qr = True
-                elif ref_code_input == user.get('email'):
-                    st.warning("Bạn không thể tự giới thiệu chính mình.")
-                    show_qr = True # Vẫn hiện QR gốc
-                else:
-                    st.error("❌ Mã giới thiệu không tồn tại! (Vui lòng nhập đúng hoặc xóa đi để thanh toán).")
-                    show_qr = False # Ẩn QR
+        render_vip_topup(user=user, is_admin=is_admin, key_prefix='viptab')
 
-        if show_qr:
-            # [FIX LỖI] URL ENCODE CHO NỘI DUNG CHUYỂN KHOẢN ĐỂ TRÁNH LỖI MEDIA STORAGE
-            import urllib.parse
-            encoded_content = urllib.parse.quote(final_content_ck)
-            qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_ACC}-compact.png?amount={current_price}&addInfo={encoded_content}&accountName={BANK_NAME}"
-            
-            c_qr1, c_qr2 = st.columns([1, 2])
-            with c_qr1: 
-                # [FIX LỖI] TRY-EXCEPT ĐỂ TRÁNH SẬP APP NẾU LỖI ẢNH
-                try:
-                    st.image(qr_url, caption=f"Mã QR ({current_price:,.0f}đ)", width=300)
-                except:
-                    st.error("Không tải được QR. Vui lòng chuyển khoản thủ công.")
-            
-            with c_qr2: 
-                st.info(f"**Nội dung chuyển khoản:** `{final_content_ck}`\n\n1. Quét mã QR.\n2. Bấm nút **'KÍCH HOẠT NGAY'** bên dưới sau khi chuyển khoản.")
-                
-                # [NÂNG CẤP] NÚT KÍCH HOẠT TỰ ĐỘNG (CHECK SEPAY)
-                if st.button("🚀 KÍCH HOẠT NGAY (Sau khi đã CK)", type="primary"):
-                    if check_sepay_transaction(current_price, final_content_ck):
-                        client = init_supabase()
-                        if client:
-                            # Lấy trạng thái hiện tại để kiểm tra có phải lần đầu không
-                            curr_user_db = client.table('users_pro').select("*").eq('username', user.get('email')).execute()
-                            is_first_time = False
-                            if curr_user_db.data:
-                                if curr_user_db.data[0]['role'] == 'free': is_first_time = True
-
-                            # 1. Update người mua lên Pro (Reset lượt)
-                            bonus_add = BONUS_PRO_REF if (ref_code_input and is_first_time) else 0
-                            client.table('users_pro').update({
-                                'role': 'pro',
-                                'usage_count': 0,
-                                'bonus_turns': bonus_add,
-                                'referred_by': ref_code_input if ref_code_input else None
-                            }).eq('username', user.get('email')).execute()
-                            
-                            # 2. Cộng hoa hồng (Chỉ khi lần đầu lên Pro)
-                            if ref_code_input and is_first_time:
-                                 ref_user = client.table('users_pro').select('commission_balance').eq('username', ref_code_input).execute()
-                                 if ref_user.data:
-                                     curr_comm = ref_user.data[0].get('commission_balance', 0)
-                                     client.table('users_pro').update({
-                                         'commission_balance': curr_comm + COMMISSION_AMT
-                                     }).eq('username', ref_code_input).execute()
-
-                            st.balloons()
-                            st.success("🎉 CHÚC MỪNG! TÀI KHOẢN ĐÃ NÂNG CẤP LÊN PRO!")
-                            time.sleep(2)
-                            st.rerun()
-                    else:
-                        st.error("⚠️ Hệ thống chưa nhận được tiền. Vui lòng thử lại sau 30s.")
 
     # --- [NÂNG CẤP] TAB 6: ĐỐI TÁC (AFFILIATE) ---
     with tabs[5]:
@@ -2021,6 +2163,9 @@ def main_app():
 
         with c2: 
             k = st.text_input("🔑 API Key Gemini (Nếu có)", type="password", key="api_key_in")
+            ok = st.text_input("🤖 OPENAI_API_KEY (tuỳ chọn)", type="password", key="openai_api_key_in")
+            if ok:
+                st.session_state["openai_api_key"] = ok
             if k: st.session_state['api_key'] = k
 
     # ==============================================================================
@@ -2141,50 +2286,54 @@ def _lp_get_active(default_page):
 def _lp_set_active(page: str):
     st.session_state["lp_active_page_admin_state"] = page
 
-
 def module_lesson_plan():
-    """Module soạn giáo án (tối giản):
-    - Input cốt lõi (môn/lớp/bộ sách/PPCT/tên bài/thời lượng)
-    - (Tùy chọn) Tải tài liệu bài học để AI bám sát (PDF/Word)
-    - Xuất HTML + Word (.doc)
+    """Module soạn giáo án (UI tối giản).
+    - Giữ các module khác nguyên vẹn
+    - Bỏ KPI, lịch sử, phân hoá/đánh giá riêng, upload PDF/scan OCR
+    - Chỉ tập trung input tối thiểu để AI soạn giáo án chuẩn và chi tiết
     """
     _lp_init_state()
 
-    st.markdown(
-        """<style>
-          .lp-hero{
-            background: linear-gradient(135deg, #0F172A 0%, #1D4ED8 55%, #60A5FA 100%);
-            border-radius: 14px;
-            padding: 18px 18px 14px 18px;
-            color: white;
-            border: 1px solid rgba(255,255,255,.18);
-            box-shadow: 0 10px 18px rgba(2,6,23,.18);
-            margin-bottom: 14px;
-          }
-          .lp-hero h2{margin:0; font-weight:800;}
-          .lp-box{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:14px;margin-bottom:12px;}
-          .lp-h{font-weight:800;color:#0F172A;margin:0 0 8px 0;}
-        </style>""",
-        unsafe_allow_html=True
-    )
 
-    st.markdown(
-        """<div class='lp-hero'>
-            <h2>📘 Soạn giáo án (Chuẩn CTGDPT 2018)</h2>
-            <div style='opacity:.92;margin-top:6px'>
-              Nhập thông tin bài dạy → (tuỳ chọn) tải tài liệu bài học → tạo giáo án HTML in A4 + tải Word.
-            </div>
-        </div>""",
-        unsafe_allow_html=True
-    )
+    st.markdown("""
+    <style>
+      .lp-hero{
+    background: linear-gradient(135deg, #0F172A 0%, #1D4ED8 55%, #60A5FA 100%);
+    border-radius: 14px;
+    padding: 18px 18px 14px 18px;
+    color: white;
+    border: 1px solid rgba(255,255,255,.18);
+    box-shadow: 0 10px 18px rgba(2,6,23,.18);
+    margin-bottom: 14px;
+      }
+      .lp-hero h2{margin:0; font-weight:800;}
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""<div class='lp-hero'>
+      <h2>📘 Soạn giáo án (Chuẩn CTGDPT 2018)</h2>
+      <div style='opacity:.92;margin-top:6px'>
+        Nhập thông tin bài dạy + yêu cầu (nếu có) → hệ thống tạo giáo án HTML in A4.
+      </div>
+    </div>""", unsafe_allow_html=True)
 
-    with st.form(key=_lp_key("form_simple"), clear_on_submit=False):
-        st.markdown("<div class='lp-box'><div class='lp-h'>1) Thông tin bài dạy</div>", unsafe_allow_html=True)
+    # ---------- Thiết lập ----------
+    with st.form(key=_lp_key("form_main"), clear_on_submit=False):
         r1c1, r1c2, r1c3, r1c4 = st.columns([1.1, 1.2, 1.0, 1.2])
         with r1c1:
-            st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=1, key=_lp_key("year"))
+            st.selectbox(
+                "Năm học",
+                ["2024-2025", "2025-2026", "2026-2027"],
+                index=1,
+                key=_lp_key("year")
+            )
         with r1c2:
-            level_key = st.radio("Cấp học", ["Tiểu học", "THCS", "THPT"], horizontal=True, key=_lp_key("level"))
+            level_key = st.radio(
+                "Cấp học",
+                ["Tiểu học", "THCS", "THPT"],
+                horizontal=True,
+                key=_lp_key("level")
+            )
         curr_lvl = "tieu_hoc" if level_key == "Tiểu học" else "thcs" if level_key == "THCS" else "thpt"
         edu = EDUCATION_DATA[curr_lvl]
         with r1c3:
@@ -2206,44 +2355,119 @@ def module_lesson_plan():
         with r3c1:
             duration = st.number_input("Thời lượng (phút)", min_value=10, max_value=60, value=40, step=1, key=_lp_key("duration"))
         with r3c2:
-            class_size = st.number_input("Sĩ số", min_value=10, max_value=60, value=40, step=1, key=_lp_key("class_size"))
+            class_size = st.number_input("Sĩ số (tuỳ chọn)", min_value=10, max_value=60, value=40, step=1, key=_lp_key("class_size"))
 
-        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # =========================
+        # UI KHỐI "TÀI LIỆU BÀI HỌC + GHI CHÚ" (TỐI ƯU)
+        # =========================
+        st.markdown("### 📌 Tài liệu bài học & Ghi chú (khuyến nghị để giáo án bám chuẩn SGK)")
 
-        st.markdown("<div class='lp-box'><div class='lp-h'>2) Tài liệu để AI bám sát (tuỳ chọn)</div>", unsafe_allow_html=True)
-        c_up1, c_up2 = st.columns(2)
-        with c_up1:
-            lesson_file = st.file_uploader(
-                "Tài liệu bài học (PDF/Word)",
-                type=["pdf", "docx"],
-                key=_lp_key("lesson_file"),
-                help="Nếu là PDF scan/ảnh: hệ thống sẽ thử OCR (nếu VPS có cài pdf2image + pytesseract)."
+        with st.expander("📎 Tải tài liệu bài học (ƯU TIÊN) – PDF/Ảnh/Word", expanded=True):
+            c_up1, c_up2 = st.columns([2, 1])
+
+            with c_up1:
+                lesson_files = st.file_uploader(
+                    "1) SGK / Bài học / Phiếu học tập (PDF, ảnh, Word)",
+                    type=["pdf", "docx", "png", "jpg", "jpeg"],
+                    accept_multiple_files=True,
+                    key=_lp_key("lesson_files"),
+                    help="Khuyến nghị: tải trang SGK/bài học dạng PDF hoặc ảnh chụp rõ nét. AI sẽ bám nội dung này để soạn đúng bài."
+                )
+
+            with c_up2:
+                ppct_file = st.file_uploader(
+                    "2) PPCT / KHDH của trường (tùy chọn)",
+                    type=["docx", "pdf"],
+                    accept_multiple_files=False,
+                    key=_lp_key("ppct_file"),
+                    help="Nếu có, AI sẽ ưu tiên PPCT/KHDH để đúng tuần/tiết/nội dung."
+                )
+
+            opt1, opt2, opt3 = st.columns([1, 1, 1])
+            with opt1:
+                max_pages = st.number_input(
+                    "Giới hạn trang PDF",
+                    min_value=1, max_value=15, value=6, step=1,
+                    key=_lp_key("pdf_max_pages"),
+                    help="Giới hạn để VPS chạy nhanh. Nếu bài dài, tăng lên 8–10."
+                )
+            with opt2:
+                try_ocr = st.checkbox(
+                    "OCR nếu PDF là ảnh (khuyến nghị)",
+                    value=True,
+                    key=_lp_key("pdf_try_ocr"),
+                    help="Bật nếu SGK là PDF scan/ảnh. VPS cần cài pdf2image + pytesseract."
+                )
+            with opt3:
+                show_extract = st.checkbox(
+                    "Xem trước nội dung trích xuất",
+                    value=False,
+                    key=_lp_key("show_extract"),
+                )
+
+        st.divider()
+
+        st.markdown("#### ✅ Gợi ý nhanh (bấm chọn)")
+        g1, g2, g3, g4 = st.columns(4)
+        with g1:
+            goal_chip = st.multiselect(
+                "Mục tiêu chính",
+                ["Hình thành kiến thức mới", "Củng cố kiến thức", "Luyện tập", "Vận dụng", "Ôn tập", "Kiểm tra"],
+                default=[],
+                key=_lp_key("goal_chip")
             )
-        with c_up2:
-            ppct_file = st.file_uploader(
-                "PPCT/KHDH (Word – tuỳ chọn)",
-                type=["docx"],
-                key=_lp_key("ppct_file")
+        with g2:
+            method_chip = st.multiselect(
+                "Hình thức tổ chức",
+                ["Cặp đôi", "Nhóm 4", "Cá nhân", "Trò chơi", "Thảo luận", "Trình bày"],
+                default=[],
+                key=_lp_key("method_chip")
+            )
+        with g3:
+            diff_chip = st.multiselect(
+                "Phân hoá (nếu có)",
+                ["Bài cơ bản", "Bài nâng cao", "Hỗ trợ HS yếu", "Thử thách HS giỏi"],
+                default=[],
+                key=_lp_key("diff_chip")
+            )
+        with g4:
+            assess_chip = st.multiselect(
+                "Đánh giá trong giờ",
+                ["Quan sát", "Hỏi-đáp", "Phiếu học tập", "Bảng con", "Sản phẩm nhóm"],
+                default=[],
+                key=_lp_key("assess_chip")
             )
 
-        ocr_col1, ocr_col2 = st.columns([1, 1])
-        with ocr_col1:
-            max_pages = st.number_input("Giới hạn trang PDF", min_value=1, max_value=12, value=6, step=1, key=_lp_key("pdf_pages"))
-        with ocr_col2:
-            ocr_on = st.checkbox("OCR nếu PDF là scan/ảnh", value=True, key=_lp_key("pdf_ocr"))
+        c_txt1, c_txt2 = st.columns(2)
+        with c_txt1:
+            objectives = st.text_area(
+                "Mục tiêu (bổ sung nếu cần)",
+                key=_lp_key("objectives"),
+                height=110,
+                placeholder="Ví dụ: Nhấn mạnh kỹ năng đặt tính; rèn trình bày; tăng bài toán lời văn..."
+            )
+        with c_txt2:
+            yccd = st.text_area(
+                "Yêu cầu cần đạt (bổ sung nếu cần)",
+                key=_lp_key("yccd"),
+                height=110,
+                placeholder="Nếu không nhập, AI sẽ tự xác định theo SGK/CTGDPT 2018."
+            )
 
-        preview_extract = st.checkbox("Xem trước nội dung trích xuất", value=False, key=_lp_key("preview_extract"))
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown("<div class='lp-box'><div class='lp-h'>3) Ghi chú thêm (tuỳ chọn)</div>", unsafe_allow_html=True)
-        teacher_note_extra = st.text_area(
-            "Ghi chú cho AI",
-            key=_lp_key("teacher_note_extra"),
-            height=120,
-            placeholder="Ví dụ: Có trò chơi khởi động 3 phút; ưu tiên hoạt động cặp đôi; tăng luyện tập; có 1 bài phân hoá..."
+        materials = st.text_area(
+            "Đồ dùng / học liệu (tùy chọn)",
+            key=_lp_key("materials"),
+            height=90,
+            placeholder="Gợi ý: SGK, bảng phụ, phiếu học tập, bảng con, tranh ảnh, máy chiếu..."
         )
-        st.markdown("</div>", unsafe_allow_html=True)
+
+        special = st.text_area(
+            "Yêu cầu điều chỉnh (tùy chọn)",
+            key=_lp_key("special"),
+            height=90,
+            placeholder="Ví dụ: Có trò chơi 3 phút; tăng luyện tập; ưu tiên cặp đôi; có 1 bài phân hoá..."
+        )
 
         b1, b2 = st.columns([1.2, 1.0])
         with b1:
@@ -2251,7 +2475,17 @@ def module_lesson_plan():
         with b2:
             regen_btn = st.form_submit_button("🔁 TẠO LẠI", use_container_width=True)
 
+    # ---------- Xử lý tạo giáo án ----------
     if generate_btn or regen_btn:
+        # [NEW] Trừ điểm cho VIP trước khi chạy AI
+        user = st.session_state.get("user", {})
+        if user and user.get("role") == "pro":
+            client = init_supabase()
+            ok, new_pts, msg = deduct_points(client, user.get("email"), POINT_COST_LESSON_PLAN)
+            if not ok:
+                st.error("❌ " + msg)
+                return
+            st.session_state["user"]["points"] = new_pts
         api_key = _lp_api_key()
         if not api_key:
             st.error("❌ Chưa có API Key.")
@@ -2262,114 +2496,116 @@ def module_lesson_plan():
             st.error("❌ Vui lòng nhập Tên bài học (PPCT).")
             st.stop()
 
-        # ---- trích xuất tài liệu bài học (nếu có) ----
-        extracted_text = ""
-        if lesson_file is not None:
-            try:
-                if lesson_file.name.lower().endswith(".pdf"):
-                    pdf_bytes = lesson_file.getvalue()
-                    extracted_text = extract_text_from_pdf_bytes(
-                        pdf_bytes,
-                        max_pages=int(max_pages),
-                        ocr_if_needed=bool(ocr_on)
-                    )
-                elif lesson_file.name.lower().endswith(".docx"):
-                    extracted_text = read_file_content(lesson_file, 'docx')
-            except Exception:
-                extracted_text = ""
+        ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
+        ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
 
-        ppct_text = ""
-        if ppct_file is not None:
-            try:
-                ppct_text = read_file_content(ppct_file, 'docx')
-            except Exception:
-                ppct_text = ""
-
-        if preview_extract and (extracted_text or ppct_text):
-            with st.expander("🔎 Xem trước nội dung trích xuất", expanded=True):
-                if extracted_text:
-                    st.markdown("**Tài liệu bài học:**")
-                    st.write(extracted_text[:6000])
-                if ppct_text:
-                    st.markdown("**PPCT/KHDH:**")
-                    st.write(ppct_text[:6000])
-
-        ppct_week_val = int(ppct_week)
-        ppct_period_val = int(ppct_period)
-
+        # Meta PPCT (tối thiểu để AI soạn đúng)
         meta_ppct = {
             "cap_hoc": level_key,
             "lop": grade,
             "mon": subject,
             "ten_bai": lesson_title,
-            "tuan": ppct_week_val,
-            "tiet": ppct_period_val,
+            "tuan": int(ppct_week_val),
+            "tiet": int(ppct_period_val),
             "bo_sach": book,
             "thoi_luong": int(duration),
             "si_so": int(class_size),
         }
 
+        # Ghi chú GV gửi cho AI (gọn, không nhiễu)
         teacher_note = f"""PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}
-Ghi chú thêm: {teacher_note_extra.strip() if teacher_note_extra else ""}
+Mục tiêu GV nhập: {objectives.strip() if objectives else ""}
+YCCĐ GV nhập: {yccd.strip() if yccd else ""}
+Đồ dùng/học liệu: {materials.strip() if materials else ""}
+Yêu cầu đặc biệt: {special.strip() if special else ""}
 
 YÊU CẦU CHẤT LƯỢNG:
 - Không viết 'Bước 1/2' hoặc 'Nhiệm vụ 1/2' chung chung.
-- Mỗi dòng hoạt động phải có NHIỆM VỤ HỌC TẬP CỤ THỂ (câu hỏi/bài tập/sản phẩm).
-- Nếu Toán: phải có ví dụ số cụ thể + bài luyện tập (Bài 1, Bài 2...) và dự kiến đáp án/nhận xét.
+- Trong tiến trình, mỗi dòng phải là NHIỆM VỤ HỌC TẬP CỤ THỂ (có bài tập/ví dụ/câu hỏi).
+- Với Toán: phải có ví dụ số cụ thể + bài tập luyện tập và đáp án/nhận xét dự kiến.
 """.strip()
+        # Lấy dữ liệu từ upload (nếu có) để AI bám sát SGK
+        lesson_files = st.session_state.get(_lp_key("lesson_files"), None)
+        ppct_file = st.session_state.get(_lp_key("ppct_file"), None)
+        max_pages = int(st.session_state.get(_lp_key("pdf_max_pages"), 6))
+        try_ocr = bool(st.session_state.get(_lp_key("pdf_try_ocr"), True))
 
-        if extracted_text:
-            teacher_note += build_pdf_context_for_teacher_note(extracted_text)
-        if ppct_text:
-            teacher_note += "\n\n[PPCT/KHDH – ƯU TIÊN BÁM SÁT]\n" + ppct_text[:12000]
+        uploaded_ctx = build_uploaded_materials_context(
+            lesson_files=lesson_files,
+            ppct_file=ppct_file,
+            max_pages=max_pages,
+            try_ocr=try_ocr
+        )
 
-        with st.spinner("🤖 AI đang soạn giáo án..." ):
-            try:
-                data = generate_lesson_plan_data_only(
-                    api_key=api_key,
-                    meta_ppct=meta_ppct,
-                    teacher_note=teacher_note,
-                    model_name="gemini-2.0-flash"
-                )
-                validate_lesson_plan(data)
-                content_html = render_lesson_plan_html(data)
-            except Exception as e:
-                st.error(f"❌ Lỗi khi tạo giáo án: {e}")
-                st.stop()
+        # Gắn chip gợi ý để AI hiểu ý nhanh nhưng không làm loãng
+        goal_chip = st.session_state.get(_lp_key("goal_chip"), [])
+        method_chip = st.session_state.get(_lp_key("method_chip"), [])
+        diff_chip = st.session_state.get(_lp_key("diff_chip"), [])
+        assess_chip = st.session_state.get(_lp_key("assess_chip"), [])
+
+        chip_note = f"""GỢI Ý NHANH (GV chọn):
+- Mục tiêu chính: {", ".join(goal_chip) if goal_chip else "Không chọn"}
+- Hình thức tổ chức: {", ".join(method_chip) if method_chip else "Không chọn"}
+- Phân hoá: {", ".join(diff_chip) if diff_chip else "Không chọn"}
+- Đánh giá trong giờ: {", ".join(assess_chip) if assess_chip else "Không chọn"}""".strip()
+
+        teacher_note = f"""{teacher_note}
+
+{chip_note}
+
+{uploaded_ctx if uploaded_ctx else ""}""".strip()
+
+        # (Tuỳ chọn) xem trước nội dung trích xuất
+        if st.session_state.get(_lp_key("show_extract"), False) and uploaded_ctx:
+            st.info("📌 Nội dung trích xuất để AI bám:")
+            st.text_area("Preview", uploaded_ctx[:12000], height=220)
+
+
+        try:
+            data = generate_lesson_plan_data_only(
+                api_key=api_key,
+                meta_ppct=meta_ppct,
+                teacher_note=teacher_note,
+                model_name="gemini-2.0-flash"
+            )
+            validate_lesson_plan(data)
+            content_html = render_lesson_plan_html(data)
+        except Exception as e:
+            st.error(f"❌ Lỗi khi tạo giáo án: {e}")
+            st.stop()
 
         st.session_state[_lp_key("last_title")] = f"Giáo án - {lesson_title}"
         st.session_state[_lp_key("last_html")] = content_html
         st.toast("Đã tạo giáo án!", icon="✅")
 
-    # ---- Xem trước & tải về ----
+    # ---------- Xem trước & Xuất ----------
     content_html = st.session_state.get(_lp_key("last_html"), "")
     if content_html:
-        st.markdown("## 📄 Xem trước giáo án")
+        st.markdown("## Xem trước")
         st.components.v1.html(content_html, height=760, scrolling=True)
 
-        st.markdown("## ⬇️ Tải về")
+        st.markdown("## Xuất file")
         cdl1, cdl2 = st.columns([1.2, 1.2])
-        title = st.session_state.get(_lp_key("last_title"), "GiaoAn")
-
         with cdl1:
             st.download_button(
                 "⬇️ Tải Word (.doc)",
-                data=create_word_doc(content_html, title),
-                file_name=f"{title}.doc",
+                data=content_html.encode("utf-8"),
+                file_name=f"{st.session_state.get(_lp_key('last_title'), 'GiaoAn')}.doc",
                 mime="application/msword",
                 type="primary",
                 use_container_width=True,
-                key=_lp_key("dl_word")
+                key=_lp_key("dl_word_simple"),
             )
         with cdl2:
             st.download_button(
                 "⬇️ Tải HTML",
                 data=content_html.encode("utf-8"),
-                file_name=f"{title}.html",
+                file_name=f"{st.session_state.get(_lp_key('last_title'), 'GiaoAn')}.html",
                 mime="text/html",
                 use_container_width=True,
-                key=_lp_key("dl_html")
+                key=_lp_key("dl_html_simple"),
             )
+
 
 def login_screen():
     c1, c2, c3 = st.columns([1, 1.5, 1])
@@ -2407,6 +2643,7 @@ def login_screen():
                                 "email": user_data["username"],
                                 "fullname": user_data["fullname"],
                                 "role": user_data["role"],
+                                "points": int(user_data.get("points_balance", 0) or 0),
                             }
                             st.success("Đăng nhập thành công!")
                             st.rerun()
@@ -2443,6 +2680,7 @@ def login_screen():
                                     "fullname": new_name,
                                     "role": "free",
                                     "usage_count": 0,
+                                    "points_balance": 0,
                                 }
                             ).execute()
                             st.success("Đăng ký thành công! Mời đăng nhập.")
@@ -2456,8 +2694,11 @@ def login_screen():
 def dashboard_screen():
     # Dashboard 4 thẻ card, an toàn (CSS đã có sẵn .css-card)
     st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 🏠 Dashboard – WEB AI GIÁO VIÊN")
+    st.markdown("## 🏠 Menu chính – WEB AI GIÁO VIÊN")
     st.caption("Chọn mô-đun ở thanh bên trái để sử dụng.")
+    user = st.session_state.get('user', {})
+    if user:
+        st.info(f"💰 Điểm hiện có: **{int(user.get('points',0) or 0)}** điểm | VIP: **{user.get('role','').upper()}**")
     st.markdown("</div>", unsafe_allow_html=True)
 
     # 4 cards
@@ -2492,6 +2733,12 @@ def dashboard_screen():
       </div>
     </div>
     """, unsafe_allow_html=True)
+
+
+    st.markdown("---")
+    with st.expander("💎 Nạp VIP / Gia hạn PRO (SePay/VietQR)", expanded=False):
+        current_user = st.session_state.get('user', {'role': 'guest'})
+        render_vip_topup(user=current_user, is_admin=(current_user.get('role') == 'admin'), key_prefix='vipdash')
 
 # --------- Modules placeholder (thầy có thể thay bằng module thật sau) ----------
 def module_digital():
@@ -2571,6 +2818,1604 @@ def module_digital():
         
         # Nút bấm xử lý
         if st.button("✨ BẮT ĐẦU TÍCH HỢP NĂNG LỰC SỐ", type="primary", use_container_width=True):
+            # [NEW] Trừ điểm cho VIP trước khi chạy AI
+            user = st.session_state.get("user", {})
+            if user and user.get("role") == "pro":
+                client = init_supabase()
+                ok, new_pts, msg = deduct_points(client, user.get("email"), POINT_COST_NLS)
+                if not ok:
+                    st.error("❌ " + msg)
+                    return
+                st.session_state["user"]["points"] = new_pts
+            api_key = st.session_state.get("api_key") or SYSTEM_GOOGLE_KEY
+            if not api_key:
+                st.error("⚠️ Vui lòng nhập API Key ở Tab Hồ Sơ trước!")
+            elif not file_lesson:
+                st.error("⚠️ Vui lòng tải lên file Giáo án gốc!")
+            else:
+                with st.spinner("🤖 AI đang phân tích và tích hợp năng lực số... Vui lòng đợi 30s"):
+                    # Đọc nội dung file
+                    lesson_text = read_file_content(file_lesson, 'docx')
+                    ppct_text = read_file_content(file_ppct, 'docx') if file_ppct else ""
+                    
+                    # Gọi hàm xử lý (Đã định nghĩa ở Bước 1)
+                    result_text = generate_nls_lesson_plan(
+                        api_key, lesson_text, ppct_text, textbook, subject, grade, analyze_only
+                    )
+                    
+                    # Lưu kết quả vào session
+                    st.session_state['nls_result'] = result_text
+                    st.success("✅ Đã xử lý xong!")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_right:
+        # Sidebar thông tin (Giống UI React)
+        st.markdown("""
+        <div class="nls-card" style="background:#EFF6FF; border:1px solid #BFDBFE;">
+            <h4 style="color:#1E3A8A; margin-top:0;">💡 Hướng dẫn nhanh</h4>
+            <ol style="font-size:14px; padding-left:15px; color:#334155;">
+                <li>Chọn <b>Bộ sách, Môn, Lớp</b>.</li>
+                <li>Tải lên <b>Giáo án gốc</b> (File Word .docx).</li>
+                <li>Tải lên <b>PPCT</b> (Nếu muốn AI bám sát yêu cầu trường).</li>
+                <li>Bấm <b>Bắt đầu</b> và đợi kết quả.</li>
+            </ol>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="nls-card">
+            <h4 style="color:#1E3A8A; margin-top:0;">🌐 Các miền Năng lực số</h4>
+            <ul style="font-size:13px; padding-left:15px; color:#475569;">
+                <li>Khai thác dữ liệu & thông tin</li>
+                <li>Giao tiếp & Hợp tác số</li>
+                <li>Sáng tạo nội dung số</li>
+                <li>An toàn & An ninh số</li>
+                <li>Giải quyết vấn đề với công nghệ</li>
+                <li><b>Ứng dụng AI (Mới)</b></li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # --- Hiển thị kết quả ---
+    if 'nls_result' in st.session_state and st.session_state['nls_result']:
+        st.markdown("---")
+        st.subheader("📄 KẾT QUẢ GIÁO ÁN NLS")
+        
+        # Tab xem trước và tải về
+        tab_view, tab_download = st.tabs(["Xem trước", "Tải về"])
+        
+        with tab_view:
+            st.markdown(st.session_state['nls_result'])
+            
+        with tab_download:
+            # Tái sử dụng hàm create_word_doc có sẵn trong app.py cũ
+            doc_html = st.session_state['nls_result'].replace("\n", "<br>") # Chuyển đổi sơ bộ sang HTML
+            st.download_button(
+                label="⬇️ Tải Giáo án Word (.doc)",
+                data=create_word_doc(doc_html, "Giao_An_NLS"),
+                file_name=f"Giao_An_NLS_{subject}_{grade}.doc",
+                mime="application/msword",
+                type="primary"
+            )
+
+
+def render_vip_topup(user: dict):
+    """
+    Khu nạp VIP + kích hoạt tự động qua SePay/VietQR.
+    Khi kích hoạt thành công: nâng role=pro và cộng điểm (VIP_TOPUP_POINTS) vào users_pro.points_balance.
+    """
+    st.markdown("### 🚀 BẢNG GIÁ & NÂNG CẤP VIP")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("#### Gói FREE")
+        st.write("0đ")
+        st.markdown("✅ Tạo thử 3 đề")
+        st.markdown("❌ Tải file Word")
+        st.markdown("❌ Xem đáp án chi tiết")
+        st.markdown("❌ Hỗ trợ kỹ thuật")
+
+    with col2:
+        st.markdown("#### Gói PRO VIP")
+        st.write("50,000đ / gói (tặng 550 điểm)")
+        st.markdown("✅ Tạo đề / giáo án bằng AI")
+        st.markdown("✅ Tải file Word chuẩn")
+        st.markdown("✅ Hỗ trợ ưu tiên")
+
+    st.divider()
+    st.markdown("### 🧾 QUÉT MÃ QR ĐỂ THANH TOÁN TỰ ĐỘNG")
+
+    # Nội dung chuyển khoản: dùng để đối soát
+    username = (user or {}).get("email", "guest")
+    transfer_content = f"{SEPAY_TRANSFER_PREFIX} {username}"
+
+    left, right = st.columns([1, 2])
+    with left:
+        if os.path.exists(VIETQR_IMAGE_PATH):
+            st.image(VIETQR_IMAGE_PATH, caption="Mã QR (50,000đ)")
+        else:
+            st.info("Chưa thấy ảnh QR. Hãy đặt file QR vào đúng đường dẫn cấu hình.")
+        st.caption("Nội dung chuyển khoản cần đúng để xác minh tự động.")
+
+    with right:
+        st.info(f"**Nội dung chuyển khoản:** `{transfer_content}`\n\n1) Quét QR và chuyển đúng 50.000đ\n2) Sau khi chuyển, bấm **KÍCH HOẠT NGAY** để hệ thống xác minh tự động.")
+        ref_code_input = st.text_input("Mã giới thiệu (tuỳ chọn)", value="", placeholder="Nhập username/email người giới thiệu (nếu có)")
+        if st.button("🚀 KÍCH HOẠT NGAY (Sau khi đã CK)", type="primary"):
+            client = init_supabase()
+            ok, tx = check_sepay_transaction(transfer_content)
+            if not ok:
+                st.error("❌ Chưa thấy giao dịch phù hợp. Vui lòng đợi 10-30s rồi bấm lại, hoặc kiểm tra đúng nội dung chuyển khoản.")
+                return
+
+            # Update người mua: role=pro, cộng điểm
+            buyer_row = fetch_user_row(client, username)
+            cur_points = get_points_balance(buyer_row)
+            new_points = cur_points + VIP_TOPUP_POINTS
+
+            # bonus_turns giữ logic cũ nếu đang dùng
+            bonus_add = int(buyer_row.get("bonus_turns", 0) or 0)
+
+            update_payload = {
+                "role": "pro",
+                "usage_count": 0,
+                "bonus_turns": bonus_add,
+                "points_balance": new_points,
+                "referred_by": ref_code_input.strip() if ref_code_input.strip() else None,
+            }
+            client.table("users_pro").update(update_payload).eq("username", username).execute()
+
+            # Cộng hoa hồng cho ref (nếu có)
+            if ref_code_input.strip():
+                ref_row = fetch_user_row(client, ref_code_input.strip())
+                if ref_row:
+                    ref_comm = int(ref_row.get("commission_balance", 0) or 0)
+                    client.table("users_pro").update({"commission_balance": ref_comm + REFERRAL_COMMISSION}).eq("username", ref_code_input.strip()).execute()
+
+            st.success(f"✅ Kích hoạt VIP thành công! Bạn được cộng **{VIP_TOPUP_POINTS} điểm**.")
+            # cập nhật session
+            if "user" in st.session_state and st.session_state["user"].get("email") == username:
+                st.session_state["user"]["role"] = "pro"
+                st.session_state["user"]["points"] = new_points
+def validate_lesson_plan_data(data: dict) -> None:
+    Draft202012Validator.check_schema(LESSON_PLAN_DATA_SCHEMA)
+    validate(instance=data, schema=LESSON_PLAN_DATA_SCHEMA)
+
+
+
+def validate_lesson_plan_quality(data: dict) -> None:
+    """Quality gate để chặn giáo án 'khung' và thiếu chi tiết."""
+    import re
+    data = data or {}
+    meta = data.get("meta", {}) or {}
+    sections = data.get("sections", {}) or {}
+    mon = str(meta.get("mon","")).lower()
+
+    # collect all strings
+    texts = []
+    def collect(x):
+        if x is None:
+            return
+        if isinstance(x, str):
+            texts.append(x)
+        elif isinstance(x, dict):
+            for v in x.values():
+                collect(v)
+        elif isinstance(x, list):
+            for v in x:
+                collect(v)
+    collect(sections)
+
+    joined = " ".join(texts).lower()
+    if re.search(r"\bbổ\s*sung\s*nội\s*dung\b", joined):
+        raise ValueError("Giáo án còn placeholder 'Bổ sung nội dung'.")
+    if re.search(r"\bbước\s*\d+\b", joined) or re.search(r"\bnhiệm\s*vụ\s*\d+\b", joined):
+        raise ValueError("Giáo án còn dùng 'Bước/Nhiệm vụ 1..' (không đạt chuẩn).")
+
+    secIII = sections.get("III", {}) or {}
+    bang = secIII.get("bang") if isinstance(secIII, dict) else []
+    if not isinstance(bang, list) or len(bang) < 12:
+        raise ValueError("Bảng hoạt động (III.bang) quá ngắn hoặc thiếu (cần tối thiểu ~12 dòng để đủ chi tiết).")
+
+    # For math: need at least 2 'Bài' and some numbers/expressions
+    if "toán" in mon:
+        bai_count = sum(1 for t in texts if re.search(r"\bBài\s*\d+\b", t))
+        num_count = sum(1 for t in texts if re.search(r"\d+[\.,]\d+|\d+\s*[-+×x*/:]\s*\d+", t))
+        if bai_count < 2 or num_count < 4:
+            raise ValueError("Giáo án Toán chưa đủ chi tiết: cần tối thiểu 2 mục 'Bài ...' và có số liệu/phép tính cụ thể.")
+
+def _schema_error_to_text(e: Exception) -> str:
+    if isinstance(e, ValidationError):
+        path = " → ".join([str(p) for p in e.path]) if e.path else "(root)"
+        return f"SchemaError at {path}: {e.message}"
+    return str(e)
+
+def validate_lesson_plan(data: dict) -> None:
+    try:
+        Draft202012Validator.check_schema(LESSON_PLAN_SCHEMA)
+        validate(instance=data, schema=LESSON_PLAN_SCHEMA)
+    except Exception as e:
+        print(f"Schema Warning: {e}")
+
+# ==============================================================================
+# [MỚI] 2.3. HÀM TẠO PROMPT & GỌI AI (CHUẨN HÓA BẢNG 2 CỘT)
+# ==============================================================================
+def build_lesson_system_prompt_locked(meta: dict, teacher_note: str) -> str:
+    return f"""
+VAI TRÒ: Bạn là Giáo viên Tiểu học cốt cán, chuyên soạn GIÁO ÁN MẪU theo định hướng phát triển năng lực (CV 2345/BGDĐT).
+
+THÔNG TIN BÀI DẠY:
+- Cấp học: {meta.get("cap_hoc")} | Môn: {meta.get("mon")} | Lớp: {meta.get("lop")}
+- Tuần: {meta.get("tuan")} | Tiết: {meta.get("tiet")}
+- Tên bài: {meta.get("ten_bai")} ({meta.get("ghi_chu","")})
+- Mã bài: {meta.get("bai_id")}
+- Bộ sách: {meta.get("bo_sach")}
+
+YÊU CẦU CẤU TRÚC (BẮT BUỘC GIỐNG MẪU CHUẨN):
+Giáo án phải trình bày dưới dạng HTML, font Times New Roman, gồm 4 phần chính:
+
+I. Yêu cầu cần đạt:
+- Nêu rõ năng lực đặc thù, năng lực chung và phẩm chất.
+
+II. Đồ dùng dạy học:
+- Giáo viên: (Slide, tranh ảnh, thẻ từ...)
+- Học sinh: (SGK, bảng con...)
+
+III. Các hoạt động dạy – học chủ yếu:
+***QUAN TRỌNG NHẤT: Phần này phải kẻ BẢNG (HTML <table>) gồm 2 cột***
+- Cột 1: Hoạt động của Giáo viên
+- Cột 2: Hoạt động của Học sinh
+- Nội dung chia thành các hoạt động lớn (dùng dòng colspan hoặc in đậm để phân cách):
+  1. Khởi động (Trò chơi, hát, kết nối...)
+  2. Khám phá / Hình thành kiến thức mới (hoặc Luyện tập thực hành tùy bài)
+  3. Vận dụng / Trải nghiệm
+*Lưu ý văn phong:* Dùng từ ngữ sư phạm như "Tổ chức cho HS...", "Yêu cầu HS...", "Mời đại diện nhóm...", "GV chốt lại...".
+*Chi tiết:* Viết rõ lời thoại, câu hỏi của GV và câu trả lời dự kiến của HS. Viết rõ các phép tính hoặc nội dung bài tập (VD: 27 - 1,2 = 25,8).
+
+IV. Điều chỉnh sau bài dạy:
+- Để trống dòng kẻ chấm (...) để GV tự ghi.
+
+GHI CHÚ GV: {teacher_note}
+
+OUTPUT JSON FORMAT:
+Chỉ trả về JSON hợp lệ với 2 trường chính:
+1. "meta": Thông tin bài học.
+2. "renderHtml": Toàn bộ nội dung giáo án dạng HTML (để hiển thị và in ấn). Trong đó phần III phải là thẻ <table> có border="1".
+""".strip()
+
+# [FIX] Hàm LOCKED: chỉ làm nhiệm vụ gọi AI và trả dict (KHÔNG chứa UI, KHÔNG tự gọi lại)
+def generate_lesson_plan_locked(
+    api_key: str,
+    meta_ppct: dict,
+    bo_sach: str,
+    thoi_luong: int,
+    si_so: int,
+    teacher_note: str,
+    model_name: str = "gemini-2.0-flash"
+) -> dict:
+    """
+    Sinh JSON data-only theo LESSON_PLAN_DATA_SCHEMA (meta + sections).
+    Không render HTML ở đây. Không dùng st.spinner ở đây.
+    """
+    genai.configure(api_key=api_key)
+
+    # meta chuẩn (đúng schema)
+    req_meta = {
+        "cap_hoc": meta_ppct.get("cap_hoc", ""),
+        "mon": meta_ppct.get("mon", ""),
+        "lop": meta_ppct.get("lop", ""),
+        "bo_sach": bo_sach,
+        "ppct": {
+            "tuan": int(meta_ppct.get("tuan", 1)),
+            "tiet": int(meta_ppct.get("tiet", 1)),
+            "bai_id": meta_ppct.get("bai_id", "AUTO"),
+            "ghi_chu": meta_ppct.get("ghi_chu", "")
+        },
+        "ten_bai": meta_ppct.get("ten_bai", ""),
+        "thoi_luong": int(thoi_luong),
+        "si_so": int(si_so),
+        "ngay_day": meta_ppct.get("ngay_day", "")
+    }
+
+    # prompt data-only (khuyến nghị dùng prompt data-only thay vì prompt HTML)
+    system_prompt = build_lesson_system_prompt_data_only(
+        meta={
+            "cap_hoc": req_meta["cap_hoc"],
+            "mon": req_meta["mon"],
+            "lop": req_meta["lop"],
+            "bo_sach": req_meta["bo_sach"],
+            "tuan": req_meta["ppct"]["tuan"],
+            "tiet": req_meta["ppct"]["tiet"],
+            "bai_id": req_meta["ppct"]["bai_id"],
+            "ten_bai": req_meta["ten_bai"],
+            "thoi_luong": req_meta["thoi_luong"],
+            "si_so": req_meta["si_so"],
+        },
+        teacher_note=teacher_note
+    )
+
+    model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
+
+    safe_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    ]
+
+    base_req = {"meta": req_meta, "note": teacher_note}
+    last_err = ""
+
+    # thử tối đa 2 lần, nếu sai schema thì tự sửa
+    for attempt in range(1, 3):
+        try:
+            res = model.generate_content(
+                json.dumps(base_req, ensure_ascii=False),
+                generation_config={"response_mime_type": "application/json"},
+                safety_settings=safe_settings
+            )
+
+            raw = json.loads(clean_json(res.text))
+
+            data = {
+                "meta": req_meta,
+                "sections": raw.get("sections", {})
+            }
+
+            validate_lesson_plan_data(data)  # bắt buộc đúng schema
+            return data
+
+        except Exception as e:
+            last_err = _schema_error_to_text(e)
+            repair_note = f"""
+[SCHEMA_REPAIR]
+Bạn vừa trả JSON KHÔNG đạt schema.
+LỖI: {last_err}
+
+YÊU CẦU:
+- Chỉ trả JSON gồm "meta" và "sections"
+- sections phải có đủ I, II, III, IV
+- III.hoat_dong >= 3; mỗi hoạt động có ten_hoat_dong, thoi_gian, gv>=2, hs>=2
+- Không tạo HTML
+Chỉ trả JSON
+"""
+            base_req = {"meta": req_meta, "note": teacher_note + "\n" + repair_note}
+
+    # fallback an toàn
+    return {
+        "meta": req_meta,
+        "sections": {
+            "I": {"yeu_cau_can_dat": [f"(Lỗi tạo dữ liệu) {last_err}"]},
+            "II": {"giao_vien": ["..."], "hoc_sinh": ["..."]},
+            "III": {"hoat_dong": [
+                {"ten_hoat_dong": "Khởi động", "thoi_gian": 5, "gv": ["...", "..."], "hs": ["...", "..."]},
+                {"ten_hoat_dong": "Hình thành kiến thức", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]},
+                {"ten_hoat_dong": "Luyện tập/Vận dụng", "thoi_gian": 15, "gv": ["...", "..."], "hs": ["...", "..."]}
+            ]},
+            "IV": {"dieu_chinh_sau_bai_day": "...................................................................................."}
+        }
+    }
+
+# ==============================================================================
+# [PATCH 2/3] PROMPT KHÓA CỨNG: DATA-ONLY JSON (ANTI-HALLUCINATION)
+# ==============================================================================
+
+def build_lesson_system_prompt_data_only(meta: dict, teacher_note: str) -> str:
+    """System prompt để AI sinh JSON (meta + sections) theo mẫu giáo án tiểu học.
+    Bám Công văn 2345/BGDĐT-GDTH và mẫu giáo án chuẩn do người dùng cung cấp.
+    """
+    return f"""
+Bạn là GIÁO VIÊN TIỂU HỌC cốt cán, soạn KẾ HOẠCH BÀI DẠY theo CTGDPT 2018 (CV 2345/BGDĐT-GDTH).
+
+NHIỆM VỤ:
+- Bạn sẽ nhận INPUT là 1 JSON có trường meta (thông tin bài) và note (ghi chú GV).
+- Bạn phải trả về DUY NHẤT 1 JSON hợp lệ, KHÔNG kèm chữ giải thích.
+
+YÊU CẦU CHẤT LƯỢNG (RẤT QUAN TRỌNG):
+- Viết ĐÚNG NGHIỆP VỤ SƯ PHẠM, không viết khung chung chung.
+- CẤM các cụm: "Bổ sung nội dung", "Bước 1/2", "Nhiệm vụ 1/2", "Tổ chức bước...".
+- Phần III phải có NỘI DUNG DẠY - HỌC THẬT: bài tập/ví dụ/câu hỏi, sản phẩm HS (bảng con/vở/phiếu), lời gợi mở GV.
+- Nếu là TOÁN: bắt buộc có tối thiểu 2 mục "Bài 1/2/..." hoặc "Ví dụ..." và có số liệu/phép tính cụ thể (vd: 12,5 - 3,7; 4,2 × 0,5).
+
+CẤU TRÚC BẮT BUỘC:
+Trả về JSON có dạng:
+{{
+  "sections": {{
+    "I": {{
+      "yeu_cau_can_dat": [... >=5 ý ...],
+      "nang_luc": [... >=3 ý ...],
+      "pham_chat": [... >=2 ý ...],
+      "nang_luc_dac_thu": [... >=2 ý ...],
+      "nang_luc_so": [... >=1 ý ...]
+    }},
+    "II": {{
+      "giao_vien": [... >=6 ý ...],
+      "hoc_sinh": [... >=6 ý ...]
+    }},
+    "III": {{
+      "bang": [
+        {{"kieu":"header", "tieu_de":"1. Khởi động:"}},
+        {{"kieu":"row", "thoi_gian":4, "giao_vien":"...", "hoc_sinh":"..."}},
+        {{"kieu":"header", "tieu_de":"2. Luyện tập:"}},
+        {{"kieu":"row", "thoi_gian":10, "giao_vien":"...", "hoc_sinh":"Bài 1: ..."}}
+      ]
+    }},
+    "IV": {{
+      "dieu_chinh_sau_bai_day": "... (để dòng chấm cho GV ghi hoặc gợi ý 3 ý) ..."
+    }}
+  }}
+}}
+
+QUY TẮC BẢNG (III.bang):
+- bang là BẢNG 2 CỘT (GV/HS), nhưng trả về dạng JSON để hệ thống render.
+- kieu="header": chỉ dùng để ngăn cách hoạt động lớn (Khởi động/Khám phá-Hình thành/Luyện tập/Vận dụng).
+- kieu="row": phải có giao_vien và hoc_sinh viết CỤ THỂ (có câu hỏi, nhiệm vụ, sản phẩm).
+- Tổng số dòng bang tối thiểu 10 (không tính header), ưu tiên 12–18 dòng tuỳ bài.
+- thoi_gian: phút của dòng (1–10). Tổng cộng xấp xỉ meta.thoi_luong.
+
+BỐI CẢNH BÀI DẠY:
+- Cấp học: {meta.get('cap_hoc')}
+- Môn: {meta.get('mon')}
+- Lớp: {meta.get('lop')}
+- Bộ sách: {meta.get('bo_sach')}
+- Tên bài: {meta.get('ten_bai')}
+- PPCT: {meta.get('ppct')}
+
+GHI CHÚ GV (nếu có): {teacher_note}
+
+Chỉ trả JSON hợp lệ.
+""".strip()
+
+def generate_lesson_plan_data_only(
+    api_key: str,
+    meta_ppct: dict,
+    teacher_note: str,
+    model_name: str = "gemini-2.0-flash"
+) -> dict:
+    """Sinh JSON data-only (meta + sections) để render HTML.
+    Tự sửa tối đa 3 lần nếu sai schema hoặc thiếu chi tiết.
+    """
+    import json
+    genai.configure(api_key=api_key)
+
+    req_meta = {
+        "cap_hoc": meta_ppct.get("cap_hoc", ""),
+        "mon": meta_ppct.get("mon", ""),
+        "lop": meta_ppct.get("lop", ""),
+        "bo_sach": meta_ppct.get("bo_sach", ""),
+        "ppct": meta_ppct.get("ppct", {}) or {},
+        "ten_bai": meta_ppct.get("ten_bai", ""),
+        "thoi_luong": int(meta_ppct.get("thoi_luong", 40) or 40),
+        "si_so": int(meta_ppct.get("si_so", 35) or 35),
+    }
+
+    system_prompt = build_lesson_system_prompt_data_only(req_meta, teacher_note)
+    model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
+
+    safe_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    ]
+
+    base_req = {"meta": req_meta, "note": teacher_note}
+    last_err = ""
+
+    for attempt in range(1, 4):
+        try:
+            res = model.generate_content(
+                json.dumps(base_req, ensure_ascii=False),
+                generation_config={"response_mime_type": "application/json"},
+                safety_settings=safe_settings
+            )
+            raw = json.loads(clean_json(res.text))
+            data = {"meta": req_meta, "sections": raw.get("sections", {})}
+
+            validate_lesson_plan_data(data)
+            validate_lesson_plan_quality(data)
+            return data
+
+        except Exception as e:
+            last_err = _schema_error_to_text(e)
+            repair_note = f"""
+[SCHEMA_REPAIR]
+Bạn vừa trả JSON KHÔNG đạt schema hoặc thiếu chi tiết.
+LỖI: {last_err}
+
+YÊU CẦU BẮT BUỘC (chỉ trả JSON):
+- Root chỉ gồm object JSON có khóa 'sections'.
+- sections phải có đủ: I, II, III, IV.
+- I:
+  * yeu_cau_can_dat: mảng >=5 ý
+  * nang_luc: mảng >=3 ý
+  * pham_chat: mảng >=2 ý
+  * nang_luc_dac_thu: mảng >=2 ý
+  * nang_luc_so: mảng >=1 ý
+- II:
+  * giao_vien: mảng >=6 ý (thiết bị/học liệu/phiếu)
+  * hoc_sinh: mảng >=6 ý
+- III:
+  * bắt buộc có 'bang' là mảng.
+  * bang phải có >= 12 dòng 'row' (không tính header).
+  * header mẫu: {"kieu":"header","tieu_de":"1. Khởi động:"}
+  * row mẫu: {"kieu":"row","thoi_gian":4,"giao_vien":"...","hoc_sinh":"..."}
+  * CẤM 'Bước 1/2' hoặc 'Nhiệm vụ 1/2'. Viết nhiệm vụ học tập CỤ THỂ.
+  * Nếu Toán: phải có 'Bài 1/2/...' hoặc 'Ví dụ...' và có số liệu/phép tính cụ thể.
+- IV:
+  * dieu_chinh_sau_bai_day: chuỗi (có thể để dòng chấm).
+
+Chỉ trả JSON hợp lệ.
+""".strip()
+
+            base_req = {"meta": req_meta, "note": teacher_note + "\n" + repair_note}
+
+    # fallback an toàn (vẫn đúng schema)
+    return {
+        "meta": req_meta,
+        "sections": {
+            "I": {
+                "yeu_cau_can_dat": [f"(Lỗi tạo dữ liệu) {last_err}"],
+                "nang_luc": ["(Chưa có nội dung)"],
+                "pham_chat": ["(Chưa có nội dung)"],
+                "nang_luc_dac_thu": ["(Chưa có nội dung)"],
+                "nang_luc_so": ["(Chưa có nội dung)"],
+            },
+            "II": {"giao_vien": ["(Chưa có nội dung)"], "hoc_sinh": ["(Chưa có nội dung)"]},
+            "III": {"bang": [
+                {"kieu":"header","tieu_de":"1. Khởi động:"},
+                {"kieu":"row","thoi_gian":4,"giao_vien":"(Lỗi tạo dữ liệu) Không tạo được tiến trình. Vui lòng bấm TẠO LẠI.","hoc_sinh":"Lắng nghe và ghi nhận."},
+                {"kieu":"header","tieu_de":"2. Hình thành kiến thức / Luyện tập:"},
+                {"kieu":"row","thoi_gian":20,"giao_vien":"(Lỗi tạo dữ liệu) Hướng dẫn HS ôn tập và làm bài theo SGK.","hoc_sinh":"Làm bài vào vở/bảng con theo hướng dẫn."},
+                {"kieu":"header","tieu_de":"3. Vận dụng/Mở rộng:"},
+                {"kieu":"row","thoi_gian":8,"giao_vien":"(Lỗi tạo dữ liệu) Giao bài vận dụng và dặn dò.","hoc_sinh":"Hoàn thành bài, ghi nhiệm vụ về nhà."}
+            ]},
+            "IV": {"dieu_chinh_sau_bai_day": "……………………………………………………………………………………………\n……………………………………………………………………………………………\n……………………………………………………………………………………………"}
+        }
+    }
+
+def main_app():
+    if 'dossier' not in st.session_state: st.session_state['dossier'] = []
+    
+    user = st.session_state.get('user', {'role': 'guest'})
+    is_admin = user.get('role') == 'admin'
+
+    c1, c2, c3 = st.columns([3, 0.8, 0.8])
+    with c1:
+        st.markdown(f"<div class='header-text'>🎓 {APP_CONFIG['name']}</div>", unsafe_allow_html=True)
+        st.caption(f"User: {user.get('fullname', user.get('email', 'Guest'))} | Role: {user.get('role', '').upper()} | Điểm: {int(user.get('points',0) or 0)}")
+    
+    # Nút RESET
+    with c2:
+        if st.button("🔄 LÀM MỚI", use_container_width=True): 
+            st.session_state['dossier'] = [] 
+            st.toast("Đã làm mới hệ thống!", icon="🧹")
+            time.sleep(0.5)
+            st.rerun()
+            
+    # Nút ĐĂNG XUẤT
+    with c3:
+        if st.button("ĐĂNG XUẤT", use_container_width=True):
+            st.session_state.pop('user', None)
+            st.rerun()
+
+    # --- CẬP NHẬT TAB MỚI: THÊM '🎯 ĐỀ CHUẨN YCCĐ' (TAB SỐ 8) ---
+    tabs = st.tabs(["🚀 THIẾT LẬP", "📄 XEM ĐỀ", "✅ ĐÁP ÁN", "⚖️ PHÁP LÝ", "💎 NÂNG CẤP VIP", "💰 ĐỐI TÁC", "📂 HỒ SƠ", "🎯 ĐỀ CHUẨN YCCĐ"])
+
+    # --- TAB 1: THIẾT LẬP ---
+    with tabs[0]:
+        st.markdown('<div class="css-card">', unsafe_allow_html=True)
+        
+        col_year, col_lvl = st.columns(2)
+        with col_year: school_year = st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=1)
+        with col_lvl: level_key = st.radio("Cấp học", ["Tiểu học", "THCS", "THPT"], horizontal=True)
+        
+        curr_lvl = "tieu_hoc" if level_key == "Tiểu học" else "thcs" if level_key == "THCS" else "thpt"
+        edu = EDUCATION_DATA[curr_lvl]
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: grade = st.selectbox("Khối lớp", edu["grades"])
+        with c2: subject = st.selectbox("Môn học", edu["subjects"])
+        with c3: book = st.selectbox("Bộ sách", BOOKS_LIST)
+        
+        available_scopes = FULL_SCOPE_LIST
+        if curr_lvl == "tieu_hoc" and grade in ["Lớp 1", "Lớp 2", "Lớp 3"]:
+            available_scopes = LIMITED_SCOPE_LIST 
+        
+        with c4: scope = st.selectbox("Thời điểm", available_scopes)
+
+        if curr_lvl == "thpt":
+            struct_info = SUBJECT_STRUCTURE_DATA["THPT_2025"]
+        elif curr_lvl == "tieu_hoc":
+            if subject == "Tiếng Việt":
+                struct_info = SUBJECT_STRUCTURE_DATA["TieuHoc_TV"]
+            else:
+                struct_info = SUBJECT_STRUCTURE_DATA["TieuHoc_Chung"]
+        else:
+            struct_info = SUBJECT_STRUCTURE_DATA.get(subject, SUBJECT_STRUCTURE_DATA['Mặc định'])
+            
+        st.info(f"💡 **Cấu trúc:** {struct_info} | **Pháp lý:** {edu['legal']}")
+
+        uc1, uc2 = st.columns(2)
+        with uc1: mt_file = st.file_uploader("📂 Ma trận (Word/Excel)", type=['docx','xlsx'])
+        with uc2: dt_file = st.file_uploader("📝 Đặc tả (Word/Excel)", type=['docx','xlsx'])
+        
+        auto_mode = False
+        if not mt_file and not dt_file:
+            auto_mode = True
+            st.markdown('<div style="text-align:center;"><span class="auto-tag">✨ CHẾ ĐỘ TỰ ĐỘNG: AI SẼ TỰ XÂY DỰNG MA TRẬN & ĐẶC TẢ</span></div>', unsafe_allow_html=True)
+
+        user_req = st.text_area("Ghi chú chuyên môn:", "Ví dụ: Đề cần phân loại học sinh giỏi...", height=80)
+
+        # --- CÔNG CỤ CẤU HÌNH SỐ LƯỢNG ---
+        st.markdown("---")
+        st.markdown("##### 🛠 CẤU TRÚC ĐỀ THI MONG MUỐN")
+        col_s1, col_s2, col_s3 = st.columns(3)
+        with col_s1: 
+            num_choice = st.number_input("Trắc nghiệm (Số câu)", min_value=0, max_value=100, value=10, step=1, key="num_choice")
+        with col_s2: 
+            num_essay = st.number_input("Tự luận (Số câu)", min_value=0, max_value=20, value=2, step=1, key="num_essay")
+        with col_s3: 
+            num_practice = st.number_input("Thực hành (Bài)", min_value=0, max_value=10, value=0, step=1, key="num_practice")
+
+        st.markdown("---")
+        b1, b2, b3 = st.columns([1, 1, 2])
+        with b1: num_exams = st.number_input("Số lượng đề", 1, 5, 1)
+        with b2: start_code = st.number_input("Mã đề từ", 101, 999, 101)
+        with b3:
+            st.write(""); st.write("")
+            if st.button("⚡ KHỞI CHẠY (AI STUDIO ENGINE)", type="primary", use_container_width=True):
+                client = init_supabase()
+                if client:
+                    try:
+                        # 1. LẤY THÔNG TIN NGƯỜI DÙNG TỪ DB
+                        current_user_db = client.table('users_pro').select("*").eq('username', user.get('email')).execute()
+                        if current_user_db.data:
+                            user_data = current_user_db.data[0]
+                            db_role = user_data['role']
+                            usage_count = user_data.get('usage_count', 0)
+                            
+                            # [NÂNG CẤP] TÍNH TỔNG LƯỢT DÙNG (CÓ BONUS)
+                            bonus_turns = user_data.get('bonus_turns', 0)
+                            points_balance = get_points_balance(user_data)
+
+                            # VIP (PRO) dùng hệ điểm; FREE dùng limit lượt (cũ)
+                            if db_role == 'pro':
+                                if points_balance < POINT_COST_EXAM:
+                                    st.error(f"🔒 Không đủ điểm để tạo đề (cần {POINT_COST_EXAM}, hiện có {points_balance}).")
+                                    st.info("💎 Vào tab 'NÂNG CẤP VIP' để nạp thêm điểm.")
+                                    return
+                            else:
+                                limit_check = MAX_FREE_USAGE + bonus_turns
+                                if usage_count >= limit_check:
+                                    st.error(f"🔒 HẾT LƯỢT! Bạn đã dùng {usage_count}/{limit_check} lượt FREE.")
+                                    st.info("💎 Vào tab 'NÂNG CẤP VIP' để gia hạn.")
+                                    return
+                            
+                                # 3. NẾU ĐƯỢC PHÉP -> CHẠY AI
+                                api_key = st.session_state.get('api_key', '')
+                                
+                                # [QUAN TRỌNG] Tự động lấy Key của Admin nếu user không nhập
+                                if not api_key: api_key = SYSTEM_GOOGLE_KEY 
+                                
+                                if not api_key: st.toast("⚠️ Vui lòng nhập API Key ở Tab Hồ Sơ!", icon="❌")
+                                else:
+                                    with st.spinner(f"🔮 AI đang soạn đề... (Lần thứ: {usage_count + 1})"):
+                                        txt_mt = read_file_content(mt_file, 'matrix')
+                                        txt_dt = read_file_content(dt_file, 'spec')
+                                        knowledge_context = get_knowledge_context(subject, grade, book, scope)
+                                        
+                                        # [NÂNG CẤP] SYSTEM PROMPT THEO ĐÚNG INSTRUCTION GỐC
+                                        special_prompt = ""
+                                        
+                                        # 1. NẾU LÀ CẤP TIỂU HỌC (Áp dụng "Luật thép" thầy vừa đưa)
+                                        if curr_lvl == "tieu_hoc":
+                                            special_prompt = f"""
+                                            🔥 VAI TRÒ TUYỆT ĐỐI: CHUYÊN GIA KHẢO THÍ GIÁO DỤC TIỂU HỌC.
+                                            
+                                            I. TUÂN THỦ PHÁP LÝ (BẮT BUỘC):
+                                            - Thông tư 27/2020/TT-BGDĐT
+                                            - Công văn 7791/BGDĐT-GDTH
+                                            - Chương trình GDPT 2018
+                                            
+                                            II. QUY ĐỊNH CẤM KỴ (VI PHẠM LÀ HỦY KẾT QUẢ):
+                                            1. CẤM dùng mức độ "Vận dụng cao".
+                                            2. CẤM dùng các thuật ngữ cấp 2,3: Phân tích, Đánh giá, Sáng tạo.
+                                            3. CHỈ SỬ DỤNG 3 MỨC: Nhận biết - Thông hiểu - Vận dụng.
+                                            
+                                            III. PHÂN BỐ ĐIỂM VÀ CÂU HỎI (TỔNG 10đ):
+                                            - Nhận biết: 40-50%
+                                            - Thông hiểu: 30-40%
+                                            - Vận dụng: 20-30%
+                                            - KHÔNG dồn điểm vào câu khó, KHÔNG đánh đố học sinh.
+                                            
+                                            IV. QUY ĐỊNH MA TRẬN & ĐẶC TẢ:
+                                            - Ma trận phải có đúng 5 cột: Chủ đề, NB, TH, VD, Tổng.
+                                            - Bản đặc tả phải khớp 100% với ma trận và đề thi.
+                                            - Yêu cầu cần đạt phải rõ ràng, bám sát CT 2018.
+                                            """
+                                            
+                                            # Logic riêng từng môn Tiểu học
+                                            if subject == "Toán":
+                                                special_prompt += """
+                                                V. MÔN TOÁN: 
+                                                - Nội dung: Số và phép tính, Đại lượng, Hình học, Giải toán có lời văn.
+                                                - KHÔNG dùng toán mẹo, toán Olympic, Violympic. Vận dụng gắn với đời sống.
+                                                """
+                                            elif subject == "Tiếng Việt":
+                                                special_prompt += f"""
+                                                V. MÔN TIẾNG VIỆT (Tách 2 phần):
+                                                A. KIỂM TRA ĐỌC (10đ):
+                                                    1. Đọc thành tiếng.
+                                                    2. Đọc hiểu: Sử dụng văn bản MỚI (ngoài SGK) phù hợp lứa tuổi + {num_choice} câu hỏi (M1-M2-M3).
+                                                B. KIỂM TRA VIẾT (10đ):
+                                                    1. Chính tả (Nghe-viết đoạn ngắn).
+                                                    2. Tập làm văn: {num_essay} câu (Viết đoạn/bài văn theo chủ điểm đã học).
+                                                """
+                                            elif "Tin học" in subject:
+                                                special_prompt += f"""
+                                                V. MÔN TIN HỌC:
+                                                - Nội dung: Máy tính, Dữ liệu, An toàn thông tin, Phần mềm học tập.
+                                                - Trắc nghiệm ({num_choice} câu) + Thực hành ({num_essay} câu).
+                                                - KHÔNG lập trình phức tạp.
+                                                """
+                                            else:
+                                                special_prompt += """
+                                                V. CÁC MÔN KHÁC (Khoa học, LS&ĐL, Đạo đức...): Gắn với đời sống, không dùng thuật ngữ hàn lâm.
+                                                """
+
+                                        # 2. NẾU LÀ CẤP 2, 3 (Giữ nguyên logic cũ)
+                                        else:
+                                            special_prompt = """
+                                            YÊU CẦU TRUNG HỌC (Theo Thông tư 22 & CV 7791):
+                                            - Ma trận 4 mức độ: Nhận biết (40%) - Thông hiểu (30%) - Vận dụng (20%) - Vận dụng cao (10%).
+                                            """
+                                            if curr_lvl == "thpt":
+                                                special_prompt += """
+                                                - Cấu trúc THPT 2025: Phần I (TN nhiều lựa chọn), Phần II (Đúng/Sai), Phần III (Trả lời ngắn).
+                                                """
+
+                                        SYSTEM_PROMPT = f"""
+                                        {APP_CONFIG['context']}
+                                        
+                                        I. THÔNG TIN ĐẦU VÀO:
+                                        - Năm học: {school_year} | Cấp: {level_key} | Môn: {subject} | Lớp: {grade} 
+                                        - Bộ sách: "{book}" | Phạm vi: {scope}
+                                        - {knowledge_context}
+                                        
+                                        II. HƯỚNG DẪN CHUYÊN GIA (TUÂN THỦ TUYỆT ĐỐI):
+                                        {special_prompt}
+                                        
+                                        III. CƠ CHẾ TỰ KIỂM TRA & TỪ CHỐI (SELF-REFLECTION):
+                                        - Trước khi xuất kết quả, hãy tự kiểm tra: Tổng điểm có đúng 10 không? Có xuất hiện mức độ sai quy định không?
+                                        - Nếu người dùng yêu cầu ra đề vượt chuẩn (Ví dụ: Lớp 3 mà đòi Vận dụng cao) -> HÃY TỪ CHỐI LỊCH SỰ và đề xuất phương án đúng luật.
+                                        
+                                        IV. ĐỊNH DẠNG OUTPUT (JSON RAW):
+                                        {{
+                                            "title": "Tên đề thi",
+                                            "content": "Nội dung đề thi HTML (Trình bày đẹp, chuẩn font)",
+                                            "matrixHtml": "Bảng ma trận HTML (Phải khớp 100% với đề)",
+                                            "specHtml": "Bảng đặc tả HTML",
+                                            "answers": "Đáp án & Hướng dẫn chấm HTML"
+                                        }}
+                                        V. QUAN TRỌNG: CHỈ TRẢ VỀ JSON. KHÔNG GIẢI THÍCH GÌ THÊM.
+                                        """
+
+                                        try:
+                                            genai.configure(api_key=api_key)
+                                            # [SỬA LỖI 404] Dùng gemini-2.0-flash
+                                            model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=SYSTEM_PROMPT)
+                                            
+                                            # [FIX LỖI] Cấu hình tắt bộ lọc an toàn để AI không chặn đề thi
+                                            safe_settings = [
+                                                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                                                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                                                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                                                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                                            ]
+
+                                            new_exams = []
+                                            for i in range(num_exams):
+                                                code = start_code + i
+                                                prompt = SYSTEM_PROMPT.replace("[CODE]", str(code))
+                                                req = f"DATA: {txt_mt} {txt_dt}\nNOTE: {user_req}\nSTRUCT: {num_choice} TN, {num_essay} TL, {num_practice} TH\nTASK: Exam {i+1} (Code {code})"
+                                                
+                                                # Thêm safety_settings vào đây
+                                                res = model.generate_content(
+                                                    req, 
+                                                    generation_config={"response_mime_type": "application/json"},
+                                                    safety_settings=safe_settings
+                                                )
+                                                
+                                                try:
+                                                    clean_text = clean_json(res.text)
+                                                    data = json.loads(clean_text)
+                                                    data['id'] = str(code); data['title'] = f"Đề {subject} {grade} - {scope} (Mã {code})"
+                                                    
+                                                    # [NÂNG CẤP] TỰ ĐỘNG LƯU VÀO KHO
+                                                    save_data = {"username": user.get('email'), "title": data['title'], "exam_data": data}
+                                                    client.table('exam_history').insert(save_data).execute()
+                                                    
+                                                    new_exams.append(data)
+                                                except Exception as e:
+                                                    st.error(f"Lỗi phân tích đề {code}: {e}")
+                                                    continue
+                                            
+                                            st.session_state['dossier'] = new_exams + st.session_state['dossier']
+                                            client.table('users_pro').update({'usage_count': usage_count + 1}).eq('username', user.get('email')).execute()
+                                            
+                                            if db_role == 'pro':
+                                                st.success(f"✅ Tạo thành công! (Đã trừ {POINT_COST_EXAM} điểm, còn {st.session_state['user'].get('points',0)} điểm)")
+                                            else:
+                                                st.success(f"✅ Tạo thành công! (Đã dùng: {usage_count + 1}/{limit_check})")
+                                        except Exception as e: st.error(f"Lỗi AI: {e}")
+                    except Exception as e: st.error(f"Lỗi DB: {e}")
+                else: st.error("Lỗi kết nối.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- TAB 2: XEM & XUẤT (CLASS paper-view ĐÃ CHUẨN HÓA FONT) ---
+    with tabs[1]:
+        if not st.session_state['dossier']: st.info("👈 Chưa có dữ liệu.")
+        else:
+            all_e = st.session_state['dossier']
+            sel = st.selectbox("Chọn mã đề:", range(len(all_e)), format_func=lambda x: f"[{all_e[x]['id']}] {all_e[x]['title']}")
+            curr = all_e[sel]
+            
+            st1, st2, st3 = st.tabs(["📄 NỘI DUNG ĐỀ", "📊 MA TRẬN", "📝 ĐẶC TẢ"])
+            
+            with st1:
+                st.markdown(f"""<div class="paper-view">{curr.get('content', '')}</div>""", unsafe_allow_html=True)
+                footer = f"<br/><center><p>{APP_CONFIG['name']}</p></center>"
+                if is_admin or user.get('role') == 'pro': 
+                    st.download_button("⬇️ Tải Đề (.doc)", create_word_doc(curr.get('content', '') + footer, curr['title']), f"De_{curr['id']}.doc", type="primary")
+                else: st.warning("🔒 Nâng cấp PRO để tải file Word")
+            
+            with st2:
+                st.markdown(curr.get('matrixHtml', 'Không có dữ liệu ma trận'), unsafe_allow_html=True)
+                if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Ma trận", create_word_doc(curr['matrixHtml'], "MaTran"), f"MaTran_{curr['id']}.doc")
+
+            with st3:
+                st.markdown(curr.get('specHtml', 'Không có dữ liệu đặc tả'), unsafe_allow_html=True)
+                if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Đặc tả", create_word_doc(curr['specHtml'], "DacTa"), f"DacTa_{curr['id']}.doc")
+
+    # --- TAB 3: ĐÁP ÁN ---
+    with tabs[2]:
+        if st.session_state['dossier']:
+            curr = st.session_state['dossier'][sel]
+            if is_admin or user.get('role') == 'pro':
+                st.markdown(f"""<div class="paper-view">{curr.get('answers','Chưa có đáp án')}</div>""", unsafe_allow_html=True)
+                st.download_button("⬇️ Tải Đáp án (.doc)", create_word_doc(curr.get('answers',''), "DapAn"), f"DA_{curr['id']}.doc")
+            else: st.info("🔒 Nâng cấp PRO để xem và tải Đáp án chi tiết.")
+        else: st.info("Chưa có dữ liệu.")
+
+    # --- TAB 4: PHÁP LÝ ---
+    with tabs[3]:
+        for doc in LEGAL_DOCUMENTS:
+            cls = "highlight-card" if doc.get('highlight') else "legal-card"
+            st.markdown(f"""<div class="{cls}" style="padding:15px; margin-bottom:10px; border-radius:10px;"><span style="background:#1e293b; color:white; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold">{doc['code']}</span><span style="font-weight:bold; color:#334155; margin-left:8px">{doc['title']}</span><p style="font-size:13px; color:#64748b; margin:5px 0 0 0">{doc['summary']}</p></div>""", unsafe_allow_html=True)
+    
+    # --- [NÂNG CẤP] TAB 5: NÂNG CẤP VIP & THANH TOÁN (LOGIC SEVQR) ---
+    with tabs[4]:
+        render_vip_topup(user=user, is_admin=is_admin, key_prefix='viptab')
+
+
+    # --- [NÂNG CẤP] TAB 6: ĐỐI TÁC (AFFILIATE) ---
+    with tabs[5]:
+        st.subheader("💰 CHƯƠNG TRÌNH ĐỐI TÁC (AFFILIATE)")
+        st.info(f"Mã giới thiệu của bạn chính là tên đăng nhập: **{user.get('email')}**")
+        client = init_supabase()
+        if client:
+            try:
+                # Thống kê số người đã giới thiệu
+                ref_res = client.table('users_pro').select("*").eq('referred_by', user.get('email')).execute()
+                
+                # Lấy số dư hoa hồng
+                me_res = client.table('users_pro').select('commission_balance').eq('username', user.get('email')).execute()
+                comm_balance = me_res.data[0].get('commission_balance', 0) if me_res.data else 0
+
+                if ref_res.data:
+                    count_ref = len(ref_res.data)
+                    count_pro = sum(1 for u in ref_res.data if u['role'] == 'pro')
+                    c1, c2, c3 = st.columns(3)
+                    with c1: st.metric("Tổng người giới thiệu", f"{count_ref} người")
+                    with c2: st.metric("Đã lên PRO", f"{count_pro} người")
+                    with c3: st.metric("Hoa hồng hiện có", f"{comm_balance:,.0f}đ")
+                    st.write("---")
+                    st.write("**Danh sách thành viên:**")
+                    df_ref = pd.DataFrame(ref_res.data)
+                    if not df_ref.empty:
+                        st.dataframe(df_ref[['username', 'fullname', 'role', 'created_at']], use_container_width=True)
+                else: st.info("Bạn chưa giới thiệu được ai. Hãy chia sẻ Mã giới thiệu ngay!")
+            except: st.error("Lỗi tải dữ liệu đối tác.")
+
+    # --- TAB 7: HỒ SƠ & LỊCH SỬ ---
+    with tabs[6]:
+        c1, c2 = st.columns([2, 1])
+        with c1: 
+            st.write(f"**👤 Xin chào: {user.get('fullname')}**")
+            st.write("---")
+            st.subheader("🗂️ KHO ĐỀ CỦA BẠN (Đã lưu vĩnh viễn)")
+            
+            if st.button("🔄 Tải lại danh sách đề đã lưu"):
+                client = init_supabase()
+                if client:
+                    try:
+                        history_res = client.table('exam_history').select("*").eq('username', user.get('email')).order('id', desc=True).execute()
+                        if history_res.data:
+                            saved_exams = [item['exam_data'] for item in history_res.data]
+                            st.session_state['dossier'] = saved_exams
+                            st.success(f"Đã tải {len(saved_exams)} đề từ kho lưu trữ!")
+                            time.sleep(1)
+                            st.rerun()
+                        else: st.info("Bạn chưa lưu đề nào.")
+                    except: st.error("Lỗi tải lịch sử.")
+            
+            if st.session_state['dossier']:
+                for e in st.session_state['dossier']: st.write(f"📄 {e['title']}")
+            else: st.caption("Chưa có dữ liệu hiển thị.")
+
+        with c2: 
+            k = st.text_input("🔑 API Key Gemini (Nếu có)", type="password", key="api_key_in")
+            ok = st.text_input("🤖 OPENAI_API_KEY (tuỳ chọn)", type="password", key="openai_api_key_in")
+            if ok:
+                st.session_state["openai_api_key"] = ok
+            if k: st.session_state['api_key'] = k
+
+    # ==============================================================================
+    # [MỚI - ĐÃ SỬA] TAB 8: TẠO ĐỀ CHUẨN YCCĐ (DÙNG DỮ LIỆU NHÚNG)
+    # ==============================================================================
+    with tabs[7]:
+        st.title("🎯 Ngân hàng đề Toán Tiểu học (Chuẩn GDPT 2018)")
+        st.caption("Dữ liệu bám sát Yêu cầu cần đạt - Đã tích hợp sẵn.")
+        
+        mgr = YCCDManager()
+        current_api_key = st.session_state.get('api_key', '')
+        if not current_api_key: current_api_key = SYSTEM_GOOGLE_KEY
+        gen = QuestionGeneratorYCCD(current_api_key)
+
+        with st.container():
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                # 1. Chọn Lớp (Tự động lấy từ file json)
+                grades = mgr.get_grades()
+                selected_grade = st.selectbox("1️⃣ Chọn Khối Lớp:", grades, index=len(grades)-1) # Mặc định chọn lớp 5
+
+            with col2:
+                # 2. Chọn Chủ đề tương ứng với Lớp
+                topics = mgr.get_topics_by_grade(selected_grade)
+                selected_topic = st.selectbox("2️⃣ Mạch kiến thức:", topics)
+
+            with col3:
+                # 3. Cấu hình số lượng
+                num_q = st.number_input("Số câu hỏi:", 1, 20, 5, key="num_q_yccd")
+
+        # 4. Chọn Yêu cầu cần đạt chi tiết
+        if selected_topic:
+            yccd_list = mgr.get_yccd_list(selected_grade, selected_topic)
+            yccd_map = {f"{item['bai']}": item for item in yccd_list}
+            
+            selected_bai = st.selectbox("3️⃣ Chọn Bài học / Yêu cầu cụ thể:", list(yccd_map.keys()))
+            target_item = yccd_map[selected_bai]
+            
+            st.info(f"📌 **Chuẩn kiến thức:** {target_item['yccd']}")
+            
+            muc_do = st.select_slider("Độ khó:", options=["Nhận biết", "Thông hiểu", "Vận dụng"])
+
+            # --- NÚT TẠO ĐỀ ---
+            if st.button("🚀 BẮT ĐẦU SOẠN ĐỀ", type="primary", key="btn_yccd"):
+                if not current_api_key:
+                    st.error("Chưa có API Key.")
+                else:
+                    st.divider()
+                    my_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    for i in range(num_q):
+                        status_text.markdown(f"**⏳ AI đang tư duy câu {i+1}/{num_q}...**")
+                        data = gen.generate(target_item, muc_do)
+                        my_bar.progress((i + 1) / num_q)
+                        
+                        if data:
+                            with st.expander(f"✅ Câu {i+1}: {data.get('question', '...')}", expanded=True):
+                                st.write(f"**Đề bài:** {data.get('question','')}")
+                                if 'options' in data:
+                                    cols = st.columns(4)
+                                    for idx, opt in enumerate(data['options'][:4]):
+                                        cols[idx].write(opt)
+                                
+                                st.success(f"**Đáp án:** {data.get('answer','')}")
+                                st.warning(f"💡 **HD:** {data.get('explanation','')}")
+                        else:
+                            st.error(f"Câu {i+1}: AI gặp lỗi, đang thử lại...")
+                    
+                    status_text.success("🎉 Hoàn thành!")
+                    my_bar.empty()
+    
+    st.markdown("---")
+    st.markdown("""<div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;"><strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>SĐT: 0918198687</div>""", unsafe_allow_html=True)            
+
+# ==============================================================================
+# 7A. MODULE: TRỢ LÝ SOẠN GIÁO ÁN (TỔNG QUÁT TẤT CẢ MÔN/CẤP/BỘ SÁCH)
+# ==============================================================================
+
+def _lp_safe_key(prefix: str) -> str:
+    """Sinh prefix key theo session để tránh trùng key giữa các module."""
+    uid = st.session_state.get("user", {}).get("email", "guest")
+    return f"{prefix}__{uid}"
+
+def _lp_get_api_key():
+    # Ưu tiên key người dùng nhập, fallback key hệ thống
+    k = st.session_state.get("api_key", "")
+    if not k:
+        k = SYSTEM_GOOGLE_KEY
+    return k
+
+# ==============================================================================
+# MODULE: TRỢ LÝ SOẠN BÀI – TẠO GIÁO ÁN TỰ ĐỘNG (UI PRO + ANTI DUP KEY)
+# ==============================================================================
+
+def _lp_uid():
+    return st.session_state.get("user", {}).get("email", "guest")
+
+def _lp_key(name: str) -> str:
+    # key duy nhất theo user + module để chống DuplicateElementKey
+    return f"lp_{name}_{_lp_uid()}"
+
+def _lp_api_key():
+    return st.session_state.get("api_key") or SYSTEM_GOOGLE_KEY
+
+def _lp_init_state():
+    if _lp_key("history") not in st.session_state:
+        st.session_state[_lp_key("history")] = []   # lưu nhiều giáo án
+    if _lp_key("last_html") not in st.session_state:
+        st.session_state[_lp_key("last_html")] = ""
+    if _lp_key("last_title") not in st.session_state:
+        st.session_state[_lp_key("last_title")] = "GiaoAn"
+
+# [FIX] Thêm 2 hàm này vào để xử lý lỗi NameError
+def _lp_get_active(default_page):
+    return st.session_state.get("lp_active_page_admin_state", default_page)
+
+def _lp_set_active(page: str):
+    st.session_state["lp_active_page_admin_state"] = page
+
+def module_lesson_plan():
+    """Module soạn giáo án (UI tối giản).
+    - Giữ các module khác nguyên vẹn
+    - Bỏ KPI, lịch sử, phân hoá/đánh giá riêng, upload PDF/scan OCR
+    - Chỉ tập trung input tối thiểu để AI soạn giáo án chuẩn và chi tiết
+    """
+    _lp_init_state()
+
+
+    st.markdown("""
+    <style>
+      .lp-hero{
+    background: linear-gradient(135deg, #0F172A 0%, #1D4ED8 55%, #60A5FA 100%);
+    border-radius: 14px;
+    padding: 18px 18px 14px 18px;
+    color: white;
+    border: 1px solid rgba(255,255,255,.18);
+    box-shadow: 0 10px 18px rgba(2,6,23,.18);
+    margin-bottom: 14px;
+      }
+      .lp-hero h2{margin:0; font-weight:800;}
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""<div class='lp-hero'>
+      <h2>📘 Soạn giáo án (Chuẩn CTGDPT 2018)</h2>
+      <div style='opacity:.92;margin-top:6px'>
+        Nhập thông tin bài dạy + yêu cầu (nếu có) → hệ thống tạo giáo án HTML in A4.
+      </div>
+    </div>""", unsafe_allow_html=True)
+
+    # ---------- Thiết lập ----------
+    with st.form(key=_lp_key("form_main"), clear_on_submit=False):
+        r1c1, r1c2, r1c3, r1c4 = st.columns([1.1, 1.2, 1.0, 1.2])
+        with r1c1:
+            st.selectbox(
+                "Năm học",
+                ["2024-2025", "2025-2026", "2026-2027"],
+                index=1,
+                key=_lp_key("year")
+            )
+        with r1c2:
+            level_key = st.radio(
+                "Cấp học",
+                ["Tiểu học", "THCS", "THPT"],
+                horizontal=True,
+                key=_lp_key("level")
+            )
+        curr_lvl = "tieu_hoc" if level_key == "Tiểu học" else "thcs" if level_key == "THCS" else "thpt"
+        edu = EDUCATION_DATA[curr_lvl]
+        with r1c3:
+            grade = st.selectbox("Khối lớp", edu["grades"], key=_lp_key("grade"))
+        with r1c4:
+            subject = st.selectbox("Môn học", edu["subjects"], key=_lp_key("subject"))
+
+        r2c1, r2c2, r2c3 = st.columns([2.0, 1.0, 1.0])
+        with r2c1:
+            book = st.selectbox("Bộ sách", BOOKS_LIST, key=_lp_key("book"))
+        with r2c2:
+            ppct_week = st.number_input("Tuần (PPCT)", min_value=1, max_value=40, value=1, step=1, key=_lp_key("ppct_week"))
+        with r2c3:
+            ppct_period = st.number_input("Tiết (PPCT)", min_value=1, max_value=10, value=1, step=1, key=_lp_key("ppct_period"))
+
+        lesson_title_input = st.text_input("Tên bài học (PPCT)", key=_lp_key("lesson_title_input"))
+
+        r3c1, r3c2 = st.columns([1.2, 1.0])
+        with r3c1:
+            duration = st.number_input("Thời lượng (phút)", min_value=10, max_value=60, value=40, step=1, key=_lp_key("duration"))
+        with r3c2:
+            class_size = st.number_input("Sĩ số (tuỳ chọn)", min_value=10, max_value=60, value=40, step=1, key=_lp_key("class_size"))
+
+        
+        # =========================
+        # UI KHỐI "TÀI LIỆU BÀI HỌC + GHI CHÚ" (TỐI ƯU)
+        # =========================
+        st.markdown("### 📌 Tài liệu bài học & Ghi chú (khuyến nghị để giáo án bám chuẩn SGK)")
+
+        with st.expander("📎 Tải tài liệu bài học (ƯU TIÊN) – PDF/Ảnh/Word", expanded=True):
+            c_up1, c_up2 = st.columns([2, 1])
+
+            with c_up1:
+                lesson_files = st.file_uploader(
+                    "1) SGK / Bài học / Phiếu học tập (PDF, ảnh, Word)",
+                    type=["pdf", "docx", "png", "jpg", "jpeg"],
+                    accept_multiple_files=True,
+                    key=_lp_key("lesson_files"),
+                    help="Khuyến nghị: tải trang SGK/bài học dạng PDF hoặc ảnh chụp rõ nét. AI sẽ bám nội dung này để soạn đúng bài."
+                )
+
+            with c_up2:
+                ppct_file = st.file_uploader(
+                    "2) PPCT / KHDH của trường (tùy chọn)",
+                    type=["docx", "pdf"],
+                    accept_multiple_files=False,
+                    key=_lp_key("ppct_file"),
+                    help="Nếu có, AI sẽ ưu tiên PPCT/KHDH để đúng tuần/tiết/nội dung."
+                )
+
+            opt1, opt2, opt3 = st.columns([1, 1, 1])
+            with opt1:
+                max_pages = st.number_input(
+                    "Giới hạn trang PDF",
+                    min_value=1, max_value=15, value=6, step=1,
+                    key=_lp_key("pdf_max_pages"),
+                    help="Giới hạn để VPS chạy nhanh. Nếu bài dài, tăng lên 8–10."
+                )
+            with opt2:
+                try_ocr = st.checkbox(
+                    "OCR nếu PDF là ảnh (khuyến nghị)",
+                    value=True,
+                    key=_lp_key("pdf_try_ocr"),
+                    help="Bật nếu SGK là PDF scan/ảnh. VPS cần cài pdf2image + pytesseract."
+                )
+            with opt3:
+                show_extract = st.checkbox(
+                    "Xem trước nội dung trích xuất",
+                    value=False,
+                    key=_lp_key("show_extract"),
+                )
+
+        st.divider()
+
+        st.markdown("#### ✅ Gợi ý nhanh (bấm chọn)")
+        g1, g2, g3, g4 = st.columns(4)
+        with g1:
+            goal_chip = st.multiselect(
+                "Mục tiêu chính",
+                ["Hình thành kiến thức mới", "Củng cố kiến thức", "Luyện tập", "Vận dụng", "Ôn tập", "Kiểm tra"],
+                default=[],
+                key=_lp_key("goal_chip")
+            )
+        with g2:
+            method_chip = st.multiselect(
+                "Hình thức tổ chức",
+                ["Cặp đôi", "Nhóm 4", "Cá nhân", "Trò chơi", "Thảo luận", "Trình bày"],
+                default=[],
+                key=_lp_key("method_chip")
+            )
+        with g3:
+            diff_chip = st.multiselect(
+                "Phân hoá (nếu có)",
+                ["Bài cơ bản", "Bài nâng cao", "Hỗ trợ HS yếu", "Thử thách HS giỏi"],
+                default=[],
+                key=_lp_key("diff_chip")
+            )
+        with g4:
+            assess_chip = st.multiselect(
+                "Đánh giá trong giờ",
+                ["Quan sát", "Hỏi-đáp", "Phiếu học tập", "Bảng con", "Sản phẩm nhóm"],
+                default=[],
+                key=_lp_key("assess_chip")
+            )
+
+        c_txt1, c_txt2 = st.columns(2)
+        with c_txt1:
+            objectives = st.text_area(
+                "Mục tiêu (bổ sung nếu cần)",
+                key=_lp_key("objectives"),
+                height=110,
+                placeholder="Ví dụ: Nhấn mạnh kỹ năng đặt tính; rèn trình bày; tăng bài toán lời văn..."
+            )
+        with c_txt2:
+            yccd = st.text_area(
+                "Yêu cầu cần đạt (bổ sung nếu cần)",
+                key=_lp_key("yccd"),
+                height=110,
+                placeholder="Nếu không nhập, AI sẽ tự xác định theo SGK/CTGDPT 2018."
+            )
+
+        materials = st.text_area(
+            "Đồ dùng / học liệu (tùy chọn)",
+            key=_lp_key("materials"),
+            height=90,
+            placeholder="Gợi ý: SGK, bảng phụ, phiếu học tập, bảng con, tranh ảnh, máy chiếu..."
+        )
+
+        special = st.text_area(
+            "Yêu cầu điều chỉnh (tùy chọn)",
+            key=_lp_key("special"),
+            height=90,
+            placeholder="Ví dụ: Có trò chơi 3 phút; tăng luyện tập; ưu tiên cặp đôi; có 1 bài phân hoá..."
+        )
+
+        b1, b2 = st.columns([1.2, 1.0])
+        with b1:
+            generate_btn = st.form_submit_button("⚡ TẠO GIÁO ÁN", type="primary", use_container_width=True)
+        with b2:
+            regen_btn = st.form_submit_button("🔁 TẠO LẠI", use_container_width=True)
+
+    # ---------- Xử lý tạo giáo án ----------
+    if generate_btn or regen_btn:
+        # [NEW] Trừ điểm cho VIP trước khi chạy AI
+        user = st.session_state.get("user", {})
+        if user and user.get("role") == "pro":
+            client = init_supabase()
+            ok, new_pts, msg = deduct_points(client, user.get("email"), POINT_COST_LESSON_PLAN)
+            if not ok:
+                st.error("❌ " + msg)
+                return
+            st.session_state["user"]["points"] = new_pts
+        api_key = _lp_api_key()
+        if not api_key:
+            st.error("❌ Chưa có API Key.")
+            st.stop()
+
+        lesson_title = (lesson_title_input or "").strip()
+        if not lesson_title:
+            st.error("❌ Vui lòng nhập Tên bài học (PPCT).")
+            st.stop()
+
+        ppct_week_val = st.session_state.get(_lp_key("ppct_week"), 1)
+        ppct_period_val = st.session_state.get(_lp_key("ppct_period"), 1)
+
+        # Meta PPCT (tối thiểu để AI soạn đúng)
+        meta_ppct = {
+            "cap_hoc": level_key,
+            "lop": grade,
+            "mon": subject,
+            "ten_bai": lesson_title,
+            "tuan": int(ppct_week_val),
+            "tiet": int(ppct_period_val),
+            "bo_sach": book,
+            "thoi_luong": int(duration),
+            "si_so": int(class_size),
+        }
+
+        # Ghi chú GV gửi cho AI (gọn, không nhiễu)
+        teacher_note = f"""PPCT: Tuần {ppct_week_val}, Tiết {ppct_period_val}
+Mục tiêu GV nhập: {objectives.strip() if objectives else ""}
+YCCĐ GV nhập: {yccd.strip() if yccd else ""}
+Đồ dùng/học liệu: {materials.strip() if materials else ""}
+Yêu cầu đặc biệt: {special.strip() if special else ""}
+
+YÊU CẦU CHẤT LƯỢNG:
+- Không viết 'Bước 1/2' hoặc 'Nhiệm vụ 1/2' chung chung.
+- Trong tiến trình, mỗi dòng phải là NHIỆM VỤ HỌC TẬP CỤ THỂ (có bài tập/ví dụ/câu hỏi).
+- Với Toán: phải có ví dụ số cụ thể + bài tập luyện tập và đáp án/nhận xét dự kiến.
+""".strip()
+        # Lấy dữ liệu từ upload (nếu có) để AI bám sát SGK
+        lesson_files = st.session_state.get(_lp_key("lesson_files"), None)
+        ppct_file = st.session_state.get(_lp_key("ppct_file"), None)
+        max_pages = int(st.session_state.get(_lp_key("pdf_max_pages"), 6))
+        try_ocr = bool(st.session_state.get(_lp_key("pdf_try_ocr"), True))
+
+        uploaded_ctx = build_uploaded_materials_context(
+            lesson_files=lesson_files,
+            ppct_file=ppct_file,
+            max_pages=max_pages,
+            try_ocr=try_ocr
+        )
+
+        # Gắn chip gợi ý để AI hiểu ý nhanh nhưng không làm loãng
+        goal_chip = st.session_state.get(_lp_key("goal_chip"), [])
+        method_chip = st.session_state.get(_lp_key("method_chip"), [])
+        diff_chip = st.session_state.get(_lp_key("diff_chip"), [])
+        assess_chip = st.session_state.get(_lp_key("assess_chip"), [])
+
+        chip_note = f"""GỢI Ý NHANH (GV chọn):
+- Mục tiêu chính: {", ".join(goal_chip) if goal_chip else "Không chọn"}
+- Hình thức tổ chức: {", ".join(method_chip) if method_chip else "Không chọn"}
+- Phân hoá: {", ".join(diff_chip) if diff_chip else "Không chọn"}
+- Đánh giá trong giờ: {", ".join(assess_chip) if assess_chip else "Không chọn"}""".strip()
+
+        teacher_note = f"""{teacher_note}
+
+{chip_note}
+
+{uploaded_ctx if uploaded_ctx else ""}""".strip()
+
+        # (Tuỳ chọn) xem trước nội dung trích xuất
+        if st.session_state.get(_lp_key("show_extract"), False) and uploaded_ctx:
+            st.info("📌 Nội dung trích xuất để AI bám:")
+            st.text_area("Preview", uploaded_ctx[:12000], height=220)
+
+
+        try:
+            data = generate_lesson_plan_data_only(
+                api_key=api_key,
+                meta_ppct=meta_ppct,
+                teacher_note=teacher_note,
+                model_name="gemini-2.0-flash"
+            )
+            validate_lesson_plan(data)
+            content_html = render_lesson_plan_html(data)
+        except Exception as e:
+            st.error(f"❌ Lỗi khi tạo giáo án: {e}")
+            st.stop()
+
+        st.session_state[_lp_key("last_title")] = f"Giáo án - {lesson_title}"
+        st.session_state[_lp_key("last_html")] = content_html
+        st.toast("Đã tạo giáo án!", icon="✅")
+
+    # ---------- Xem trước & Xuất ----------
+    content_html = st.session_state.get(_lp_key("last_html"), "")
+    if content_html:
+        st.markdown("## Xem trước")
+        st.components.v1.html(content_html, height=760, scrolling=True)
+
+        st.markdown("## Xuất file")
+        cdl1, cdl2 = st.columns([1.2, 1.2])
+        with cdl1:
+            st.download_button(
+                "⬇️ Tải Word (.doc)",
+                data=content_html.encode("utf-8"),
+                file_name=f"{st.session_state.get(_lp_key('last_title'), 'GiaoAn')}.doc",
+                mime="application/msword",
+                type="primary",
+                use_container_width=True,
+                key=_lp_key("dl_word_simple"),
+            )
+        with cdl2:
+            st.download_button(
+                "⬇️ Tải HTML",
+                data=content_html.encode("utf-8"),
+                file_name=f"{st.session_state.get(_lp_key('last_title'), 'GiaoAn')}.html",
+                mime="text/html",
+                use_container_width=True,
+                key=_lp_key("dl_html_simple"),
+            )
+
+
+def login_screen():
+    c1, c2, c3 = st.columns([1, 1.5, 1])
+
+    with c2:
+        st.markdown(
+            "<h2 style='text-align:center; color:#1E3A8A'>🔐 HỆ THỐNG ĐĂNG NHẬP</h2>",
+            unsafe_allow_html=True
+        )
+
+        # ✅ KHAI BÁO TAB ĐẦY ĐỦ
+        tab_login, tab_signup = st.tabs(["ĐĂNG NHẬP", "ĐĂNG KÝ"])
+
+        # ======================
+        # TAB ĐĂNG NHẬP
+        # ======================
+        with tab_login:
+            u = st.text_input("Tên đăng nhập", key="login_username")
+            p = st.text_input("Mật khẩu", type="password", key="login_password")
+
+            if st.button("ĐĂNG NHẬP", type="primary", key="login_btn"):
+                client = init_supabase()
+                if client:
+                    try:
+                        res = (
+                            client.table("users_pro")
+                            .select("*")
+                            .eq("username", u)
+                            .eq("password", p)
+                            .execute()
+                        )
+                        if res.data:
+                            user_data = res.data[0]
+                            st.session_state["user"] = {
+                                "email": user_data["username"],
+                                "fullname": user_data["fullname"],
+                                "role": user_data["role"],
+                                "points": int(user_data.get("points_balance", 0) or 0),
+                            }
+                            st.success("Đăng nhập thành công!")
+                            st.rerun()
+                        else:
+                            st.error("Sai tài khoản hoặc mật khẩu")
+                    except Exception as e:
+                        st.error(f"Lỗi đăng nhập: {e}")
+
+        # ======================
+        # TAB ĐĂNG KÝ
+        # ======================
+        with tab_signup:
+            new_u = st.text_input("Tên đăng nhập mới", key="signup_username")
+            new_p = st.text_input("Mật khẩu mới", type="password", key="signup_password")
+            new_name = st.text_input("Họ và tên", key="signup_fullname")
+
+            if st.button("TẠO TÀI KHOẢN", key="signup_btn"):
+                client = init_supabase()
+                if client and new_u and new_p:
+                    try:
+                        check = (
+                            client.table("users_pro")
+                            .select("*")
+                            .eq("username", new_u)
+                            .execute()
+                        )
+                        if check.data:
+                            st.warning("Tên đăng nhập đã tồn tại!")
+                        else:
+                            client.table("users_pro").insert(
+                                {
+                                    "username": new_u,
+                                    "password": new_p,
+                                    "fullname": new_name,
+                                    "role": "free",
+                                    "usage_count": 0,
+                                    "points_balance": 0,
+                                }
+                            ).execute()
+                            st.success("Đăng ký thành công! Mời đăng nhập.")
+                    except Exception as e:
+                        st.error(f"Lỗi đăng ký: {e}")
+
+# ==============================================================================
+# 8. ROUTER + SIDEBAR MENU (ỔN ĐỊNH, KHÔNG TRÙNG KEY, KHÔNG MẤT LOGIN)
+# ==============================================================================
+
+def dashboard_screen():
+    # Dashboard 4 thẻ card, an toàn (CSS đã có sẵn .css-card)
+    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
+    st.markdown("## 🏠 Menu chính – WEB AI GIÁO VIÊN")
+    st.caption("Chọn mô-đun ở thanh bên trái để sử dụng.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # 4 cards
+    st.markdown("""
+    <style>
+      .dash-grid {display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px;}
+      .dash-card {background:#fff; border:1px solid #E2E8F0; border-radius:14px; padding:16px;}
+      .dash-title {font-weight:800; font-size:15px; color:#0F172A; margin:0 0 6px 0;}
+      .dash-sub {font-size:13px; color:#64748B; margin:0;}
+      .dash-badge {display:inline-block; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;}
+    </style>
+    <div class="dash-grid">
+      <div class="dash-card">
+        <div class="dash-title">📘 Trợ lý Soạn bài – Đổi mới phương pháp</div>
+        <p class="dash-sub">Tạo giáo án chuẩn CTGDPT 2018 theo môn/lớp/bộ sách.</p>
+        <div style="margin-top:10px"><span class="dash-badge">Lesson Planner</span></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-title">💻 AI EXAM – Soạn giáo án Năng lực số</div>
+        <p class="dash-sub">Khung giáo án tích hợp năng lực số.</p>
+        <div style="margin-top:10px"><span class="dash-badge">Digital Competency</span></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-title">📝 AI EXAM EXPERT – Ra đề, KTĐG</div>
+        <p class="dash-sub">Ma trận – Đặc tả – Đề – Đáp án theo đúng pháp lý.</p>
+        <div style="margin-top:10px"><span class="dash-badge">Exam Engine</span></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-title">🧠 AI EDU Advisor – Nhận xét, tư vấn</div>
+        <p class="dash-sub">Nhận xét, tư vấn chuyên môn (mở rộng sau).</p>
+        <div style="margin-top:10px"><span class="dash-badge">Advisor</span></div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+    st.markdown("---")
+    with st.expander("💎 Nạp VIP / Gia hạn PRO (SePay/VietQR)", expanded=False):
+        current_user = st.session_state.get('user', {'role': 'guest'})
+        render_vip_topup(user=current_user, is_admin=(current_user.get('role') == 'admin'), key_prefix='vipdash')
+
+# --------- Modules placeholder (thầy có thể thay bằng module thật sau) ----------
+def module_digital():
+    # --- CSS Tùy chỉnh cho Module NLS (Giống giao diện React) ---
+    st.markdown("""
+    <style>
+        .nls-container { background-color: #F8FAFC; padding: 20px; border-radius: 15px; }
+        .nls-header { 
+            background: linear-gradient(90deg, #1E3A8A 0%, #3B82F6 100%); 
+            color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .nls-card { 
+            background: white; padding: 25px; border-radius: 12px; 
+            border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; 
+        }
+        .nls-title { color: #1E3A8A; font-weight: 700; font-size: 16px; margin-bottom: 15px; border-left: 4px solid #3B82F6; padding-left: 10px; }
+        .nls-upload-box { 
+            border: 2px dashed #93C5FD; background: #EFF6FF; border-radius: 10px; 
+            padding: 20px; text-align: center; color: #1E40AF; font-size: 14px;
+        }
+        .nls-btn {
+            width: 100%; background: linear-gradient(90deg, #2563EB 0%, #1D4ED8 100%);
+            color: white; font-weight: bold; padding: 12px; border-radius: 8px;
+            text-align: center; border: none; cursor: pointer;
+        }
+        .nls-btn:hover { opacity: 0.9; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # --- Header ---
+    st.markdown("""
+    <div class="nls-header">
+        <div>
+            <h2 style="margin:0; font-size: 22px;">💻 AI EXAM - SOẠN GIÁO ÁN NLS</h2>
+            <p style="margin:5px 0 0 0; opacity: 0.9; font-size: 14px;">Hệ thống tích hợp Năng lực số tự động cho Giáo viên</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # --- Layout Chính: 2 Cột (Form bên trái, Hướng dẫn bên phải) ---
+    col_left, col_right = st.columns([2, 1])
+
+    with col_left:
+        # 1. Thông tin bài dạy
+        st.markdown('<div class="nls-card">', unsafe_allow_html=True)
+        st.markdown('<div class="nls-title">1. Thông tin Kế hoạch bài dạy</div>', unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        with c1: textbook = st.selectbox("Bộ sách", ["Kết nối tri thức", "Chân trời sáng tạo", "Cánh Diều"], key="nls_book")
+        with c2: subject = st.selectbox("Môn học", ["Toán", "Ngữ văn", "Tin học", "KHTN", "Lịch sử & Địa lí"], key="nls_sub")
+        with c3: grade = st.selectbox("Khối lớp", [f"Lớp {i}" for i in range(1, 13)], index=6, key="nls_grade") # Mặc định lớp 3
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # 2. Tài liệu đầu vào
+        st.markdown('<div class="nls-card">', unsafe_allow_html=True)
+        st.markdown('<div class="nls-title">2. Tài liệu đầu vào (Upload file Word)</div>', unsafe_allow_html=True)
+        
+        c_up1, c_up2 = st.columns(2)
+        with c_up1:
+            st.markdown('<div class="nls-upload-box">📂 Tải lên Giáo án gốc<br>(Bắt buộc)</div>', unsafe_allow_html=True)
+            file_lesson = st.file_uploader("Chọn file Giáo án", type=['docx'], key="nls_u1", label_visibility="collapsed")
+        
+        with c_up2:
+            st.markdown('<div class="nls-upload-box">📊 Tải lên PPCT<br>(Tùy chọn để AI tham khảo)</div>', unsafe_allow_html=True)
+            file_ppct = st.file_uploader("Chọn file PPCT", type=['docx'], key="nls_u2", label_visibility="collapsed")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # 3. Tùy chọn & Xử lý
+        st.markdown('<div class="nls-card">', unsafe_allow_html=True)
+        st.markdown('<div class="nls-title">3. Tùy chọn xử lý</div>', unsafe_allow_html=True)
+        
+        check_col1, check_col2 = st.columns(2)
+        with check_col1: analyze_only = st.checkbox("Chỉ phân tích (Không sửa nội dung)", key="nls_chk1")
+        with check_col2: detailed_report = st.checkbox("Kèm báo cáo giải trình chi tiết", key="nls_chk2")
+
+        st.write("") # Spacer
+        
+        # Nút bấm xử lý
+        if st.button("✨ BẮT ĐẦU TÍCH HỢP NĂNG LỰC SỐ", type="primary", use_container_width=True):
+            # [NEW] Trừ điểm cho VIP trước khi chạy AI
+            user = st.session_state.get("user", {})
+            if user and user.get("role") == "pro":
+                client = init_supabase()
+                ok, new_pts, msg = deduct_points(client, user.get("email"), POINT_COST_NLS)
+                if not ok:
+                    st.error("❌ " + msg)
+                    return
+                st.session_state["user"]["points"] = new_pts
             api_key = st.session_state.get("api_key") or SYSTEM_GOOGLE_KEY
             if not api_key:
                 st.error("⚠️ Vui lòng nhập API Key ở Tab Hồ Sơ trước!")
@@ -2649,256 +4494,6 @@ def module_advisor():
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================================================================
-# [LESSON PLAN SIMPLE v1] – TẠO GIÁO ÁN "NHƯ CHAT BÌNH THƯỜNG" (HTML TRỰC TIẾP)
-# ==============================================================================
-
-def _lp2_uid():
-    return st.session_state.get("user", {}).get("email", "guest")
-
-def _lp2_key(name: str) -> str:
-    return f"lp2_{name}_{_lp2_uid()}"
-
-def _lp2_api_key():
-    return st.session_state.get("api_key") or SYSTEM_GOOGLE_KEY
-
-def _lp2_extract_from_upload(uploaded_file) -> str:
-    if not uploaded_file:
-        return ""
-    name = (uploaded_file.name or "").lower()
-    try:
-        if name.endswith(".pdf"):
-            pdf_bytes = uploaded_file.getvalue()
-            txt = extract_text_from_pdf_bytes(pdf_bytes, max_pages=6, ocr_if_needed=True)
-            return txt or ""
-        if name.endswith(".docx"):
-            return read_file_content(uploaded_file, "docx") or ""
-        if name.endswith(".txt"):
-            return uploaded_file.getvalue().decode("utf-8", errors="ignore")
-    except Exception:
-        return ""
-    return ""
-
-def generate_lesson_plan_html_simple(
-    api_key: str,
-    cap_hoc: str,
-    mon: str,
-    lop: str,
-    bo_sach: str,
-    tuan: int,
-    tiet: int,
-    ten_bai: str,
-    thoi_luong: int,
-    si_so: int,
-    lesson_context: str,
-    teacher_note: str,
-    model_name: str = "gemini-2.0-flash",
-) -> str:
-    """Trả về HTML hoàn chỉnh (không JSON)."""
-    genai.configure(api_key=api_key)
-
-    system_instruction = """Bạn là GIÁO VIÊN cốt cán, chuyên soạn KẾ HOẠCH BÀI DẠY theo CTGDPT 2018.
-YÊU CẦU BẮT BUỘC:
-- ĐẦU RA: CHỈ TRẢ VỀ 01 KHỐI HTML HOÀN CHỈNH (không markdown, không giải thích).
-- Font: Times New Roman, cỡ 13pt; in A4 đẹp.
-- Có 4 phần:
-  I. Yêu cầu cần đạt (Kiến thức/Kĩ năng; Năng lực; Phẩm chất; Năng lực đặc thù nếu có; Năng lực số nếu phù hợp).
-  II. Đồ dùng dạy – học (GV/HS).
-  III. Các hoạt động dạy – học chủ yếu: BẮT BUỘC là <table border="1"> 2 cột:
-      Cột 1: Hoạt động của Giáo viên
-      Cột 2: Hoạt động của Học sinh
-     Chia 3 hoạt động lớn: Khởi động; Khám phá/Hình thành kiến thức; Luyện tập/Vận dụng.
-     VIẾT CHI TIẾT: câu hỏi gợi mở, ví dụ minh họa, bài tập cụ thể, dự kiến đáp án/nhận xét.
-  IV. Điều chỉnh sau bài dạy: để dòng chấm.
-- KHÔNG dùng các cụm 'Bước 1/2', 'Nhiệm vụ 1/2', 'Bổ sung nội dung' chung chung.
-- Nếu có NỘI DUNG BÀI HỌC từ file (PDF/DOCX): phải bám sát thuật ngữ, ví dụ, bài tập trong đó. Không tự bịa ngoài tài liệu trừ khi ghi chú GV yêu cầu.
-"""
-
-    lesson_context = (lesson_context or "").strip()
-    ctx_block = ""
-    if lesson_context:
-        ctx_block = "\n\n[NỘI DUNG BÀI HỌC TRÍCH TỪ TÀI LIỆU GV TẢI LÊN – ƯU TIÊN BÁM SÁT]\n" + lesson_context[:12000]
-
-    prompt = f"""THÔNG TIN BÀI DẠY:
-- Cấp học: {cap_hoc}
-- Môn: {mon}
-- Lớp: {lop}
-- Bộ sách: {bo_sach}
-- Tuần/Tiết (PPCT): {tuan}/{tiet}
-- Tên bài: {ten_bai}
-- Thời lượng: {thoi_luong} phút
-- Sĩ số: {si_so}
-
-GHI CHÚ/ĐIỀU CHỈNH CỦA GV:
-{teacher_note.strip() if teacher_note else "(Không có)"}
-{ctx_block}
-
-HÃY SOẠN GIÁO ÁN HTML HOÀN CHỈNH THEO ĐÚNG YÊU CẦU.
-"""
-
-    model = genai.GenerativeModel(model_name, system_instruction=system_instruction)
-
-    safe_settings = [
-        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-    ]
-
-    res = model.generate_content(prompt, safety_settings=safe_settings)
-    html = (res.text or "").strip()
-
-    if "```" in html:
-        parts = re.split(r"```(?:html)?", html)
-        if len(parts) >= 2:
-            html = parts[1].strip()
-
-    if "<html" not in html.lower():
-        html = f"""<!doctype html>
-<html lang="vi"><head><meta charset="utf-8"/>
-<style>
-  @page {{ size: 21cm 29.7cm; margin: 2cm; }}
-  body{{font-family:'Times New Roman',serif;font-size:13pt;line-height:1.35;color:#111;}}
-  table{{width:100%;border-collapse:collapse;table-layout:fixed;}}
-  td,th{{border:1px solid #000;padding:6px;vertical-align:top;word-wrap:break-word;}}
-  th{{text-align:center;font-weight:700;background:#f2f2f2;}}
-  h1{{text-align:center;font-size:18pt;margin:0 0 10px 0;}}
-  h2{{font-size:14pt;margin:12px 0 6px 0;}}
-</style>
-</head><body>
-{html}
-</body></html>"""
-    return html
-
-def module_lesson_plan():
-    """Module soạn giáo án (tối giản + AI trả HTML trực tiếp)."""
-    st.markdown("""<div style="background:linear-gradient(135deg,#0F172A 0%,#1D4ED8 55%,#60A5FA 100%);
-      border-radius:14px;padding:16px 18px;color:#fff;border:1px solid rgba(255,255,255,.18);
-      box-shadow:0 10px 18px rgba(2,6,23,.18);margin-bottom:14px;">
-      <h2 style="margin:0;font-weight:800;">📘 Soạn giáo án (HTML – Chuẩn CTGDPT 2018)</h2>
-      <div style="opacity:.92;margin-top:6px;">Tối giản: nhập thông tin + (tuỳ chọn) tải PDF/DOCX bài học → AI soạn chi tiết, có bảng GV/HS.</div>
-    </div>""", unsafe_allow_html=True)
-
-    with st.form(key=_lp2_key("form"), clear_on_submit=False):
-        r1c1, r1c2, r1c3, r1c4 = st.columns([1.1, 1.2, 1.0, 1.2])
-        with r1c1:
-            st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=1, key=_lp2_key("year"))
-        with r1c2:
-            cap_hoc = st.radio("Cấp học", ["Tiểu học", "THCS", "THPT"], horizontal=True, key=_lp2_key("cap_hoc"))
-        curr_lvl = "tieu_hoc" if cap_hoc == "Tiểu học" else "thcs" if cap_hoc == "THCS" else "thpt"
-        edu = EDUCATION_DATA[curr_lvl]
-        with r1c3:
-            lop = st.selectbox("Khối lớp", edu["grades"], key=_lp2_key("lop"))
-        with r1c4:
-            mon = st.selectbox("Môn học", edu["subjects"], key=_lp2_key("mon"))
-
-        r2c1, r2c2, r2c3 = st.columns([2.0, 1.0, 1.0])
-        with r2c1:
-            bo_sach = st.selectbox("Bộ sách", BOOKS_LIST, key=_lp2_key("bo_sach"))
-        with r2c2:
-            tuan = st.number_input("Tuần (PPCT)", min_value=1, max_value=40, value=1, step=1, key=_lp2_key("tuan"))
-        with r2c3:
-            tiet = st.number_input("Tiết (PPCT)", min_value=1, max_value=10, value=1, step=1, key=_lp2_key("tiet"))
-
-        ten_bai = st.text_input("Tên bài học (PPCT)", key=_lp2_key("ten_bai"))
-
-        r3c1, r3c2 = st.columns([1.2, 1.0])
-        with r3c1:
-            thoi_luong = st.number_input("Thời lượng (phút)", min_value=20, max_value=60, value=40, step=1, key=_lp2_key("thoi_luong"))
-        with r3c2:
-            si_so = st.number_input("Sĩ số (tuỳ chọn)", min_value=10, max_value=60, value=40, step=1, key=_lp2_key("si_so"))
-
-        st.markdown("### Tài liệu bài học (tuỳ chọn nhưng khuyến nghị)")
-        up1, up2 = st.columns([1.2, 1.8])
-        with up1:
-            lesson_file = st.file_uploader("Tải PDF/DOCX/TXT bài học", type=["pdf","docx","txt"], key=_lp2_key("lesson_file"))
-        with up2:
-            show_preview = st.checkbox("Xem trước nội dung trích xuất", value=False, key=_lp2_key("show_preview"))
-
-        teacher_note = st.text_area(
-            "Ghi chú GV (tuỳ chọn)",
-            key=_lp2_key("teacher_note"),
-            height=110,
-            placeholder="Ví dụ: Có trò chơi khởi động 3 phút; tăng luyện tập; ưu tiên hoạt động cặp đôi; có 1 bài phân hoá..."
-        )
-
-        b1, b2 = st.columns([1.2, 1.0])
-        with b1:
-            submit = st.form_submit_button("⚡ TẠO GIÁO ÁN", type="primary", use_container_width=True)
-        with b2:
-            reset = st.form_submit_button("🧹 XÓA KẾT QUẢ", use_container_width=True)
-
-    if reset:
-        st.session_state[_lp2_key("html")] = ""
-
-    lesson_ctx = _lp2_extract_from_upload(lesson_file) if lesson_file else ""
-    if lesson_file and show_preview:
-        st.markdown("#### Preview nội dung trích xuất")
-        st.text_area("Nội dung trích xuất", value=(lesson_ctx[:6000] if lesson_ctx else "(Không trích xuất được text từ file)"), height=220)
-
-    if submit:
-        if not ten_bai.strip():
-            st.error("❌ Vui lòng nhập Tên bài học (PPCT).")
-            st.stop()
-
-        if lesson_file and not lesson_ctx.strip():
-            st.warning("⚠️ File tải lên không trích xuất được text. Nếu PDF là scan ảnh, VPS cần pdf2image + pytesseract + poppler.")
-
-        api_key_use = _lp2_api_key()
-        if not api_key_use:
-            st.error("❌ Chưa có API Key.")
-            st.stop()
-
-        with st.spinner("🤖 AI đang soạn giáo án..."):
-            try:
-                html = generate_lesson_plan_html_simple(
-                    api_key=api_key_use,
-                    cap_hoc=cap_hoc,
-                    mon=mon,
-                    lop=lop,
-                    bo_sach=bo_sach,
-                    tuan=int(tuan),
-                    tiet=int(tiet),
-                    ten_bai=ten_bai.strip(),
-                    thoi_luong=int(thoi_luong),
-                    si_so=int(si_so),
-                    lesson_context=lesson_ctx,
-                    teacher_note=teacher_note or "",
-                    model_name="gemini-2.0-flash",
-                )
-                st.session_state[_lp2_key("html")] = html
-                st.session_state[_lp2_key("title")] = f"GiaoAn_{mon}_{lop}_{ten_bai.strip()}"
-                st.success("✅ Đã tạo giáo án!")
-            except Exception as e:
-                st.error(f"❌ Lỗi khi tạo giáo án: {e}")
-
-    html = st.session_state.get(_lp2_key("html"), "")
-    if html:
-        st.markdown("## Xem trước (A4)")
-        st.components.v1.html(html, height=780, scrolling=True)
-
-        st.markdown("## Tải về")
-        c1, c2 = st.columns(2)
-        with c1:
-            st.download_button(
-                "⬇️ Tải Word (.doc)",
-                data=create_word_doc(html, st.session_state.get(_lp2_key("title"), "GiaoAn")),
-                file_name=f"{st.session_state.get(_lp2_key('title'),'GiaoAn')}.doc",
-                mime="application/msword",
-                type="primary",
-                use_container_width=True,
-                key=_lp2_key("dl_doc"),
-            )
-        with c2:
-            st.download_button(
-                "⬇️ Tải HTML",
-                data=html.encode("utf-8"),
-                file_name=f"{st.session_state.get(_lp2_key('title'),'GiaoAn')}.html",
-                mime="text/html",
-                use_container_width=True,
-                key=_lp2_key("dl_html"),
-                )
-
-# ==============================================================================
 # ENTRY POINT (ỔN ĐỊNH: sidebar + router theo current_page)
 # ==============================================================================
 if "current_page" not in st.session_state:
@@ -2913,7 +4508,7 @@ else:
         st.divider()
 
         page_map = {
-            "🏠 Dashboard": "dashboard",
+            "🏠 Menu chính": "dashboard",
             "📘 Trợ lý Soạn bài": "lesson_plan",
             "💻 Soạn bài Năng lực số": "digital",
             "📝 Ra đề – KTĐG": "exam",
@@ -2922,7 +4517,7 @@ else:
 
         # chọn theo current_page (đồng bộ)
         reverse_map = {v: k for k, v in page_map.items()}
-        current_label = reverse_map.get(st.session_state["current_page"], "🏠 Dashboard")
+        current_label = reverse_map.get(st.session_state["current_page"], "🏠 Menu chính")
 
         menu_label = st.radio(
             "📌 Chọn mô-đun",
@@ -2963,6 +4558,4 @@ else:
         module_advisor()
     else:
         main_app()
-
-
 
