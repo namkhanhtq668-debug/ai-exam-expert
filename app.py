@@ -923,9 +923,37 @@ def get_user_points(client, username: str) -> int:
     except Exception:
         return 0
 
-def add_user_points(client, username: str, add_points: int) -> bool:
-    if not client or not username:
+def add_user_points(client, username: str, add_points: int, reason: str = "vip_topup", meta: dict | None = None) -> bool:
+    """Cộng điểm.
+
+    Ưu tiên gọi RPC server-side (nếu bạn tạo) để tránh race-condition:
+    - rpc_add_points(username, add_points, reason, meta_json)
+
+    Nếu RPC chưa có, sẽ fallback update trực tiếp (an toàn kém hơn).
+    """
+    if not client or not username or int(add_points) == 0:
         return False
+
+    # 1) Try RPC (recommended)
+    try:
+        meta_json = json.dumps(meta or {}, ensure_ascii=False)
+        rpc = client.rpc('rpc_add_points', {
+            'p_username': username,
+            'p_add': int(add_points),
+            'p_reason': reason,
+            'p_meta': meta_json
+        }).execute()
+        # Expect rpc.data = {"ok": true, "points": <new_points>} (you define it)
+        data = getattr(rpc, "data", None)
+        if isinstance(data, dict) and data.get("ok"):
+            newv = int(data.get("points", 0) or 0)
+            st.session_state.setdefault("user", {})
+            st.session_state["user"]["points"] = newv
+            return True
+    except Exception:
+        pass
+
+    # 2) Fallback: read-modify-write (NOT atomic)
     row = get_user_row(client, username)
     if not _db_has_points(row):
         return False
@@ -939,10 +967,42 @@ def add_user_points(client, username: str, add_points: int) -> bool:
     except Exception:
         return False
 
-def deduct_user_points(client, username: str, cost: int) -> bool:
-    """Trừ điểm. Trả False nếu không đủ hoặc DB chưa có points."""
-    if cost <= 0:
+
+def deduct_user_points(client, username: str, cost: int, reason: str = "ai_call", meta: dict | None = None) -> bool:
+    """Trừ điểm.
+
+    **Quan trọng:** để chạy chắc 100% và không bị trừ âm/race-condition khi user bấm 2 lần,
+    bạn nên tạo RPC server-side:
+    - rpc_deduct_points(username, cost, reason, meta_json) -> {"ok":bool,"points":int}
+
+    Nếu RPC chưa có, sẽ fallback update trực tiếp (an toàn kém hơn).
+    """
+    if int(cost) <= 0:
         return True
+    if not client or not username:
+        return False
+
+    # 1) Try RPC (recommended)
+    try:
+        meta_json = json.dumps(meta or {}, ensure_ascii=False)
+        rpc = client.rpc('rpc_deduct_points', {
+            'p_username': username,
+            'p_cost': int(cost),
+            'p_reason': reason,
+            'p_meta': meta_json
+        }).execute()
+        data = getattr(rpc, "data", None)
+        if isinstance(data, dict):
+            if data.get("ok"):
+                newv = int(data.get("points", 0) or 0)
+                st.session_state.setdefault("user", {})
+                st.session_state["user"]["points"] = newv
+                return True
+            return False
+    except Exception:
+        pass
+
+    # 2) Fallback: read-modify-write (NOT atomic)
     row = get_user_row(client, username)
     if not _db_has_points(row):
         return False
@@ -957,7 +1017,6 @@ def deduct_user_points(client, username: str, cost: int) -> bool:
         return True
     except Exception:
         return False
-
 def require_points_or_block(cost: int, action_name: str = "thao tác") -> bool:
     """Gọi nhanh trong UI: nếu DB có points thì kiểm tra đủ điểm; nếu DB chưa có points -> cho chạy theo logic cũ."""
     user = st.session_state.get("user", {}) or {}
@@ -3221,3 +3280,4 @@ else:
         module_advisor()
     else:
         main_app()
+        
