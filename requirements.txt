@@ -1,5 +1,8 @@
 streamlit
 google-generativeai
+openai
+requests
+pypdf
 jsonschema==4.23.0
 supabase
 pandas
@@ -7,3 +10,7 @@ python-docx
 openpyxl
 flask
 
+# OCR (nếu dùng PDF scan)
+pdf2image
+pytesseract
+Pillow
