@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import google.generativeai as genai
 from supabase import create_client, Client
 import pandas as pd
@@ -11,6 +12,56 @@ import time
 import requests
 import random
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
+
+
+
+DASHBOARD_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+  .wrap{padding:0 2px 0 2px;}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  .card{border:1px solid #e2e8f0;border-radius:14px;padding:14px 14px 12px 14px;background:#fff;
+        box-shadow:0 10px 18px rgba(2,6,23,0.05);}
+  .title{font-weight:800;color:#0f172a;font-size:14px;margin:0 0 6px 0}
+  .sub{color:#64748b;font-size:12px;line-height:1.35;margin:0}
+  .badge{display:inline-block;margin-top:10px;padding:4px 10px;border-radius:999px;background:#f1f5f9;
+         border:1px solid #e2e8f0;color:#0f172a;font-size:11px;font-weight:700}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="grid">
+      <div class="card">
+        <p class="title">📘 Trợ lý Soạn bài</p>
+        <p class="sub">Tạo giáo án chuẩn CTGDPT 2018 theo môn/lớp/bộ sách.</p>
+        <span class="badge">Soạn giáo án</span>
+      </div>
+      <div class="card">
+        <p class="title">🧩 Soạn bài Năng lực số</p>
+        <p class="sub">Tích hợp Năng lực số (NLS) vào giáo án.</p>
+        <span class="badge">Digital Competency</span>
+      </div>
+      <div class="card">
+        <p class="title">📝 Ra đề – KTĐG</p>
+        <p class="sub">Ma trận – Đặc tả – Đề – Đáp án theo đúng pháp lý.</p>
+        <span class="badge">Exam Engine</span>
+      </div>
+      <div class="card">
+        <p class="title">💬 Nhận xét – Tư vấn</p>
+        <p class="sub">Nhận xét, tư vấn chuyên môn (mở rộng).</p>
+        <span class="badge">Advisor</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+
 
 def html_escape(text: str) -> str:
     import html
@@ -2769,36 +2820,7 @@ def dashboard_screen():
                 st.rerun()
 
     # --- 4 cards giới thiệu ---
-    st.markdown(textwrap.dedent('''<style>
-      .dash-grid {display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px;}
-      .dash-card {background:#fff; border:1px solid #E2E8F0; border-radius:14px; padding:16px;}
-      .dash-title {font-weight:800; font-size:15px; color:#0F172A; margin:0 0 6px 0;}
-      .dash-sub {font-size:13px; color:#64748B; margin:0;}
-      .dash-badge {display:inline-block; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;}
-    </style>
-    <div class="dash-grid">
-      <div class="dash-card">
-        <div class="dash-title">📘 Trợ lý Soạn bài</div>
-        <p class="dash-sub">Tạo giáo án chuẩn CTGDPT 2018 theo môn/lớp/bộ sách.</p>
-        <div style="margin-top:10px"><span class="dash-badge">Soạn giáo án</span></div>
-      </div>
-      <div class="dash-card">
-        <div class="dash-title">💻 Soạn bài Năng lực số</div>
-        <p class="dash-sub">Tích hợp Năng lực số (NLS) vào giáo án.</p>
-        <div style="margin-top:10px"><span class="dash-badge">Digital Competency</span></div>
-      </div>
-      <div class="dash-card">
-        <div class="dash-title">📝 Ra đề – KTĐG</div>
-        <p class="dash-sub">Ma trận – Đặc tả – Đề – Đáp án theo đúng pháp lý.</p>
-        <div style="margin-top:10px"><span class="dash-badge">Exam Engine</span></div>
-      </div>
-      <div class="dash-card">
-        <div class="dash-title">🧠 Nhận xét – Tư vấn</div>
-        <p class="dash-sub">Nhận xét, tư vấn chuyên môn (mở rộng).</p>
-        <div style="margin-top:10px"><span class="dash-badge">Advisor</span></div>
-      </div>
-    </div>
-    '''), unsafe_allow_html=True)
+    components.html(DASHBOARD_HTML, height=260, scrolling=False)
 def module_digital():
     # --- CSS Tùy chỉnh cho Module NLS (Giống giao diện React) ---
     st.markdown(textwrap.dedent('''
@@ -3280,3 +3302,4 @@ else:
         module_advisor()
     else:
         main_app()
+
