@@ -210,7 +210,7 @@ st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", l
 # UI THEME (Premium SaaS)
 # =========================
 def inject_premium_theme():
-    st.markdown(f"""
+    st.markdown("""
 <style>
 :root{
   --bg:#ffffff;
@@ -339,7 +339,17 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label p{
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div{
   background: rgba(91,92,246,.12) !important;
-  border-color: rgba(91,92,246,.30) !important;
+  border-color: rgba(91,92,246,.38) !important;
+  box-shadow: 0 14px 28px rgba(91,92,246,.18) !important;
+  position: relative;
+}
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div::before{
+  content:"";
+  position:absolute;
+  left:-1px; top:-1px; bottom:-1px;
+  width: 6px;
+  border-radius: 14px 0 0 14px;
+  background: linear-gradient(180deg, rgba(91,92,246,.95), rgba(47,128,255,.95));
 }
 
 /* Make Streamlit buttons look premium */
@@ -2823,10 +2833,9 @@ def login_screen():
                                 "role": user_data.get("role", "free"),
                                 "points": user_data.get("points", 0),
                             }
-                            st.success("Đăng nhập thành công!")
+                            st.toast("✅ Đăng nhập thành công! Đang chuyển về Trang chủ…", icon="✅")
                             target = st.session_state.pop("requested_page", None) or "dashboard"
-                            st.session_state["current_page"] = target
-                            st.rerun()
+                            go(target)
                         else:
                             st.error("Sai tài khoản hoặc mật khẩu")
                     except Exception as e:
@@ -3476,7 +3485,7 @@ def module_lesson_plan():
 # - Chỉ khi dùng tiếp hoặc dùng module nâng cao mới yêu cầu đăng nhập
 # ==============================================================================
 
-PROTECTED_PAGES = {"exam", "lesson_plan", "digital", "advisor", "doc_ai", "mindmap"}
+PROTECTED_PAGES = {"exam", "lesson_plan", "digital", "advisor", "doc_ai", "mindmap", "profile"}
 DEMO_ALLOWED_PAGES = {"dashboard", "chat"}  # guest được xem + demo 1 câu
 
 def _get_api_key_effective() -> str:
@@ -3499,50 +3508,64 @@ def _ensure_nav_state():
     st.session_state.setdefault("demo_used", False)
     st.session_state.setdefault("demo_history", [])  # lưu demo Q/A để hiện lại
 
+
 def render_topbar():
+    """Topbar gọn (không trùng điều hướng sidebar) + dropdown tài khoản."""
     _ensure_nav_state()
     user = st.session_state.get("user") or {}
     is_authed = bool(user)
     fullname = user.get("fullname") or user.get("email") or "Khách"
 
-    c1, c2, c3 = st.columns([2.2, 5.6, 2.2], vertical_alignment="center")
+    c1, c2, c3 = st.columns([2.8, 5.2, 2.0], vertical_alignment="center")
+
     with c1:
-        st.markdown(f"""<div style="display:flex;gap:10px;align-items:center;">
-  <div class="sb-logo" style="width:38px;height:38px;border-radius:14px;">AI</div>
+        st.markdown(
+            f"""
+<div style="display:flex;gap:10px;align-items:center;">
+  <div style="width:38px;height:38px;border-radius:14px;background:transparent;box-shadow:none;overflow:hidden;">
+    <img src="data:image/png;base64,{LOGO_PNG_B64}" style="width:38px;height:38px;object-fit:contain;border-radius:14px;" />
+  </div>
   <div>
     <div style="font-weight:900;line-height:1.05;">AIEXAM.VN</div>
-    <div class="small-muted">Nền tảng AI giáo dục Việt Nam</div>
+    <div class="small-muted">Nền tảng AI dành cho giáo viên</div>
   </div>
-</div>""",
-            unsafe_allow_html=True
+</div>
+""",
+            unsafe_allow_html=True,
         )
+
     with c2:
-        b1, b2, b3, b4 = st.columns(4)
-        with b1:
-            if st.button("🏠 Home", use_container_width=True, key="tb_home"):
-                go("dashboard")
-        with b2:
-            if st.button("💬 Chat AI", use_container_width=True, key="tb_chat"):
-                go("chat")
-        with b3:
-            if st.button("📑 Doc AI", use_container_width=True, key="tb_doc"):
-                go("doc_ai")
-        with b4:
-            if st.button("🧠 Mindmap", use_container_width=True, key="tb_mm"):
-                go("mindmap")
+        # Topbar chỉ để truy cập nhanh "Hướng dẫn" + tìm kiếm (không trùng menu sidebar)
+        cc1, cc2 = st.columns([1, 1], vertical_alignment="center")
+        with cc1:
+            st.text_input(
+                "",
+                placeholder="Tìm nhanh: 'ra đề', 'soạn bài', 'năng lực số'…",
+                key="global_search",
+                label_visibility="collapsed",
+            )
+        with cc2:
+            if st.button("📘 Hướng dẫn", use_container_width=True, key="tb_help"):
+                go("help")
+
     with c3:
         if is_authed:
-            st.markdown(f"<div class='card' style='padding:10px 12px;'><b>👤 {html_escape(fullname)}</b><div class='small-muted'>Đã đăng nhập</div></div>", unsafe_allow_html=True)
+            with st.popover(f"👤 {fullname}", use_container_width=True):
+                role = (user.get("role") or "free").upper()
+                pts = user.get("points", 0)
+                st.markdown(f"**Gói:** `{role}`  \n**Điểm:** `{pts}`")
+                st.write("---")
+                if st.button("👤 Profile", use_container_width=True, key="tb_profile"):
+                    go("profile")
+                if st.button("🚪 Đăng xuất", use_container_width=True, key="tb_logout"):
+                    st.session_state.pop("user", None)
+                    st.toast("👋 Bạn đã đăng xuất.", icon="✅")
+                    go("dashboard")
         else:
-            bL, bS = st.columns(2)
-            with bL:
-                if st.button("🔐 Đăng nhập", use_container_width=True, key="tb_login"):
-                    st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
-                    go("login")
-            with bS:
-                if st.button("✨ Đăng ký", use_container_width=True, key="tb_signup"):
-                    st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
-                    go("login")
+            if st.button("🔐 Đăng nhập", type="primary", use_container_width=True, key="tb_login"):
+                st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
+                go("login")
+
 
 def _gemini_generate(prompt: str, system: str | None = None) -> str:
     api_key = _get_api_key_effective()
@@ -3932,6 +3955,71 @@ Viết nhận xét học sinh theo năng lực/phẩm chất, góp ý giáo án,
         st.info("Lưu ý: Nội dung chuyển khoản đúng giúp hệ thống nhận diện nhanh và chính xác.")
 
 
+
+
+def module_profile():
+    """Trang hồ sơ đơn giản (yêu cầu đăng nhập)."""
+    _ensure_nav_state()
+    user = st.session_state.get("user") or {}
+    if not user:
+        require_login("profile")
+        return
+
+    st.markdown("## 👤 Profile")
+    st.caption("Thông tin tài khoản và trạng thái gói/điểm.")
+
+    col1, col2 = st.columns([1.2, 1], vertical_alignment="top")
+    with col1:
+        st.markdown(
+            f"""
+<div class="card">
+  <div style="display:flex;gap:12px;align-items:center;">
+    <div style="width:46px;height:46px;border-radius:16px;background:rgba(91,92,246,.14);display:flex;align-items:center;justify-content:center;font-weight:900;color:#3b5bff;">
+      {html_escape((user.get("fullname") or "U")[:1].upper())}
+    </div>
+    <div>
+      <div style="font-weight:900;font-size:18px;line-height:1.1;">{html_escape(user.get("fullname") or "Chưa đặt tên")}</div>
+      <div class="small-muted">{html_escape(user.get("email") or "")}</div>
+    </div>
+  </div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+        st.write("")
+        st.markdown(
+            f"""
+<div class="card soft">
+  <b>Gói:</b> {(user.get("role") or "free").upper()}<br/>
+  <b>Điểm:</b> {user.get("points", 0)}
+  <div class="small-muted" style="margin-top:8px;">Điểm được trừ khi chạy các chức năng AI theo quy định của hệ thống.</div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+    with col2:
+        st.markdown(
+            """
+<div class="card">
+  <b>⚙️ Tác vụ</b>
+  <div class="small-muted" style="margin-top:6px;">
+    Bạn có thể quay về Trang chủ hoặc đăng xuất tại đây.
+  </div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+        st.write("")
+        if st.button("🏡 Về Trang chủ", use_container_width=True, key="pf_home"):
+            go("dashboard")
+        if st.button("🚪 Đăng xuất", use_container_width=True, key="pf_logout"):
+            st.session_state.pop("user", None)
+            st.toast("👋 Bạn đã đăng xuất.", icon="✅")
+            go("dashboard")
+
+
 # ==============================================================================
 # ENTRY POINT (PUBLIC HOME + LOGIN-ON-DEMAND + TOPBAR + SIDEBAR)
 # ==============================================================================
@@ -4037,6 +4125,8 @@ elif page == "mindmap":
     module_mindmap()
 elif page == "help":
     module_help()
+elif page == "profile":
+    module_profile()
 elif page == "lesson_plan":
     if module_lesson_plan_B:
         module_lesson_plan_B(
