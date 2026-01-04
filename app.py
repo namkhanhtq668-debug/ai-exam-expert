@@ -2818,6 +2818,8 @@ def login_screen():
                                 "points": user_data.get("points", 0),
                             }
                             st.success("Đăng nhập thành công!")
+                            target = st.session_state.pop("requested_page", None) or "dashboard"
+                            st.session_state["current_page"] = target
                             st.rerun()
                         else:
                             st.error("Sai tài khoản hoặc mật khẩu")
@@ -3463,100 +3465,389 @@ def module_lesson_plan():
                 )
 
 # ==============================================================================
-# ENTRY POINT (ỔN ĐỊNH: sidebar + router theo current_page)
+# 8B. PREMIUM TOPBAR + PUBLIC LANDING + MODULES (CHAT/DOC/MINDMAP)
+# - Trang vào (Home) công khai, không bắt đăng nhập
+# - Demo 1 câu hỏi AI thật ở Home/Chat (guest)
+# - Chỉ khi dùng tiếp hoặc dùng module nâng cao mới yêu cầu đăng nhập
 # ==============================================================================
-if "current_page" not in st.session_state:
-    st.session_state["current_page"] = "dashboard"
 
-if "user" not in st.session_state:
-    login_screen()
-else:
-    with st.sidebar:
+PROTECTED_PAGES = {"exam", "lesson_plan", "digital", "advisor", "doc_ai", "mindmap"}
+DEMO_ALLOWED_PAGES = {"dashboard", "chat"}  # guest được xem + demo 1 câu
+
+def _get_api_key_effective() -> str:
+    # Ưu tiên key user nhập, fallback key hệ thống
+    k = (st.session_state.get("api_key") or "").strip()
+    if not k:
+        k = (SYSTEM_GOOGLE_KEY or "").strip()
+    return k
+
+def require_login(page_key: str):
+    if st.session_state.get("user"):
+        return
+    st.session_state["requested_page"] = page_key
+    st.session_state["current_page"] = "login"
+    st.rerun()
+
+def _ensure_nav_state():
+    st.session_state.setdefault("current_page", "dashboard")
+    st.session_state.setdefault("requested_page", None)
+    st.session_state.setdefault("demo_used", False)
+    st.session_state.setdefault("demo_history", [])  # lưu demo Q/A để hiện lại
+
+def render_topbar():
+    _ensure_nav_state()
+    user = st.session_state.get("user") or {}
+    is_authed = bool(user)
+    fullname = user.get("fullname") or user.get("email") or "Khách"
+
+    c1, c2, c3 = st.columns([2.2, 5.6, 2.2], vertical_alignment="center")
+    with c1:
         st.markdown(
-            """<div class="sb-brand">
+            """<div style="display:flex;gap:10px;align-items:center;">
+  <div class="sb-logo" style="width:38px;height:38px;border-radius:14px;">AI</div>
+  <div>
+    <div style="font-weight:900;line-height:1.05;">AIEXAM.VN</div>
+    <div class="small-muted">Nền tảng AI giáo dục thương mại</div>
+  </div>
+</div>""",
+            unsafe_allow_html=True
+        )
+    with c2:
+        b1, b2, b3, b4 = st.columns(4)
+        with b1:
+            if st.button("🏠 Home", use_container_width=True, key="tb_home"):
+                go("dashboard")
+        with b2:
+            if st.button("💬 Chat AI", use_container_width=True, key="tb_chat"):
+                go("chat")
+        with b3:
+            if st.button("📄 Doc AI", use_container_width=True, key="tb_doc"):
+                go("doc_ai")
+        with b4:
+            if st.button("🧠 Mindmap", use_container_width=True, key="tb_mm"):
+                go("mindmap")
+    with c3:
+        if is_authed:
+            st.markdown(f"<div class='card' style='padding:10px 12px;'><b>👤 {html_escape(fullname)}</b><div class='small-muted'>Đã đăng nhập</div></div>", unsafe_allow_html=True)
+        else:
+            bL, bS = st.columns(2)
+            with bL:
+                if st.button("🔐 Đăng nhập", use_container_width=True, key="tb_login"):
+                    st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
+                    go("login")
+            with bS:
+                if st.button("✨ Đăng ký", use_container_width=True, key="tb_signup"):
+                    st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
+                    go("login")
+
+def _gemini_generate(prompt: str, system: str | None = None) -> str:
+    api_key = _get_api_key_effective()
+    if not api_key:
+        return "⚠️ Chưa cấu hình GOOGLE_API_KEY trong st.secrets hoặc bạn chưa nhập API key."
+    try:
+        genai.configure(api_key=api_key)
+        if system:
+            model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=system)
+        else:
+            model = genai.GenerativeModel("gemini-2.0-flash")
+        safe_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ]
+        res = model.generate_content(prompt, safety_settings=safe_settings)
+        return (res.text or "").strip()
+    except Exception as e:
+        return f"❌ Lỗi AI: {e}"
+
+def _chunk_text(text: str, chunk_size: int = 900, overlap: int = 120) -> list[str]:
+    text = re.sub(r"\s+", " ", (text or "")).strip()
+    if not text:
+        return []
+    chunks = []
+    i = 0
+    n = len(text)
+    while i < n:
+        j = min(n, i + chunk_size)
+        chunks.append(text[i:j])
+        if j == n:
+            break
+        i = max(0, j - overlap)
+    return chunks
+
+def _simple_retrieve(query: str, chunks: list[str], k: int = 4) -> list[str]:
+    # Retrieval nhẹ không dùng embeddings (ổn định cho Streamlit Cloud)
+    q = (query or "").lower()
+    if not q or not chunks:
+        return chunks[:k]
+    q_terms = [t for t in re.split(r"[^\wÀ-ỹ]+", q) if t]
+    scored = []
+    for ch in chunks:
+        s = 0
+        low = ch.lower()
+        for t in q_terms[:20]:
+            if t and t in low:
+                s += 1
+        scored.append((s, ch))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top = [c for s, c in scored[:k] if s > 0]
+    return top if top else chunks[:k]
+
+def module_chat():
+    _ensure_nav_state()
+    user = st.session_state.get("user")
+    # Guest: cho demo 1 câu ở Chat; lần 2 yêu cầu login
+    st.markdown("## 💬 Chat AI")
+    st.caption("Hỏi AI như ChatGPT. Khách được dùng thử 1 câu. Đăng nhập để dùng đầy đủ.")
+
+    st.session_state.setdefault("chat_messages", [])
+
+    # Hiển thị lịch sử
+    for m in st.session_state["chat_messages"]:
+        with st.chat_message(m.get("role", "assistant")):
+            st.markdown(m.get("content", ""))
+
+    prompt = st.chat_input("Nhập câu hỏi của bạn…")
+    if prompt:
+        # kiểm demo
+        if (not user) and st.session_state.get("demo_used"):
+            require_login("chat")
+            return
+
+        st.session_state["chat_messages"].append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner("AI đang trả lời…"):
+                reply = _gemini_generate(
+                    f"Bạn là trợ lý AI cho giáo viên. Trả lời ngắn gọn, đúng trọng tâm.\n\nCâu hỏi: {prompt}"
+                )
+                st.markdown(reply if reply else "…")
+        st.session_state["chat_messages"].append({"role": "assistant", "content": reply})
+
+        if not user:
+            st.session_state["demo_used"] = True
+            st.info("Bạn vừa dùng thử 1 câu. Đăng nhập để tiếp tục sử dụng đầy đủ.")
+
+    cols = st.columns([1,1,2])
+    with cols[0]:
+        if st.button("🧹 Xóa chat", key="chat_clear"):
+            st.session_state["chat_messages"] = []
+            st.rerun()
+    with cols[1]:
+        if st.button("⬅️ Về Home", key="chat_home"):
+            go("dashboard")
+
+def module_doc_ai():
+    _ensure_nav_state()
+    if not st.session_state.get("user"):
+        require_login("doc_ai")
+        return
+
+    st.markdown("## 📄 Doc AI • Tóm tắt & Chat theo tài liệu")
+    st.caption("Tải tài liệu (PDF/DOCX/ảnh) → tóm tắt → hỏi theo nội dung tài liệu. (RAG nhẹ, ổn định Cloud)")
+
+    doc_file = st.file_uploader("Tải tài liệu", type=["pdf","docx","txt","png","jpg","jpeg"], key="docai_upload")
+    max_pages = st.slider("Giới hạn số trang xử lý (PDF)", 1, 20, 6, key="docai_pages")
+    try_ocr = st.checkbox("Thử OCR nếu PDF scan/ảnh", value=True, key="docai_ocr")
+
+    if doc_file:
+        with st.spinner("Đang đọc tài liệu…"):
+            raw = extract_text_from_upload(doc_file, max_pages=max_pages, ocr_if_needed=try_ocr)
+            raw = (raw or "").strip()
+            if not raw:
+                st.error("Không đọc được nội dung. Thử bật OCR hoặc dùng bản PDF có text.")
+            else:
+                st.session_state["docai_text"] = raw[:20000]
+                st.session_state["docai_chunks"] = _chunk_text(st.session_state["docai_text"])
+                st.success(f"Đã nạp tài liệu: {getattr(doc_file,'name','file')}")
+
+    tabs = st.tabs(["🧾 Tóm tắt", "💬 Chat theo tài liệu", "👁️ Xem nội dung"])
+    with tabs[0]:
+        if st.button("✨ Tạo tóm tắt", type="primary", key="docai_sum"):
+            txt = (st.session_state.get("docai_text") or "").strip()
+            if not txt:
+                st.warning("Hãy tải tài liệu trước.")
+            else:
+                with st.spinner("AI đang tóm tắt…"):
+                    out = _gemini_generate(
+                        """Bạn là trợ lý học thuật. Tóm tắt tài liệu ngắn gọn theo mục:
+- Nội dung chính (5-7 gạch đầu dòng)
+- Khái niệm quan trọng
+- Gợi ý 5 câu hỏi ôn tập
+\n\nTài liệu:
+""" + txt[:16000]
+                    )
+                st.markdown(out)
+
+    with tabs[1]:
+        txt = (st.session_state.get("docai_text") or "").strip()
+        if not txt:
+            st.info("Tải tài liệu trước để chat theo tài liệu.")
+        q = st.text_input("Nhập câu hỏi về tài liệu…", key="docai_q")
+        if st.button("Hỏi tài liệu", key="docai_ask", type="primary"):
+            if not txt:
+                st.warning("Chưa có tài liệu.")
+            else:
+                ctx_chunks = _simple_retrieve(q, st.session_state.get("docai_chunks") or [], k=4)
+                ctx = "\n\n---\n\n".join(ctx_chunks)
+                with st.spinner("AI đang trả lời theo tài liệu…"):
+                    out = _gemini_generate(
+                        f"""Bạn là trợ lý AI. CHỈ trả lời dựa trên phần trích dẫn tài liệu dưới đây.
+Nếu trong tài liệu không có, hãy nói rõ 'Tài liệu không đề cập'. Không bịa thêm.
+
+[TRÍCH DẪN TÀI LIỆU]
+{ctx}
+
+[CÂU HỎI]
+{q}
+"""
+                    )
+                st.markdown(out)
+
+    with tabs[2]:
+        txt = (st.session_state.get("docai_text") or "").strip()
+        st.text_area("Nội dung trích xuất (đã rút gọn)", value=txt[:16000], height=320, key="docai_preview")
+
+def module_mindmap():
+    _ensure_nav_state()
+    if not st.session_state.get("user"):
+        require_login("mindmap")
+        return
+
+    st.markdown("## 🧠 Mindmap AI")
+    st.caption("Nhập chủ đề hoặc nội dung → AI tạo mindmap dạng cây (Markdown). Dùng cho soạn bài/ôn tập.")
+
+    inp = st.text_area("Nội dung / chủ đề", height=200, key="mm_in")
+    if st.button("✨ Tạo Mindmap", type="primary", key="mm_go"):
+        if not inp.strip():
+            st.warning("Nhập nội dung trước.")
+        else:
+            with st.spinner("AI đang tạo mindmap…"):
+                out = _gemini_generate(
+                    """Bạn là trợ lý giáo dục. Tạo mindmap dạng Markdown Tree (bullet phân cấp),
+ngắn gọn, rõ ý, dễ học, phù hợp giáo viên.
+Quy tắc:
+- Dòng đầu là chủ đề chính
+- Tối đa 4 cấp
+- Mỗi nhánh 2-6 ý
+\n\nNội dung:
+""" + inp[:12000]
+                )
+            st.markdown(out)
+            st.download_button("⬇️ Tải mindmap (.md)", data=out.encode("utf-8"), file_name="mindmap.md", mime="text/markdown", use_container_width=True)
+
+# ==============================================================================
+# ENTRY POINT (PUBLIC HOME + LOGIN-ON-DEMAND + TOPBAR + SIDEBAR)
+# ==============================================================================
+_ensure_nav_state()
+
+# Topbar luôn hiển thị
+render_topbar()
+st.write("")  # spacing
+
+# Sidebar (hiển thị cả với khách)
+with st.sidebar:
+    st.markdown(
+        """<div class="sb-brand">
 <div class="sb-logo">AI</div>
 <div>
   <div class="sb-title">AIEXAM.VN</div>
   <div class="sb-sub">WEB AI GIÁO VIÊN</div>
 </div>
 </div>""",
-            unsafe_allow_html=True
-        )
-        st.markdown("<div class='small-muted'>Điều hướng nhanh • Trạng thái module rõ ràng</div>", unsafe_allow_html=True)
-        st.divider()
+        unsafe_allow_html=True
+    )
+    st.markdown("<div class='small-muted'>Điều hướng nhanh • Demo không cần đăng nhập</div>", unsafe_allow_html=True)
+    st.divider()
 
-        page_map = {
-            "🏠 Trang chủ": "dashboard",
-            "📝 Ra đề – KTĐG": "exam",
-            "📘 Trợ lý Soạn bài": "lesson_plan",
-            "💻 Năng lực số": "digital",
-            "🧠 Nhận xét – Tư vấn": "advisor",
-        }
+    page_map = {
+        "🏠 Trang chủ": "dashboard",
+        "💬 Chat AI": "chat",
+        "📄 Doc AI": "doc_ai",
+        "🧠 Mindmap": "mindmap",
+        "📝 Ra đề – KTĐG": "exam",
+        "📘 Trợ lý Soạn bài": "lesson_plan",
+        "💻 Năng lực số": "digital",
+        "🧩 Nhận xét – Tư vấn": "advisor",
+        "🔐 Đăng nhập / Đăng ký": "login",
+    }
 
-        reverse_map = {v: k for k, v in page_map.items()}
-        current_label = reverse_map.get(st.session_state["current_page"], "🏠 Trang chủ")
+    reverse_map = {v: k for k, v in page_map.items()}
+    current_label = reverse_map.get(st.session_state.get("current_page", "dashboard"), "🏠 Trang chủ")
 
-        menu_label = st.radio(
-            "Điều hướng",
-            list(page_map.keys()),
-            index=list(page_map.keys()).index(current_label),
-            key="sidebar_menu_main",
-            label_visibility="collapsed"
-        )
-        st.session_state["current_page"] = page_map[menu_label]
+    menu_label = st.radio(
+        "Điều hướng",
+        list(page_map.keys()),
+        index=list(page_map.keys()).index(current_label),
+        key="sidebar_menu_main",
+        label_visibility="collapsed"
+    )
+    st.session_state["current_page"] = page_map[menu_label]
 
-        st.write("")
-        st.markdown("""<div class="card soft">
-<b>⚡ Lối tắt</b>
-<div class="small-muted" style="margin-top:6px;">Vào nhanh chức năng quan trọng.</div>
-</div>""", unsafe_allow_html=True)
-
-        cta1, cta2 = st.columns(2)
-        with cta1:
-            if st.button("🚀 Tạo đề", use_container_width=True, key="sb_cta_exam"):
-                go("exam")
-        with cta2:
-            if st.button("📘 Soạn bài", use_container_width=True, key="sb_cta_lp"):
-                go("lesson_plan")
-
-        st.write("")
-        role = (st.session_state.get("user") or {}).get("role", "free")
+    st.write("")
+    user = st.session_state.get("user") or {}
+    if user:
+        role = user.get("role", "free")
         role_badge = "PRO" if role == "pro" else "FREE"
         st.markdown(f"""<div class="card">
 <b>⭐ Gói hiện tại: {role_badge}</b>
 <div class="small-muted" style="margin-top:6px;">Nâng cấp để mở giới hạn & nhận thêm điểm.</div>
 </div>""", unsafe_allow_html=True)
-        if st.button("⭐ Nâng cấp / Nạp VIP", type="primary", use_container_width=True, key="sb_upgrade"):
-            go("dashboard")
-
-        st.divider()
         if st.button("🚪 Đăng xuất", use_container_width=True, key="sb_logout"):
             st.session_state.pop("user", None)
             st.session_state["current_page"] = "dashboard"
             st.rerun()
-
-    # ROUTER
-    page = st.session_state["current_page"]
-
-    if page == "dashboard":
-        dashboard_screen()
-    elif page == "lesson_plan":
-        # [MỚI] CHỌN MODULE: Ưu tiên Hướng B (PPCT thật), nếu lỗi fallback về cũ
-        if module_lesson_plan_B:
-            module_lesson_plan_B(
-                SYSTEM_GOOGLE_KEY=SYSTEM_GOOGLE_KEY,
-                BOOKS_LIST=BOOKS_LIST,
-                EDUCATION_DATA=EDUCATION_DATA,
-                FULL_SCOPE_LIST=FULL_SCOPE_LIST,
-                create_word_doc_func=create_word_doc,
-                model_name="gemini-2.0-flash"
-            )
-        else:
-            module_lesson_plan()
-    elif page == "digital":
-        module_digital()
-    elif page == "advisor":
-        module_advisor()
     else:
-        main_app()
+        st.markdown("""<div class="card soft">
+<b>👋 Chào mừng!</b>
+<div class="small-muted" style="margin-top:6px;">Bạn có thể xem Trang chủ và dùng thử 1 câu Chat AI. Khi dùng tiếp, hệ thống sẽ yêu cầu đăng nhập.</div>
+</div>""", unsafe_allow_html=True)
+        if st.button("🔐 Đăng nhập", type="primary", use_container_width=True, key="sb_login"):
+            st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
+            st.session_state["current_page"] = "login"
+            st.rerun()
 
+# ROUTER
+page = st.session_state.get("current_page", "dashboard")
+
+# Login page
+if page == "login":
+    login_screen()
+    st.stop()
+
+# Guard protected pages
+if (page in PROTECTED_PAGES) and (not st.session_state.get("user")):
+    require_login(page)
+    st.stop()
+
+# Chat page allows 1 demo for guest; lần 2 yêu cầu login (được xử trong module_chat)
+if page == "dashboard":
+    dashboard_screen()
+elif page == "chat":
+    module_chat()
+elif page == "doc_ai":
+    module_doc_ai()
+elif page == "mindmap":
+    module_mindmap()
+elif page == "lesson_plan":
+    if module_lesson_plan_B:
+        module_lesson_plan_B(
+            SYSTEM_GOOGLE_KEY=SYSTEM_GOOGLE_KEY,
+            BOOKS_LIST=BOOKS_LIST,
+            EDUCATION_DATA=EDUCATION_DATA,
+            FULL_SCOPE_LIST=FULL_SCOPE_LIST,
+            create_word_doc_func=create_word_doc,
+            model_name="gemini-2.0-flash"
+        )
+    else:
+        module_lesson_plan()
+elif page == "digital":
+    module_digital()
+elif page == "advisor":
+    module_advisor()
+else:
+    # exam + fallback
+    main_app()
