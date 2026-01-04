@@ -2892,7 +2892,7 @@ def dashboard_screen():
     <div class="sb-logo" style="width:40px;height:40px;border-radius:14px;">AI</div>
     <div style="text-align:left">
       <div style="font-weight:800; font-size:14px; letter-spacing:.02em;">AIEXAM.VN</div>
-      <div class="small-muted">Nền tảng AI dành cho giáo viên • chạy thương mại</div>
+      <div class="small-muted">Nền tảng AI dành cho giáo viên</div>
     </div>
   </div>
 
@@ -3508,7 +3508,7 @@ def render_topbar():
   <div class="sb-logo" style="width:38px;height:38px;border-radius:14px;">AI</div>
   <div>
     <div style="font-weight:900;line-height:1.05;">AIEXAM.VN</div>
-    <div class="small-muted">Nền tảng AI giáo dục thương mại</div>
+    <div class="small-muted">Nền tảng AI giáo dục Việt Nam</div>
   </div>
 </div>""",
             unsafe_allow_html=True
@@ -3959,7 +3959,7 @@ with st.sidebar:
 </div>""",
         unsafe_allow_html=True
     )
-    st.markdown("<div class='small-muted'>Điều hướng nhanh • Demo không cần đăng nhập</div>", unsafe_allow_html=True)
+    st.markdown("<div class='small-muted'>Điều hướng nhanh • Dễ sử dụng</div>", unsafe_allow_html=True)
     st.divider()
 
     page_map = {
@@ -4053,3 +4053,4 @@ elif page == "advisor":
 else:
     # exam + fallback
     main_app()
+
