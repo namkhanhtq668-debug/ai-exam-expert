@@ -3403,7 +3403,7 @@ def module_help():
     # TAB 1: MODULES
     # -----------------------------
     with tab1:
-        st.markdown("### D. 💬 Chat AI (hỏi đáp nhanh như ChatGPT)")
+        st.markdown("### 1. 💬 Chat AI (hỏi đáp nhanh như ChatGPT)")
         st.markdown(f"""
 **Dùng khi nào?**  
 Hỏi đáp kiến thức, soạn câu hỏi, gợi ý hoạt động dạy học, viết nhận xét, chỉnh câu chữ…
@@ -3418,7 +3418,7 @@ Hỏi đáp kiến thức, soạn câu hỏi, gợi ý hoạt động dạy họ
         )
         st.info("Mẹo: ghi rõ thời lượng (35/45/90 phút), đối tượng HS (trung bình/khá), chuẩn CTGDPT 2018 nếu cần.")
         st.divider()
-        st.markdown("### E. 📄 Doc AI (tóm tắt & hỏi theo tài liệu)")
+        st.markdown("### 2. 📄 Doc AI (tóm tắt & hỏi theo tài liệu)")
         st.markdown(f"""
 **Dùng khi nào?**  
 Khi thầy/cô có **PDF / DOCX / TXT** cần tóm tắt, rút ý chính, tạo câu hỏi ôn tập hoặc hỏi theo nội dung tài liệu.
@@ -3433,7 +3433,7 @@ Khi thầy/cô có **PDF / DOCX / TXT** cần tóm tắt, rút ý chính, tạo 
         )
         st.warning("Nếu tài liệu là PDF scan/ảnh: hãy bật OCR (nếu có) để trích nội dung chính xác hơn.")
         st.divider()
-        st.markdown("### F. 🧠 Mindmap (sơ đồ tư duy)")
+        st.markdown("### 3. 🧠 Mindmap (sơ đồ tư duy)")
         st.markdown(f"""
 **Dùng khi nào?**  
 Tạo sơ đồ tư duy cho bài học/chương, ôn tập nhanh, làm slide, giao bài cho học sinh.
@@ -3445,7 +3445,7 @@ Tạo sơ đồ tư duy cho bài học/chương, ôn tập nhanh, làm slide, gi
             """
         )
         st.divider()
-        st.markdown("### G. 📝 Ra đề – KTĐG (ma trận – đề – đáp án)")
+        st.markdown("### 4. 📝 Ra đề – KTĐG (ma trận – đề – đáp án)")
         st.markdown(f"""
 **Dùng khi nào?**  
 Tạo đề kiểm tra/đề thi theo chuẩn đánh giá (NB/TH/VD/VDC hoặc M1/M2/M3), có thể kèm ma trận/đặc tả.
@@ -3459,7 +3459,7 @@ Tạo đề kiểm tra/đề thi theo chuẩn đánh giá (NB/TH/VD/VDC hoặc M
             """
         )
         st.divider()
-        st.markdown("### H. 📘 Trợ lý Soạn bài (tạo giáo án tự động)")
+        st.markdown("### 5. 📘 Trợ lý Soạn bài (tạo giáo án tự động)")
         st.markdown(f"""
 **Dùng khi nào?**  
 Soạn giáo án nhanh theo môn/lớp/bộ sách, có mục tiêu, hoạt động GV–HS, luyện tập, vận dụng, đánh giá.
@@ -3472,7 +3472,7 @@ Dán 1 đoạn mẫu giáo án của trường và yêu cầu: *“viết theo �
             """
         )
         st.divider()
-        st.markdown("### I. 💻 Năng lực số (tích hợp NLS vào giáo án)")
+        st.markdown("### 6. 💻 Năng lực số (tích hợp NLS vào giáo án)")
         st.markdown(f"""
 **Dùng khi nào?**  
 Tích hợp **Năng lực số** vào bài dạy: hoạt động số, công cụ số, sản phẩm số, tiêu chí đánh giá.
@@ -3710,3 +3710,4 @@ elif page == "advisor":
 else:
     # exam + fallback
     main_app()
+
