@@ -183,6 +183,8 @@ COMMISSION_AMT = 10000
 # --- CẤU HÌNH THANH TOÁN (SEPAY - VIETQR) ---
 BANK_ID = "VietinBank"
 BANK_ACC = "107878907329"
+# Alias để tương thích UI (một số đoạn dùng BANK_NO)
+BANK_NO = BANK_ACC
 BANK_NAME = "TRAN THANH TUAN"
 PRICE_VIP = 50000
 
@@ -3011,8 +3013,7 @@ def dashboard_screen():
             final_content_ck = f"SEVQR NAP VIP {username} REF {ref_code_input}"
 
         encoded_content = urllib.parse.quote(final_content_ck)
-        qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_NO}-compact2.png?amount={VIP_TOPUP_AMOUNT_VND}&addInfo={encoded_content}&accountName={BANK_NAME}"
-
+        qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_ACC}-compact2.png?amount={VIP_TOPUP_AMOUNT_VND}&addInfo={encoded_content}&accountName={BANK_NAME}"
         q1, q2 = st.columns([1, 1.4])
         with q1:
             st.image(qr_url, caption=f"VietQR {VIP_TOPUP_AMOUNT_VND:,.0f}đ", width=280)
