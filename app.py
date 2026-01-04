@@ -200,6 +200,162 @@ except:
 
 st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="collapsed")
 
+# =========================
+# UI THEME (Premium SaaS)
+# =========================
+def inject_premium_theme():
+    st.markdown("""
+<style>
+:root{
+  --bg:#ffffff;
+  --text:#0f172a;
+  --muted:#64748b;
+  --border:rgba(15,23,42,.10);
+  --card:#ffffff;
+  --soft:#f6f7fb;
+  --sidebar:#f4f2fb;
+  --primary:#5b5cf6;
+  --primary2:#2f80ff;
+  --good:#10b981;
+  --warn:#f59e0b;
+  --radius-lg:22px;
+  --radius-md:16px;
+}
+
+.stApp{ background: var(--bg); color: var(--text); }
+.block-container{ max-width: 1200px; padding-top: 1.25rem; padding-bottom: 2.5rem; }
+
+section[data-testid="stSidebar"]{
+  background: var(--sidebar);
+  border-right: 1px solid rgba(15,23,42,.08);
+}
+
+.sb-brand{
+  display:flex; align-items:center; gap:10px;
+  padding: 10px 4px 6px 4px;
+}
+.sb-logo{
+  width: 38px; height: 38px; border-radius: 12px;
+  background: linear-gradient(135deg, rgba(91,92,246,.95), rgba(47,128,255,.95));
+  display:flex; align-items:center; justify-content:center;
+  color:white; font-weight:800;
+  box-shadow: 0 8px 22px rgba(91,92,246,.22);
+}
+.sb-title{ font-weight: 800; line-height: 1.05; }
+.sb-sub{ color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+.hero{
+  background: radial-gradient(900px 450px at 15% 15%, rgba(47,128,255,.22), transparent 60%),
+              radial-gradient(800px 450px at 85% 20%, rgba(91,92,246,.18), transparent 60%),
+              linear-gradient(135deg, #cfe8ff, #dad4ff);
+  border-radius: var(--radius-lg);
+  padding: 34px 28px;
+  border: 1px solid rgba(15,23,42,.08);
+  box-shadow: 0 14px 40px rgba(2,6,23,.08);
+}
+
+.hero h1{
+  margin: 0;
+  font-size: 38px;
+  letter-spacing: -0.02em;
+}
+.hero p{ margin: 8px 0 0 0; color: rgba(15,23,42,.72); font-size: 16px; }
+
+.glass{
+  background: rgba(255,255,255,.75);
+  border: 1px solid rgba(15,23,42,.10);
+  border-radius: 999px;
+  padding: 10px 12px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 26px rgba(2,6,23,.08);
+}
+
+.pills{
+  display:flex; flex-wrap:wrap; gap:8px;
+  justify-content:center;
+  margin-top: 14px;
+}
+.pill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.65);
+  font-size: 13px;
+  color: rgba(15,23,42,.78);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.pill:hover{ transform: translateY(-1px); box-shadow: 0 10px 20px rgba(2,6,23,.08); }
+
+.card{
+  background: var(--card);
+  border: 1px solid rgba(15,23,42,.08);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: 0 10px 22px rgba(2,6,23,.06);
+}
+.card.soft{ background: var(--soft); }
+
+.icon-circle{
+  width: 54px; height: 54px; border-radius: 999px;
+  display:flex; align-items:center; justify-content:center;
+  color: white; font-size: 22px;
+  box-shadow: 0 10px 24px rgba(2,6,23,.10);
+  margin: 0 auto 10px auto;
+}
+.ic1{ background: linear-gradient(135deg, rgba(47,128,255,.95), rgba(91,92,246,.95)); }
+.ic2{ background: linear-gradient(135deg, rgba(16,185,129,.95), rgba(47,128,255,.80)); }
+.ic3{ background: linear-gradient(135deg, rgba(245,158,11,.95), rgba(236,72,153,.75)); }
+.ic4{ background: linear-gradient(135deg, rgba(236,72,153,.95), rgba(91,92,246,.80)); }
+.ic5{ background: linear-gradient(135deg, rgba(100,116,139,.95), rgba(47,128,255,.75)); }
+.ic6{ background: linear-gradient(135deg, rgba(91,92,246,.95), rgba(2,132,199,.75)); }
+
+/* Sidebar radio -> nav list */
+section[data-testid="stSidebar"] .stRadio > div{
+  padding: 4px 6px 2px 6px;
+}
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
+  background: rgba(255,255,255,.55);
+  border: 1px solid rgba(15,23,42,.08);
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin: 6px 0;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(2,6,23,.10);
+  background: rgba(255,255,255,.80);
+}
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label p{
+  font-weight: 650;
+  margin: 0;
+}
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div{
+  background: rgba(91,92,246,.12) !important;
+  border-color: rgba(91,92,246,.30) !important;
+}
+
+/* Make Streamlit buttons look premium */
+.stButton > button{
+  border-radius: 14px;
+  border: 1px solid rgba(15,23,42,.10);
+  box-shadow: 0 10px 18px rgba(2,6,23,.06);
+}
+.stButton > button:hover{
+  transform: translateY(-1px);
+}
+
+.small-muted{ color: var(--muted); font-size: 12px; }
+</style>
+""", unsafe_allow_html=True)
+
+def go(page_key: str):
+    st.session_state["current_page"] = page_key
+    st.rerun()
+
+inject_premium_theme()
+
 # ==============================================================================
 # [MỚI] DỮ LIỆU NĂNG LỰC SỐ (TỪ FILE constants.ts CỦA THẦY)
 # ==============================================================================
@@ -2708,11 +2864,6 @@ def login_screen():
 # ==============================================================================
 
 def dashboard_screen():
-    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 🏠 Menu chính – WEB AI GIÁO VIÊN")
-    st.caption("Chọn mô-đun ở thanh bên trái để sử dụng. Nạp VIP/điểm ngay tại đây.")
-    st.markdown("</div>", unsafe_allow_html=True)
-
     user = st.session_state.get("user", {}) or {}
     username = user.get("email") or ""
 
@@ -2723,104 +2874,178 @@ def dashboard_screen():
         row = get_user_row(client, username)
         role = row.get("role", role)
         if "points" in row:
-            try:
-                points = int(row.get("points", 0) or 0)
-            except Exception:
-                points = 0
-        # sync session
+            points = row.get("points", -1)
+        # sync lại session để các module dùng nhất quán
         st.session_state.setdefault("user", {})
         st.session_state["user"]["role"] = role
-        if points >= 0:
+        if points != -1:
             st.session_state["user"]["points"] = points
 
-    # --- KPI nhỏ: điểm + trạng thái ---
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown(
-            f"""<div class='kpi-card'>
-            <div class='kpi-title'>Tài khoản</div>
-            <div class='kpi-value'>{html_escape(username) if username else 'Guest'}</div>
-            <div class='kpi-sub'>Gói: {html_escape(str(role).upper())}</div>
-            </div>""", unsafe_allow_html=True
-        )
+    # HERO (giống layout mẫu, nhưng cao cấp hơn)
+    st.markdown("""
+<div class="hero">
+  <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:8px;">
+    <div class="sb-logo" style="width:40px;height:40px;border-radius:14px;">AI</div>
+    <div style="text-align:left">
+      <div style="font-weight:800; font-size:14px; letter-spacing:.02em;">AIEXAM.VN</div>
+      <div class="small-muted">Nền tảng AI dành cho giáo viên • chạy thương mại</div>
+    </div>
+  </div>
+
+  <h1>Trợ lý AI giúp giáo viên làm nhanh — chuẩn — đẹp</h1>
+  <p>Tạo đề kiểm tra, soạn giáo án, viết nội dung năng lực số và tư vấn nhận xét chỉ với vài thao tác.</p>
+</div>
+""", unsafe_allow_html=True)
+
+    # Ask box + pills
+    st.write("")
+    c1, c2, c3 = st.columns([1, 2.2, 1])
     with c2:
-        if points >= 0:
-            st.markdown(
-                f"""<div class='kpi-card'>
-                <div class='kpi-title'>Điểm hiện có</div>
-                <div class='kpi-value'>{points:,}</div>
-                <div class='kpi-sub'>50k = {VIP_TOPUP_POINTS} điểm</div>
-                </div>""", unsafe_allow_html=True
-            )
-        else:
-            st.markdown(
-                """<div class='kpi-card'>
-                <div class='kpi-title'>Điểm</div>
-                <div class='kpi-value'>Chưa bật</div>
-                <div class='kpi-sub'>DB chưa có cột <b>points</b></div>
-                </div>""", unsafe_allow_html=True
-            )
-    with c3:
-        st.markdown(
-            f"""<div class='kpi-card'>
-            <div class='kpi-title'>Chi phí dùng</div>
-            <div class='kpi-value'>30</div>
-            <div class='kpi-sub'>điểm / lần (Soạn GA / Ra đề / NLS)</div>
-            </div>""", unsafe_allow_html=True
+        st.markdown('<div class="glass">', unsafe_allow_html=True)
+        q = st.text_input(
+            "",
+            placeholder="Hỏi nhanh: “Tạo ma trận đề Toán 10 – chương Hàm số, mức độ vận dụng…”",
+            key="dash_quick_ask",
+            label_visibility="collapsed"
         )
-
-    st.markdown(textwrap.dedent('''<div class='module-card highlight'>
-        <div class='module-badge'>NẠP VIP / CỘNG ĐIỂM</div>
-        <div class='module-title'>Quét VietQR → xác minh SePay tự động</div>
-        <div class='module-desc'>Nạp <b>{VIP_TOPUP_AMOUNT_VND:,.0f}đ</b> được <b>{VIP_TOPUP_POINTS} điểm</b>. Điểm dùng cho 3 module: Soạn giáo án, Ra đề – KTĐG, Năng lực số.</div>
-        <div class='module-meta'>Sau khi chuyển khoản, bấm “Kích hoạt” để hệ thống tự xác minh.</div>
-    </div>'''), unsafe_allow_html=True)
-
-    # --- Nạp VIP ---
-    if not client or not username:
-        st.warning("Bạn cần đăng nhập để nạp VIP.")
-        return
-
-    ref_code_input = st.text_input("Mã giới thiệu (tuỳ chọn):", key="dash_ref_code")
-
-    # Nội dung CK bắt buộc có tiền tố để SePay nhận diện
-    final_content_ck = f"SEVQR NAP VIP {username}"
-    if ref_code_input and ref_code_input != username:
-        final_content_ck = f"SEVQR NAP VIP {username} REF {ref_code_input}"
-
-    encoded_content = urllib.parse.quote(final_content_ck)
-    qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_ACC}-compact.png?amount={VIP_TOPUP_AMOUNT_VND}&addInfo={encoded_content}&accountName={BANK_NAME}"
-
-    q1, q2 = st.columns([1, 1.4])
-    with q1:
-        st.image(qr_url, caption=f"VietQR {VIP_TOPUP_AMOUNT_VND:,.0f}đ", width=280)
-    with q2:
-        st.info(f"**Nội dung chuyển khoản:** `{final_content_ck}`\n\nSau khi chuyển khoản xong, bấm **KÍCH HOẠT NGAY**.")
-        if st.button("🚀 KÍCH HOẠT NGAY (SePay tự xác minh)", type="primary", use_container_width=True, key="dash_activate_vip"):
-            ok = check_sepay_transaction(VIP_TOPUP_AMOUNT_VND, final_content_ck)
-            if not ok:
-                st.error("⚠️ Hệ thống chưa nhận được giao dịch phù hợp. Vui lòng thử lại sau 30–60 giây.")
-            else:
-                # Nếu DB có points -> cộng điểm; đồng thời set role pro
-                row = get_user_row(client, username)
-                updates = {'role': 'pro'}
-                if 'points' in row:
-                    cur = int(row.get('points', 0) or 0)
-                    updates['points'] = cur + VIP_TOPUP_POINTS
-                client.table('users_pro').update(updates).eq('username', username).execute()
-
-                # Cập nhật session
-                st.session_state.setdefault("user", {})
-                st.session_state["user"]["role"] = "pro"
-                if 'points' in updates:
-                    st.session_state["user"]["points"] = updates['points']
-
-                st.balloons()
-                st.success("✅ Kích hoạt VIP thành công! Điểm đã được cộng (nếu DB có cột points).")
+        colA, colB, colC = st.columns([1.2, 1.2, 0.9])
+        with colA:
+            if st.button("🧠 Gợi ý prompt", use_container_width=True, key="dash_hint"):
+                st.session_state["dash_quick_ask"] = "Hãy tạo ma trận đề theo yêu cầu: [môn/lớp/chủ đề/số câu/mức độ], sau đó sinh đề và đáp án."
                 st.rerun()
+        with colB:
+            if st.button("🚀 Đi tới tạo đề", use_container_width=True, key="dash_go_exam"):
+                go("exam")
+        with colC:
+            if st.button("➤", use_container_width=True, key="dash_send"):
+                # Điều hướng thông minh theo từ khoá (không phá module)
+                txt = (q or "").lower()
+                if any(k in txt for k in ["đề", "ma trận", "ktđg", "trắc nghiệm", "tự luận"]):
+                    go("exam")
+                elif any(k in txt for k in ["giáo án", "bài dạy", "kế hoạch bài dạy", "ppct"]):
+                    go("lesson_plan")
+                elif any(k in txt for k in ["năng lực số", "digital", "nls"]):
+                    go("digital")
+                else:
+                    go("advisor")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- 4 cards giới thiệu ---
-    components.html(DASHBOARD_HTML, height=260, scrolling=False)
+        st.markdown("""
+<div class="pills">
+  <span class="pill">💬 Chat/Tư vấn</span>
+  <span class="pill">📝 Ra đề – KTĐG</span>
+  <span class="pill">📘 Soạn giáo án</span>
+  <span class="pill">💻 Năng lực số</span>
+</div>
+""", unsafe_allow_html=True)
+
+    st.write("")
+    # Stat cards
+    s1, s2, s3 = st.columns(3)
+    with s1:
+        st.markdown(f"""<div class="card">
+<b>👤 Tài khoản</b><div class="small-muted">{username or "Chưa đăng nhập"}</div>
+</div>""", unsafe_allow_html=True)
+    with s2:
+        badge = "PRO" if role == "pro" else "FREE"
+        st.markdown(f"""<div class="card">
+<b>⭐ Gói</b><div class="small-muted">{badge}</div>
+</div>""", unsafe_allow_html=True)
+    with s3:
+        st.markdown(f"""<div class="card">
+<b>💎 Điểm</b><div class="small-muted">{points if points != -1 else "—"}</div>
+</div>""", unsafe_allow_html=True)
+
+    st.write("")
+    st.markdown("### Truy cập nhanh")
+    qa = st.columns(6)
+    quick = [
+        ("📝", "Ra đề – KTĐG", "exam", "ic1"),
+        ("📘", "Soạn giáo án", "lesson_plan", "ic2"),
+        ("💻", "Năng lực số", "digital", "ic3"),
+        ("🧠", "Nhận xét/Tư vấn", "advisor", "ic4"),
+        ("📚", "Kho/Quản lý", "dashboard", "ic5"),
+        ("❓", "Hướng dẫn", "dashboard", "ic6"),
+    ]
+    for i, (emo, label, page_key, klass) in enumerate(quick):
+        with qa[i]:
+            st.markdown(f"""<div class="card soft" style="text-align:center;">
+  <div class="icon-circle {klass}">{emo}</div>
+  <div style="font-weight:750;">{label}</div>
+  <div class="small-muted" style="margin-top:2px;">Mở ngay</div>
+</div>""", unsafe_allow_html=True)
+            if st.button("Mở", use_container_width=True, key=f"qa_open_{page_key}_{i}"):
+                go(page_key)
+
+    st.write("")
+    left, right = st.columns([1.2, 1])
+    with left:
+        st.markdown("""<div class="card">
+<b>📌 Gợi ý dùng nhanh</b>
+<ul style="margin:10px 0 0 18px; color: rgba(15,23,42,.78);">
+  <li>Vào <b>Ra đề – KTĐG</b> để tạo ma trận → đề → đáp án → xuất file.</li>
+  <li>Vào <b>Soạn giáo án</b> để soạn theo PPCT/chuẩn mẫu.</li>
+  <li>Vào <b>Năng lực số</b> để phân tích + tạo kế hoạch bài dạy tích hợp.</li>
+</ul>
+</div>""", unsafe_allow_html=True)
+
+    with right:
+        st.markdown("""<div class="card">
+<b>🚀 Nâng cấp & thanh toán</b>
+<div class="small-muted" style="margin-top:6px;">Quét VietQR → hệ thống xác minh SePay tự động. Sau khi chuyển khoản, bấm “Kích hoạt”.</div>
+</div>""", unsafe_allow_html=True)
+
+    # VIP Topup (giữ đúng logic gốc, chỉ bọc UI)
+    with st.expander("⭐ Nạp VIP / Kích hoạt PRO (SePay tự xác minh)", expanded=False):
+        if not client or not username:
+            st.warning("Bạn cần đăng nhập để nạp VIP.")
+            return
+
+        ref_code_input = st.text_input("Mã giới thiệu (tuỳ chọn):", key="dash_ref_code")
+
+        # Nội dung CK bắt buộc có tiền tố để SePay nhận diện
+        final_content_ck = f"SEVQR NAP VIP {username}"
+        if ref_code_input and ref_code_input != username:
+            final_content_ck = f"SEVQR NAP VIP {username} REF {ref_code_input}"
+
+        encoded_content = urllib.parse.quote(final_content_ck)
+        qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_NO}-compact2.png?amount={VIP_TOPUP_AMOUNT_VND}&addInfo={encoded_content}&accountName={BANK_NAME}"
+
+        q1, q2 = st.columns([1, 1.4])
+        with q1:
+            st.image(qr_url, caption=f"VietQR {VIP_TOPUP_AMOUNT_VND:,.0f}đ", width=280)
+        with q2:
+            st.markdown(f"""<div class="card soft">
+<div style="font-weight:800; font-size:16px; margin-bottom:6px;">Thông tin chuyển khoản</div>
+<div><b>Ngân hàng:</b> {BANK_NAME}</div>
+<div><b>Số TK:</b> {BANK_NO}</div>
+<div><b>Số tiền:</b> {VIP_TOPUP_AMOUNT_VND:,.0f} đ</div>
+<div><b>Nội dung:</b> <code>{final_content_ck}</code></div>
+<div class="small-muted" style="margin-top:8px;">Lưu ý: Nội dung cần đúng để hệ thống SePay nhận diện.</div>
+</div>""", unsafe_allow_html=True)
+
+            if st.button("🚀 KÍCH HOẠT NGAY (SePay tự xác minh)", type="primary", use_container_width=True, key="dash_activate_vip"):
+                ok = check_sepay_transaction(VIP_TOPUP_AMOUNT_VND, final_content_ck)
+                if not ok:
+                    st.error("❌ Chưa thấy giao dịch phù hợp. Vui lòng kiểm tra lại hoặc đợi 1–2 phút rồi thử lại.")
+                else:
+                    row = get_user_row(client, username)
+                    updates = {'role': 'pro'}
+                    if isinstance(row, dict) and 'points' in row:
+                        cur = int(row.get('points') or 0)
+                        updates['points'] = cur + VIP_TOPUP_POINTS
+                    client.table('users_pro').update(updates).eq('username', username).execute()
+
+                    # Cập nhật session
+                    st.session_state.setdefault("user", {})
+                    st.session_state["user"]["role"] = "pro"
+                    if 'points' in updates:
+                        st.session_state["user"]["points"] = updates['points']
+
+                    st.balloons()
+                    st.success("✅ Kích hoạt VIP thành công! Điểm đã được cộng (nếu DB có cột points).")
+                    st.rerun()
+
 def module_digital():
     # --- CSS Tùy chỉnh cho Module NLS (Giống giao diện React) ---
     st.markdown(textwrap.dedent('''
@@ -3247,30 +3472,62 @@ if "user" not in st.session_state:
     login_screen()
 else:
     with st.sidebar:
-        st.markdown("## 🏫 AIEXAM.VN")
-        st.caption("WEB AI GIÁO VIÊN")
+        st.markdown(
+            """<div class="sb-brand">
+<div class="sb-logo">AI</div>
+<div>
+  <div class="sb-title">AIEXAM.VN</div>
+  <div class="sb-sub">WEB AI GIÁO VIÊN</div>
+</div>
+</div>""",
+            unsafe_allow_html=True
+        )
+        st.markdown("<div class='small-muted'>Điều hướng nhanh • Trạng thái module rõ ràng</div>", unsafe_allow_html=True)
         st.divider()
 
         page_map = {
-            "🏠 Menu chính": "dashboard",
-            "📘 Trợ lý Soạn bài": "lesson_plan",
-            "💻 Soạn bài Năng lực số": "digital",
+            "🏠 Trang chủ": "dashboard",
             "📝 Ra đề – KTĐG": "exam",
+            "📘 Trợ lý Soạn bài": "lesson_plan",
+            "💻 Năng lực số": "digital",
             "🧠 Nhận xét – Tư vấn": "advisor",
         }
 
-        # chọn theo current_page (đồng bộ)
         reverse_map = {v: k for k, v in page_map.items()}
-        current_label = reverse_map.get(st.session_state["current_page"], "🏠 Dashboard")
+        current_label = reverse_map.get(st.session_state["current_page"], "🏠 Trang chủ")
 
         menu_label = st.radio(
-            "📌 Chọn mô-đun",
+            "Điều hướng",
             list(page_map.keys()),
             index=list(page_map.keys()).index(current_label),
-            key="sidebar_menu_main"
+            key="sidebar_menu_main",
+            label_visibility="collapsed"
         )
-
         st.session_state["current_page"] = page_map[menu_label]
+
+        st.write("")
+        st.markdown("""<div class="card soft">
+<b>⚡ Lối tắt</b>
+<div class="small-muted" style="margin-top:6px;">Vào nhanh chức năng quan trọng.</div>
+</div>""", unsafe_allow_html=True)
+
+        cta1, cta2 = st.columns(2)
+        with cta1:
+            if st.button("🚀 Tạo đề", use_container_width=True, key="sb_cta_exam"):
+                go("exam")
+        with cta2:
+            if st.button("📘 Soạn bài", use_container_width=True, key="sb_cta_lp"):
+                go("lesson_plan")
+
+        st.write("")
+        role = (st.session_state.get("user") or {}).get("role", "free")
+        role_badge = "PRO" if role == "pro" else "FREE"
+        st.markdown(f"""<div class="card">
+<b>⭐ Gói hiện tại: {role_badge}</b>
+<div class="small-muted" style="margin-top:6px;">Nâng cấp để mở giới hạn & nhận thêm điểm.</div>
+</div>""", unsafe_allow_html=True)
+        if st.button("⭐ Nâng cấp / Nạp VIP", type="primary", use_container_width=True, key="sb_upgrade"):
+            go("dashboard")
 
         st.divider()
         if st.button("🚪 Đăng xuất", use_container_width=True, key="sb_logout"):
