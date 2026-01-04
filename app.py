@@ -2969,7 +2969,7 @@ def dashboard_screen():
         ("💻", "Năng lực số", "digital", "ic3"),
         ("🧠", "Nhận xét/Tư vấn", "advisor", "ic4"),
         ("📚", "Kho/Quản lý", "dashboard", "ic5"),
-        ("❓", "Hướng dẫn", "dashboard", "ic6"),
+        ("📘", "Hướng dẫn", "help", "ic6"),
     ]
     for i, (emo, label, page_key, klass) in enumerate(quick):
         with qa[i]:
@@ -3522,7 +3522,7 @@ def render_topbar():
             if st.button("💬 Chat AI", use_container_width=True, key="tb_chat"):
                 go("chat")
         with b3:
-            if st.button("📄 Doc AI", use_container_width=True, key="tb_doc"):
+            if st.button("📑 Doc AI", use_container_width=True, key="tb_doc"):
                 go("doc_ai")
         with b4:
             if st.button("🧠 Mindmap", use_container_width=True, key="tb_mm"):
@@ -3740,6 +3740,204 @@ Quy tắc:
             st.markdown(out)
             st.download_button("⬇️ Tải mindmap (.md)", data=out.encode("utf-8"), file_name="mindmap.md", mime="text/markdown", use_container_width=True)
 
+
+
+# ==============================================================================
+# MODULE: HƯỚNG DẪN (2 TAB) – Dành cho thầy/cô
+# - Tab 1: Hướng dẫn sử dụng module
+# - Tab 2: Hướng dẫn nạp VIP/PRO + điểm
+# ==============================================================================
+def module_help():
+    st.markdown("## 📘 Hướng dẫn sử dụng")
+    st.caption("Tài liệu hướng dẫn nhanh dành cho thầy/cô – dễ hiểu – dùng được ngay.")
+
+    tab1, tab2 = st.tabs(["🧠 Hướng dẫn sử dụng module", "💎 Hướng dẫn nạp VIP / PRO"])
+
+    # -----------------------------
+    # TAB 1: MODULES
+    # -----------------------------
+    with tab1:
+        st.markdown("### D. 💬 Chat AI (hỏi đáp nhanh như ChatGPT)")
+        st.markdown(
+            """
+**Dùng khi nào?**  
+Hỏi đáp kiến thức, soạn câu hỏi, gợi ý hoạt động dạy học, viết nhận xét, chỉnh câu chữ…
+
+**Cách dùng nhanh (3 bước):**
+1) Vào **Chat AI**  
+2) Nhập yêu cầu theo mẫu: **Môn – Lớp – Nội dung – Mục tiêu – Định dạng kết quả**  
+3) Nếu chưa đúng, gõ tiếp: *“Sửa theo…”* / *“Làm ngắn hơn…”* / *“Chi tiết hơn…”*
+
+**Ví dụ prompt:**
+- “Tôi dạy **Toán 8**, giải thích **hằng đẳng thức** dễ hiểu + 3 ví dụ.”
+- “Tạo **10 câu trắc nghiệm** Sinh 10 chương 2, có đáp án + giải thích ngắn.”
+            """
+        )
+        st.info("Mẹo: ghi rõ thời lượng (35/45/90 phút), đối tượng HS (trung bình/khá), chuẩn CTGDPT 2018 nếu cần.")
+
+        st.divider()
+
+        st.markdown("### E. 📄 Doc AI (tóm tắt & hỏi theo tài liệu)")
+        st.markdown(
+            """
+**Dùng khi nào?**  
+Khi thầy/cô có **PDF / DOCX / TXT** cần tóm tắt, rút ý chính, tạo câu hỏi ôn tập hoặc hỏi theo nội dung tài liệu.
+
+**Cách dùng:**
+1) Vào **Doc AI**  
+2) **Tải tài liệu lên**  
+3) Chọn yêu cầu: *Tóm tắt* / *Rút ý chính* / *Tạo câu hỏi* / *Dàn ý bài giảng*
+
+**Ví dụ:**
+- “Tóm tắt tài liệu thành 8 ý chính, chia theo từng mục.”
+- “Tạo 10 câu hỏi ôn tập + đáp án dựa trên tài liệu.”
+            """
+        )
+        st.warning("Nếu tài liệu là PDF scan/ảnh: hãy bật OCR (nếu có) để trích nội dung chính xác hơn.")
+
+        st.divider()
+
+        st.markdown("### F. 🧠 Mindmap (sơ đồ tư duy)")
+        st.markdown(
+            """
+**Dùng khi nào?**  
+Tạo sơ đồ tư duy cho bài học/chương, ôn tập nhanh, làm slide, giao bài cho học sinh.
+
+**Cách dùng:**
+1) Nhập **chủ đề** hoặc dán **nội dung bài**  
+2) Yêu cầu *mindmap 3–4 cấp*, *ngắn gọn/dễ học*, *có ví dụ*
+
+**Ví dụ:**
+- “Mindmap Lịch sử 9 – Cách mạng tháng Tám, dạng 4 cấp, dễ học.”
+            """
+        )
+
+        st.divider()
+
+        st.markdown("### G. 📝 Ra đề – KTĐG (ma trận – đề – đáp án)")
+        st.markdown(
+            """
+**Dùng khi nào?**  
+Tạo đề kiểm tra/đề thi theo chuẩn đánh giá (NB/TH/VD/VDC hoặc M1/M2/M3), có thể kèm ma trận/đặc tả.
+
+**Quy trình chuẩn:**
+1) Chọn **môn – lớp – phạm vi kiến thức**  
+2) Chọn dạng: Trắc nghiệm / Tự luận / Kết hợp  
+3) Chọn số lượng câu & mức độ → bấm **Tạo đề**  
+4) Xem trước → chỉnh → **Xuất file** (nếu có)
+
+**Ví dụ prompt:**
+- “Đề 45 phút Toán 7, 20 TN + 2 TL, mức độ vừa, có đáp án.”
+            """
+        )
+
+        st.divider()
+
+        st.markdown("### H. 📘 Trợ lý Soạn bài (tạo giáo án tự động)")
+        st.markdown(
+            """
+**Dùng khi nào?**  
+Soạn giáo án nhanh theo môn/lớp/bộ sách, có mục tiêu, hoạt động GV–HS, luyện tập, vận dụng, đánh giá.
+
+**Cách dùng:**
+1) Chọn môn – lớp – bài – bộ sách  
+2) Nhập yêu cầu (thời lượng, phương pháp, thiết bị)  
+3) Bấm tạo → chỉnh theo lớp dạy → xuất/lưu (nếu có)
+
+**Mẹo hay:**  
+Dán 1 đoạn mẫu giáo án của trường và yêu cầu: *“viết theo đúng format này”*.
+            """
+        )
+
+        st.divider()
+
+        st.markdown("### I. 💻 Năng lực số (tích hợp NLS vào giáo án)")
+        st.markdown(
+            """
+**Dùng khi nào?**  
+Tích hợp **Năng lực số** vào bài dạy: hoạt động số, công cụ số, sản phẩm số, tiêu chí đánh giá.
+
+**Cách dùng:**
+1) Chọn môn – lớp – bài (hoặc tải giáo án gốc nếu module hỗ trợ)  
+2) Chọn mục tiêu NLS (tìm kiếm, hợp tác, an toàn số, AI…)  
+3) Bấm tạo → nhận hoạt động + sản phẩm + tiêu chí đánh giá
+
+**Mẹo:**  
+Ghi rõ điều kiện lớp học (có/không phòng máy, dùng điện thoại, internet yếu…).
+            """
+        )
+
+        st.divider()
+        st.markdown("### 🧩 Nhận xét – Tư vấn")
+        st.markdown(
+            """
+**Dùng khi nào?**  
+Viết nhận xét học sinh theo năng lực/phẩm chất, góp ý giáo án, tư vấn cải tiến hoạt động dạy học.
+
+**Ví dụ:**
+- “Viết nhận xét môn Văn cho HS mức trung bình, giọng văn tích cực, có hướng cải thiện.”
+            """
+        )
+
+        st.success("✅ Gợi ý chung: Càng nêu rõ *môn – lớp – mục tiêu – thời lượng – định dạng*, AI càng ra kết quả đúng ý.")
+
+    # -----------------------------
+    # TAB 2: VIP/PRO
+    # -----------------------------
+    with tab2:
+        st.markdown("### A. 🚀 Bắt đầu nhanh (nạp VIP trong 1–2 phút)")
+        st.markdown(
+            """
+1) **Đăng nhập/Đăng ký** tài khoản  
+2) Vào **Trang chủ → Nạp VIP / Kích hoạt PRO**  
+3) Quét **VietQR** hoặc chuyển khoản theo hướng dẫn  
+4) Bấm **KÍCH HOẠT / XÁC MINH** (SePay tự kiểm tra)  
+5) Thành công → hệ thống cập nhật gói/điểm
+            """
+        )
+
+        st.divider()
+
+        st.markdown("### B. 👤 Tài khoản – Gói – Điểm (rất quan trọng)")
+        st.markdown(
+            f"""
+- **FREE**: dùng thử cơ bản theo giới hạn hệ thống  
+- **VIP/PRO**: dùng đầy đủ hơn, ổn định hơn  
+
+**Điểm dùng để làm gì?**  
+- Điểm dùng để chạy các tác vụ AI (ra đề/soạn giáo án/năng lực số…).  
+- Mỗi lượt có thể trừ điểm theo quy định.
+
+**Quy đổi hiện tại:**
+- **{VIP_TOPUP_AMOUNT_VND:,}đ = {VIP_TOPUP_POINTS} điểm**  
+- Chi phí mặc định:
+  - Soạn giáo án: **{POINT_COST_LESSON_PLAN} điểm/lượt**
+  - Ra đề – KTĐG: **{POINT_COST_EXAM} điểm/lượt**
+  - Năng lực số: **{POINT_COST_NLS} điểm/lượt**
+            """
+        )
+
+        st.divider()
+
+        st.markdown("### C. 💳 Nạp VIP/PRO (xác minh tự động)")
+        st.markdown(
+            """
+**Cách nạp đúng:**
+1) Quét **VietQR**  
+2) Chuyển **đúng số tiền**  
+3) Nhập **đúng nội dung chuyển khoản** theo hướng dẫn trên web  
+4) Bấm **KÍCH HOẠT / XÁC MINH** để hệ thống kiểm tra giao dịch
+
+**Nếu chưa kích hoạt được:**
+- Chờ 30–60 giây rồi bấm xác minh lại  
+- Kiểm tra bạn đã chuyển đúng nội dung chưa  
+- Nếu vẫn lỗi: chụp ảnh giao dịch và gửi bộ phận hỗ trợ
+            """
+        )
+
+        st.info("Lưu ý: Nội dung chuyển khoản đúng giúp hệ thống nhận diện nhanh và chính xác.")
+
+
 # ==============================================================================
 # ENTRY POINT (PUBLIC HOME + LOGIN-ON-DEMAND + TOPBAR + SIDEBAR)
 # ==============================================================================
@@ -3765,19 +3963,20 @@ with st.sidebar:
     st.divider()
 
     page_map = {
-        "🏠 Trang chủ": "dashboard",
+        "🏡 Trang chủ": "dashboard",
         "💬 Chat AI": "chat",
-        "📄 Doc AI": "doc_ai",
+        "📑 Doc AI": "doc_ai",
         "🧠 Mindmap": "mindmap",
-        "📝 Ra đề – KTĐG": "exam",
-        "📘 Trợ lý Soạn bài": "lesson_plan",
-        "💻 Năng lực số": "digital",
-        "🧩 Nhận xét – Tư vấn": "advisor",
+        "🧾 Ra đề – KTĐG": "exam",
+        "📚 Trợ lý Soạn bài": "lesson_plan",
+        "🖥️ Năng lực số": "digital",
+        "🧭 Nhận xét – Tư vấn": "advisor",
+        "📘 Hướng dẫn": "help",
         "🔐 Đăng nhập / Đăng ký": "login",
     }
 
     reverse_map = {v: k for k, v in page_map.items()}
-    current_label = reverse_map.get(st.session_state.get("current_page", "dashboard"), "🏠 Trang chủ")
+    current_label = reverse_map.get(st.session_state.get("current_page", "dashboard"), "🏡 Trang chủ")
 
     menu_label = st.radio(
         "Điều hướng",
@@ -3833,6 +4032,8 @@ elif page == "doc_ai":
     module_doc_ai()
 elif page == "mindmap":
     module_mindmap()
+elif page == "help":
+    module_help()
 elif page == "lesson_plan":
     if module_lesson_plan_B:
         module_lesson_plan_B(
