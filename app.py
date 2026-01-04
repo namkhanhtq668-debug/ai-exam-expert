@@ -367,9 +367,10 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked +
 """, unsafe_allow_html=True)
 
 def go(page_key: str):
-    # Programmatic navigation: also sync sidebar highlight
+    """Programmatic navigation without breaking sidebar widgets."""
     st.session_state["current_page"] = page_key
-    st.session_state["_sync_sidebar_menu"] = True
+    # Bump epoch so sidebar radio key changes -> highlight sync without session_state conflicts
+    st.session_state["_nav_epoch"] = int(st.session_state.get("_nav_epoch", 0)) + 1
     st.rerun()
 
 inject_premium_theme()
@@ -2902,7 +2903,7 @@ def dashboard_screen():
     st.markdown(f"""
 <div class="hero">
   <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:8px;">
-    <div class="sb-logo" style="width:56px;height:56px;border-radius:14px;background:transparent;box-shadow:none;"><img src="data:image/png;base64,{LOGO_PNG_B64}" style="width:56px;height:56px;object-fit:contain;border-radius:14px;" /></div>
+    <div class="sb-logo" style="width:64px;height:64px;border-radius:0;background:transparent;box-shadow:none;"><img src="data:image/png;base64,{LOGO_PNG_B64}" style="width:64px;height:64px;object-fit:contain;border:none;box-shadow:none;border-radius:0;" /></div>
     <div style="text-align:left">
       <div style="font-weight:800; font-size:14px; letter-spacing:.02em;">AIEXAM.VN</div>
       <div class="small-muted">Nền tảng AI dành cho giáo viên</div>
@@ -3523,7 +3524,7 @@ def render_topbar():
             f"""
 <div style="display:flex;gap:10px;align-items:center;">
   <div style="width:52px;height:52px;border-radius:14px;background:transparent;box-shadow:none;overflow:hidden;">
-    <img src="data:image/png;base64,{LOGO_PNG_B64}" style="width:52px;height:52px;object-fit:contain;border-radius:14px;" />
+    <img src="data:image/png;base64,{LOGO_PNG_B64}" style="width:64px;height:64px;object-fit:contain;border:none;box-shadow:none;border-radius:0;" />
   </div>
   <div>
     <div style="font-weight:900;line-height:1.05;">AIEXAM.VN</div>
@@ -4032,7 +4033,7 @@ st.write("")  # spacing
 # Sidebar (hiển thị cả với khách)
 with st.sidebar:
     st.markdown(f"""<div class="sb-brand">
-<div class="sb-logo" style="background:transparent; box-shadow:none;"><img src="data:image/png;base64,{LOGO_PNG_B64}" style="width:52px;height:52px;object-fit:contain;border-radius:10px;" /></div>
+<div class="sb-logo" style="width:64px;height:64px;border-radius:0;background:transparent;box-shadow:none;"><img src="data:image/png;base64,{LOGO_PNG_B64}" style="width:64px;height:64px;object-fit:contain;border:none;box-shadow:none;border-radius:0;" /></div>
 <div>
   <div class="sb-title">AIEXAM.VN</div>
   <div class="sb-sub">WEB AI GIÁO VIÊN</div>
@@ -4057,26 +4058,29 @@ with st.sidebar:
     }
 
     # ---- Sidebar navigation (stable, no input reset)
-    reverse_map = {v: k for k, v in page_map.items()}
-    current_page = st.session_state.get("current_page", "dashboard")
-    current_label = reverse_map.get(current_page, "🏡 Trang chủ")
-    # Sync radio highlight when navigation happens programmatically (go(...))
-    if st.session_state.get("_sync_sidebar_menu", False) or "sidebar_menu_main" not in st.session_state:
-        st.session_state["sidebar_menu_main"] = current_label
-        st.session_state["_sync_sidebar_menu"] = False
+reverse_map = {v: k for k, v in page_map.items()}
+current_page = st.session_state.get("current_page", "dashboard")
+current_label = reverse_map.get(current_page, "🏡 Trang chủ")
 
-    def _on_sidebar_nav_change():
-        label = st.session_state.get("sidebar_menu_main", current_label)
-        st.session_state["current_page"] = page_map.get(label, "dashboard")
+# Use an epoch-based key so when we navigate programmatically (go()),
+# the radio re-initializes from current_page without session_state conflicts.
+nav_epoch = int(st.session_state.get("_nav_epoch", 0))
+radio_key = f"sidebar_menu_main_{nav_epoch}"
 
-    menu_label = st.radio(
-        "Điều hướng",
-        list(page_map.keys()),
-        index=list(page_map.keys()).index(st.session_state["sidebar_menu_main"]),
-        key="sidebar_menu_main",
-        label_visibility="collapsed",
-        on_change=_on_sidebar_nav_change,
-    )
+menu_label = st.radio(
+    "Điều hướng",
+    list(page_map.keys()),
+    index=list(page_map.keys()).index(current_label) if current_label in page_map else 0,
+    key=radio_key,
+    label_visibility="collapsed",
+)
+
+# Apply selection (only when changed)
+selected_page = page_map.get(menu_label, "dashboard")
+if selected_page != st.session_state.get("current_page", "dashboard"):
+    st.session_state["current_page"] = selected_page
+    st.session_state["_nav_epoch"] = nav_epoch  # keep key stable for this selection
+    st.rerun()
 
     st.write("")
     user = st.session_state.get("user") or {}
@@ -4146,4 +4150,3 @@ elif page == "advisor":
 else:
     # exam + fallback
     main_app()
-
