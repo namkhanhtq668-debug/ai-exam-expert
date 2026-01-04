@@ -16,48 +16,51 @@ import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 # === Brand logo (SVG, transparent) ===
 LOGO_SVG_TEMPLATE = r'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="{size}" height="{size}" aria-label="aiexam logo" role="img">
   <defs>
-    <linearGradient id="pen" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="pen-{uid}" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#f5f7fb"/>
       <stop offset="0.35" stop-color="#cfd6e2"/>
       <stop offset="0.7" stop-color="#9aa3b2"/>
       <stop offset="1" stop-color="#ffffff"/>
     </linearGradient>
-    <linearGradient id="doc" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="doc-{uid}" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0ea5e9"/>
       <stop offset="0.6" stop-color="#2563eb"/>
       <stop offset="1" stop-color="#1d4ed8"/>
     </linearGradient>
-    <radialGradient id="spark" cx="35%" cy="70%" r="60%">
+    <radialGradient id="spark-{uid}" cx="35%" cy="70%" r="60%">
       <stop offset="0" stop-color="#fff7c2"/>
       <stop offset="0.3" stop-color="#facc15"/>
       <stop offset="1" stop-color="#f59e0b" stop-opacity="0"/>
     </radialGradient>
-    <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
+    <pattern id="grid-{uid}" width="16" height="16" patternUnits="userSpaceOnUse">
       <path d="M16 0H0V16" fill="none" stroke="#93c5fd" stroke-opacity="0.45" stroke-width="1"/>
       <path d="M8 0V16M0 8H16" fill="none" stroke="#bfdbfe" stroke-opacity="0.25" stroke-width="1"/>
     </pattern>
   </defs>
 
   <!-- digital document tile -->
-  <rect x="32" y="28" width="144" height="176" rx="22" fill="url(#doc)"/>
-  <rect x="44" y="42" width="120" height="148" rx="14" fill="url(#grid)" opacity="0.9"/>
+  <rect x="32" y="28" width="144" height="176" rx="22" fill="url(#doc-{uid})"/>
+  <rect x="44" y="42" width="120" height="148" rx="14" fill="url(#grid-{uid})" opacity="0.95"/>
   <path d="M148 28h-40a22 22 0 0 0-22 22v14h84V50a22 22 0 0 0-22-22z" fill="#0b2a6f" opacity="0.10"/>
 
   <!-- pen nib -->
   <path d="M192 40c-10 0-19 4-26 12l-58 58c-6 6-9 14-9 22l0 26 26 0c8 0 16-3 22-9l58-58c8-7 12-16 12-26 0-14-11-25-25-25z"
-        fill="url(#pen)" stroke="#64748b" stroke-opacity="0.25" stroke-width="3"/>
-  <path d="M164 76l16 16" stroke="#64748b" stroke-opacity="0.45" stroke-width="6" stroke-linecap="round"/>
+        fill="url(#pen-{uid})" stroke="#64748b" stroke-opacity="0.28" stroke-width="3"/>
+  <path d="M164 76l16 16" stroke="#475569" stroke-opacity="0.55" stroke-width="6" stroke-linecap="round"/>
   <circle cx="152" cy="104" r="10" fill="#0f172a" opacity="0.35"/>
   <path d="M112 152l-13 30 30-13" fill="#0f172a" opacity="0.18"/>
 
   <!-- spark -->
-  <circle cx="104" cy="168" r="34" fill="url(#spark)"/>
-  <path d="M104 144l6 16 16 6-16 6-6 16-6-16-16-6 16-6z" fill="#facc15" opacity="0.95"/>
+  <circle cx="104" cy="168" r="34" fill="url(#spark-{uid})"/>
+  <path d="M104 144l6 16 16 6-16 6-6 16-6-16-16-6 16-6z" fill="#facc15" opacity="0.92"/>
 </svg>'''
 
 def logo_svg(size: int) -> str:
     # Inline SVG (transparent background). No border/shadow.
-    return LOGO_SVG_TEMPLATE.format(size=size)
+    st.session_state.setdefault('_logo_uid', 0)
+    st.session_state._logo_uid += 1
+    uid = f"ax{st.session_state._logo_uid}"
+    return LOGO_SVG_TEMPLATE.format(size=size, uid=uid)
 
 DASHBOARD_HTML = """
 <!DOCTYPE html>
@@ -281,12 +284,13 @@ section[data-testid="stSidebar"]{
   padding: 10px 4px 6px 4px;
 }
 .sb-logo{
-  width: 56px; height: 56px; border-radius: 12px;
-  background: linear-gradient(135deg, rgba(91,92,246,.95), rgba(47,128,255,.95));
+  width: 72px; height: 72px; border-radius: 0px;
+  background: transparent;
   display:flex; align-items:center; justify-content:center;
-  color:white; font-weight:800;
-  box-shadow: 0 8px 22px rgba(91,92,246,.22);
+  color: inherit; font-weight:800;
+  box-shadow: none;
 }
+.sb-logo svg{display:block;}
 .sb-title{ font-weight: 800; line-height: 1.05; }
 .sb-sub{ color: var(--muted); font-size: 12px; margin-top: 2px; }
 
@@ -4186,4 +4190,3 @@ elif page == "advisor":
 else:
     # exam + fallback
     main_app()
-
