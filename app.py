@@ -2634,6 +2634,7 @@ def dashboard_screen():
     # Ask box + pills
     st.write("")
     c1, c2, c3 = st.columns([1, 2.2, 1])
+    
    def dien_text_mau():
         st.session_state["dash_quick_ask"] = "Hãy tạo ma trận đề theo yêu cầu: [môn/lớp/chủ đề/số câu/mức độ], sau đó sinh đề và đáp án."
     with c2:
@@ -3712,5 +3713,6 @@ elif page == "advisor":
 else:
     # exam + fallback
     main_app()
+
 
 
