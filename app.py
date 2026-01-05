@@ -2634,6 +2634,8 @@ def dashboard_screen():
     # Ask box + pills
     st.write("")
     c1, c2, c3 = st.columns([1, 2.2, 1])
+   def dien_text_mau():
+        st.session_state["dash_quick_ask"] = "Hãy tạo ma trận đề theo yêu cầu: [môn/lớp/chủ đề/số câu/mức độ], sau đó sinh đề và đáp án."
     with c2:
         st.markdown('<div class="glass">', unsafe_allow_html=True)
         q = st.text_input(
@@ -2644,9 +2646,9 @@ def dashboard_screen():
         )
         colA, colB, colC = st.columns([1.2, 1.2, 0.9])
         with colA:
-            if st.button("🧠 Gợi ý prompt", use_container_width=True, key="dash_hint"):
-                st.session_state["dash_quick_ask"] = "Hãy tạo ma trận đề theo yêu cầu: [môn/lớp/chủ đề/số câu/mức độ], sau đó sinh đề và đáp án."
-                st.rerun()
+            # SỬA: Dùng on_click gọi hàm ở trên, bỏ st.rerun() đi (nó tự rerun)
+            st.button("🧠 Gợi ý prompt", use_container_width=True, key="dash_hint", on_click=dien_text_mau)
+                
         with colB:
             if st.button("🚀 Đi tới tạo đề", use_container_width=True, key="dash_go_exam"):
                 go("exam")
@@ -3710,4 +3712,5 @@ elif page == "advisor":
 else:
     # exam + fallback
     main_app()
+
 
