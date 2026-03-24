@@ -3872,10 +3872,11 @@ def _simple_retrieve(query: str, chunks: list[str], k: int = 4) -> list[str]:
     return top if top else chunks[:k]
 CHAT_EDUCATION_SYSTEM_PROMPT = (
     "Bạn là trợ lý AI dành riêng cho giáo viên Việt Nam. "
-    "Chỉ ưu tiên hỗ trợ các chủ đề giáo dục và sư phạm: soạn bài, giáo án, kiểm tra đánh giá, "
+    "Ưu tiên hỗ trợ các chủ đề giáo dục và sư phạm: soạn bài, giáo án, kiểm tra đánh giá, "
     "ra đề, nhận xét học sinh, CTGDPT 2018, năng lực số, phương pháp dạy học, quản lý lớp học, "
     "hỗ trợ chuyên môn cho giáo viên. "
-    "Nếu câu hỏi nằm ngoài phạm vi giáo dục, hãy từ chối nhẹ nhàng, ngắn gọn và hướng người dùng quay lại chủ đề giáo dục."
+    "Trả lời tự nhiên, thân thiện, ngắn gọn và đúng trọng tâm. "
+    "Nếu nội dung có thể liên hệ tới các chức năng sẵn có trên website, hãy trả lời bình thường rồi thêm một gợi ý ngắn ở cuối."
 )
 _EDU_TOPIC_KEYWORDS = (
     "giáo viên", "giáo dục", "dạy học", "soạn bài", "giáo án", "bài giảng", "ra đề", "đề thi",
@@ -4009,34 +4010,15 @@ background: rgba(255,255,255,.72); box-shadow: 0 10px 22px rgba(2,6,23,.05);">
             st.markdown(prompt)
         with st.chat_message("assistant"):
             with st.spinner("AI đang trả lời…"):
-                if intent:
-                    module_key = intent["module_key"]
-                    module_label = intent["module_label"]
-                    reply = (
-                        f"Trên website đã có chức năng **{module_label}** phù hợp với yêu cầu này. "
-                        f"Bạn có thể mở module đó để làm nhanh và đúng quy trình hơn."
-                    )
-                elif not _is_education_question(prompt):
-                    reply = (
-                        "Tôi ưu tiên hỗ trợ nội dung giáo dục cho giáo viên như soạn bài, ra đề, "
-                        "đánh giá học sinh, CTGDPT 2018 và năng lực số. "
-                        "Bạn hãy hỏi lại theo chủ đề này để tôi hỗ trợ tốt hơn."
-                    )
-                else:
-                    limited_context = _build_limited_chat_context(
-                        st.session_state["chat_messages"][:-1],
-                        prompt,
-                        max_turns=4,
-                    )
-                    reply = _gemini_generate(limited_context, system=CHAT_EDUCATION_SYSTEM_PROMPT)
+                limited_context = _build_limited_chat_context(
+                    st.session_state["chat_messages"][:-1],
+                    prompt,
+                    max_turns=4,
+                )
+                reply = _gemini_generate(limited_context, system=CHAT_EDUCATION_SYSTEM_PROMPT)
+                if intent and reply:
+                    reply = f"{reply}\n\nGợi ý: Có sẵn **{intent['module_label']}** trên website."
                 st.markdown(reply if reply else "…")
-                if intent:
-                    col_nav, col_hint = st.columns([1.1, 1.9], vertical_alignment="center")
-                    with col_nav:
-                        if st.button(f"Đi tới {intent['module_label']}", key=f"chat_nav_{intent['module_key']}_{len(st.session_state['chat_messages'])}"):
-                            go(intent["module_key"])
-                    with col_hint:
-                        st.caption(f"Gợi ý mở đúng module: {intent['module_label']}.")
         st.session_state["chat_messages"].append({"role": "assistant", "content": reply})
         if not user:
             st.session_state["demo_used"] = True
@@ -4502,6 +4484,5 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
-
 
 
