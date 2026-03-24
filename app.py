@@ -3907,6 +3907,49 @@ def _build_limited_chat_context(messages: list[dict], current_prompt: str, max_t
     parts.append("")
     parts.append("Yêu cầu trả lời: ngắn gọn, đúng trọng tâm, ưu tiên nội dung giáo dục cho giáo viên.")
     return "\n".join(parts)
+def _detect_chat_module_intent(text: str) -> dict | None:
+    q = (text or "").strip().lower()
+    if not q:
+        return None
+    intent_rules = [
+        (
+            "exam",
+            "Ra đề – KTĐG",
+            ("ra đề", "đề thi", "kiểm tra", "ma trận", "đáp án", "trắc nghiệm", "tự luận", "đặc tả", "exam"),
+        ),
+        (
+            "lesson_plan",
+            "Trợ lý Soạn bài",
+            ("soạn giáo án", "soạn bài", "kế hoạch bài dạy", "giáo án", "bài dạy", "ppct", "lesson plan"),
+        ),
+        (
+            "doc_ai",
+            "Doc AI",
+            ("pdf", "docx", "txt", "tóm tắt tài liệu", "hỏi theo tài liệu", "trích xuất", "tài liệu", "document"),
+        ),
+        (
+            "mindmap",
+            "Mindmap",
+            ("mindmap", "sơ đồ tư duy", "sơ đồ", "map tư duy"),
+        ),
+        (
+            "digital",
+            "Năng lực số",
+            ("năng lực số", "tích hợp công nghệ số", "chuyển đổi số", "digital", "công nghệ số"),
+        ),
+        (
+            "advisor",
+            "Nhận xét – Tư vấn",
+            ("nhận xét học sinh", "nhận xét", "tư vấn", "góp ý", "khuyến nghị", "phản hồi học sinh"),
+        ),
+    ]
+    for module_key, module_label, keywords in intent_rules:
+        if any(k in q for k in keywords):
+            return {
+                "module_key": module_key,
+                "module_label": module_label,
+            }
+    return None
 def _render_chat_history(messages: list[dict]) -> None:
     if not messages:
         st.markdown(
@@ -3939,6 +3982,7 @@ def module_chat():
     st.caption("Hỏi AI như ChatGPT. Khách được dùng thử 1 câu. Đăng nhập để dùng đầy đủ.")
     st.caption("AI chỉ hỗ trợ gợi ý nội dung giáo dục; giáo viên là người kiểm tra và quyết định nội dung sử dụng.")
     st.session_state.setdefault("chat_messages", [])
+    st.session_state.setdefault("chat_intent_hint", None)
     st.markdown(
         """
 <div style="margin:10px 0 14px 0; padding:12px 14px; border:1px solid rgba(91,92,246,.10); border-radius:18px;
@@ -3958,12 +4002,21 @@ background: rgba(255,255,255,.72); box-shadow: 0 10px 22px rgba(2,6,23,.05);">
         if (not user) and st.session_state.get("demo_used"):
             require_login("chat")
             return
+        intent = _detect_chat_module_intent(prompt)
+        st.session_state["chat_intent_hint"] = intent
         st.session_state["chat_messages"].append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
         with st.chat_message("assistant"):
             with st.spinner("AI đang trả lời…"):
-                if not _is_education_question(prompt):
+                if intent:
+                    module_key = intent["module_key"]
+                    module_label = intent["module_label"]
+                    reply = (
+                        f"Trên website đã có chức năng **{module_label}** phù hợp với yêu cầu này. "
+                        f"Bạn có thể mở module đó để làm nhanh và đúng quy trình hơn."
+                    )
+                elif not _is_education_question(prompt):
                     reply = (
                         "Tôi ưu tiên hỗ trợ nội dung giáo dục cho giáo viên như soạn bài, ra đề, "
                         "đánh giá học sinh, CTGDPT 2018 và năng lực số. "
@@ -3977,6 +4030,13 @@ background: rgba(255,255,255,.72); box-shadow: 0 10px 22px rgba(2,6,23,.05);">
                     )
                     reply = _gemini_generate(limited_context, system=CHAT_EDUCATION_SYSTEM_PROMPT)
                 st.markdown(reply if reply else "…")
+                if intent:
+                    col_nav, col_hint = st.columns([1.1, 1.9], vertical_alignment="center")
+                    with col_nav:
+                        if st.button(f"Đi tới {intent['module_label']}", key=f"chat_nav_{intent['module_key']}_{len(st.session_state['chat_messages'])}"):
+                            go(intent["module_key"])
+                    with col_hint:
+                        st.caption(f"Gợi ý mở đúng module: {intent['module_label']}.")
         st.session_state["chat_messages"].append({"role": "assistant", "content": reply})
         if not user:
             st.session_state["demo_used"] = True
