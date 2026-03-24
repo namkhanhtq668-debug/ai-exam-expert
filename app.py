@@ -9,8 +9,13 @@ import re
 import textwrap
 import io
 import time
+from datetime import datetime, timezone, timedelta
 import requests
 import random
+try:
+    import bcrypt  # pyright: ignore[reportMissingImports]
+except Exception:  # pragma: no cover
+    bcrypt = None
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 # === Brand logo (SVG, transparent) ===
 # ===== Brand logo (PNG) =====
@@ -131,7 +136,7 @@ QUY TẮC KỸ THUẬT:
 - Không thay đổi nội dung chuyên môn gốc, chỉ làm phong phú thêm.
 """
 # 3. Hàm xử lý AI riêng cho Module này
-def generate_nls_lesson_plan(api_key, lesson_content, distribution_content, textbook, subject, grade, analyze_only):
+def generate_nls_lesson_plan_legacy(api_key, lesson_content, distribution_content, textbook, subject, grade, analyze_only):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=SYSTEM_INSTRUCTION_NLS)
     
@@ -156,7 +161,7 @@ from jsonschema import validate, Draft202012Validator # [MỚI] Thư viện Vali
 # [MỚI] TÍCH HỢP MODULE SOẠN BÀI HƯỚNG B (Yêu cầu 4 file đi kèm)
 # Dùng try-except để không làm sập web nếu thầy chưa kịp tạo file lesson_ui.py
 try:
-    from lesson_ui import module_lesson_plan_B
+    from lesson_ui import module_lesson_plan_B  # pyright: ignore[reportMissingImports]
 except ImportError:
     module_lesson_plan_B = None
 # ==============================================================================
@@ -183,7 +188,7 @@ try:
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     SYSTEM_GOOGLE_KEY = st.secrets.get("GOOGLE_API_KEY", "")
     SEPAY_API_TOKEN = st.secrets.get("SEPAY_API_TOKEN", "")
-except:
+except Exception:
     SUPABASE_URL = ""
     SUPABASE_KEY = ""
     SYSTEM_GOOGLE_KEY = ""
@@ -211,7 +216,7 @@ def inject_premium_theme():
   --radius-md:16px;
 }
 .stApp{ background: var(--bg); color: var(--text); }
-.block-container{ max-width: 1200px; padding-top: 1.25rem; padding-bottom: 2.5rem; }
+.block-container{ max-width: 1280px; padding-top: .95rem; padding-bottom: 2rem; padding-left: 1.1rem; padding-right: 1.1rem; }
 section[data-testid="stSidebar"]{
   background: var(--sidebar);
   border-right: 1px solid rgba(15,23,42,.08);
@@ -235,28 +240,53 @@ section[data-testid="stSidebar"]{
               radial-gradient(800px 450px at 85% 20%, rgba(91,92,246,.18), transparent 60%),
               linear-gradient(135deg, #cfe8ff, #dad4ff);
   border-radius: var(--radius-lg);
-  padding: 34px 28px;
+  padding: 26px 24px;
   border: 1px solid rgba(15,23,42,.08);
   box-shadow: 0 14px 40px rgba(2,6,23,.08);
 }
 .hero h1{
   margin: 0;
-  font-size: 38px;
-  letter-spacing: -0.02em;
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1.06;
+  letter-spacing: -0.035em;
 }
-.hero p{ margin: 8px 0 0 0; color: rgba(15,23,42,.72); font-size: 16px; }
+.hero p{ margin: 8px 0 0 0; color: rgba(15,23,42,.72); font-size: 15px; line-height: 1.45; }
+.hero-badges{
+  display:flex; flex-wrap:wrap; gap:10px;
+  margin-top: 14px;
+}
+.hero-badge{
+  display:inline-flex; align-items:center; gap:6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(91,92,246,.14);
+  background: rgba(255,255,255,.58);
+  color: rgba(15,23,42,.82);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  box-shadow: 0 10px 18px rgba(2,6,23,.05);
+  backdrop-filter: blur(8px);
+}
+.hero-cta{
+  margin-top: 10px;
+  color: rgba(15,23,42,.70);
+  font-size: 13px;
+  font-weight: 600;
+}
 .glass{
   background: rgba(255,255,255,.75);
   border: 1px solid rgba(15,23,42,.10);
   border-radius: 999px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   backdrop-filter: blur(10px);
   box-shadow: 0 10px 26px rgba(2,6,23,.08);
 }
 .pills{
   display:flex; flex-wrap:wrap; gap:8px;
   justify-content:center;
-  margin-top: 14px;
+  margin-top: 10px;
 }
 .pill{
   display:inline-flex; align-items:center; gap:8px;
@@ -273,16 +303,103 @@ section[data-testid="stSidebar"]{
   background: var(--card);
   border: 1px solid rgba(15,23,42,.08);
   border-radius: var(--radius-md);
-  padding: 16px;
-  box-shadow: 0 10px 22px rgba(2,6,23,.06);
+  padding: 14px;
+  box-shadow: 0 10px 18px rgba(2,6,23,.06);
 }
-.card.soft{ background: var(--soft); }
+.card.soft{
+  background: var(--soft);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.card.soft:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px rgba(2,6,23,.10);
+  border-color: rgba(91,92,246,.18);
+}
+.stat-card{
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,247,255,.97));
+  border: 1px solid rgba(91,92,246,.12);
+  box-shadow: 0 12px 22px rgba(2,6,23,.06);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.stat-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 20px 38px rgba(2,6,23,.12);
+  border-color: rgba(91,92,246,.24);
+}
+.stat-head{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom: 10px;
+}
+.stat-icon{
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex: 0 0 auto;
+  overflow: hidden;
+  box-shadow:
+    0 14px 28px rgba(91,92,246,.18),
+    0 4px 10px rgba(2,6,23,.08),
+    inset 0 1px 0 rgba(255,255,255,.55);
+  border: 1px solid rgba(91,92,246,.16);
+}
+.stat-icon svg{
+  position: relative;
+  z-index: 1;
+  width: 25px;
+  height: 25px;
+  display:block;
+  filter: drop-shadow(0 2px 4px rgba(15,23,42,.16));
+}
+.stat-icon::before{
+  content:"";
+  position:absolute;
+  inset:-18%;
+  background: radial-gradient(circle at 30% 28%, rgba(255,255,255,.92), rgba(255,255,255,.20) 32%, transparent 62%);
+  opacity: .9;
+}
+.stat-icon::after{
+  content:"";
+  position:absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.18), transparent 46%, rgba(255,255,255,.08));
+  mix-blend-mode: screen;
+}
+.stat-icon.user{ background: linear-gradient(135deg, rgba(47,128,255,.18), rgba(91,92,246,.18)); color:#2f80ff; }
+.stat-icon.state{ background: linear-gradient(135deg, rgba(91,92,246,.18), rgba(149,117,255,.18)); color:#6d5efc; }
+.stat-icon.activity{ background: linear-gradient(135deg, rgba(16,185,129,.18), rgba(45,212,191,.18)); color:#0ea5a4; }
+.stat-title{
+  color: #5b5cf6;
+  font-weight: 900;
+  font-size: 15px;
+  line-height: 1.15;
+  letter-spacing: .01em;
+}
+.stat-value{
+  font-weight: 900;
+  font-size: 18px;
+  line-height: 1.18;
+  color: #0f172a;
+}
+.stat-sub{
+  margin-top: 4px;
+  color: rgba(15,23,42,.56);
+  font-size: 12px;
+  line-height: 1.45;
+}
 .icon-circle{
-  width: 54px; height: 54px; border-radius: 999px;
+  width: 60px; height: 60px; border-radius: 999px;
   display:flex; align-items:center; justify-content:center;
   color: white; font-size: 22px;
   box-shadow: 0 10px 24px rgba(2,6,23,.10);
-  margin: 0 auto 10px auto;
+  margin: 0 auto 8px auto;
 }
 .ic1{ background: linear-gradient(135deg, rgba(47,128,255,.95), rgba(91,92,246,.95)); }
 .ic2{ background: linear-gradient(135deg, rgba(16,185,129,.95), rgba(47,128,255,.80)); }
@@ -646,7 +763,7 @@ st.markdown(textwrap.dedent('''
 # ==============================================================================
 def init_supabase():
     try: return create_client(SUPABASE_URL, SUPABASE_KEY)
-    except: return None
+    except Exception: return None
 def read_file_content(uploaded_file, file_type):
     if not uploaded_file: return ""
     try:
@@ -659,7 +776,7 @@ def read_file_content(uploaded_file, file_type):
         # Gắn nhãn chuẩn Logic React
         if file_type == 'matrix': return f"\n[DỮ LIỆU MA TRẬN TỪ NGƯỜI DÙNG]:\n{content}\n"
         if file_type == 'spec': return f"\n[DỮ LIỆU ĐẶC TẢ TỪ NGƯỜI DÙNG]:\n{content}\n"
-    except: return ""
+    except Exception: return ""
     return content
 # =========================
 # [NEW] HỖ TRỢ ĐỌC PDF (kể cả PDF scan/ảnh) cho MODULE SOẠN GIÁO ÁN
@@ -683,9 +800,9 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes, max_pages: int = 6, ocr_if_nee
     # 1) Thử extract text trực tiếp (PyPDF2 / pypdf)
     try:
         try:
-            from pypdf import PdfReader
+            from pypdf import PdfReader  # pyright: ignore[reportMissingImports]
         except Exception:
-            from PyPDF2 import PdfReader  # type: ignore
+            from PyPDF2 import PdfReader  # type: ignore  # pyright: ignore[reportMissingImports]
         reader = PdfReader(io.BytesIO(pdf_bytes))
         n = min(len(reader.pages), max_pages)
         for i in range(n):
@@ -824,7 +941,7 @@ def clean_json(text):
         decoder = json.JSONDecoder()
         obj, idx = decoder.raw_decode(text)
         return json.dumps(obj)
-    except:
+    except Exception:
         end_idx = text.rfind('}')
         if end_idx != -1: return text[:end_idx+1]
         return text
@@ -982,7 +1099,7 @@ def get_knowledge_context(subject, grade, book, scope):
         if key: return f"NỘI DUNG CHƯƠNG TRÌNH ({key}): {data[key]}"
         week_info = SCOPE_MAPPING.get(scope, scope)
         return f"NỘI DUNG TỰ TRA CỨU: Bám sát chuẩn kiến thức kĩ năng môn {subject} {grade} - Bộ sách {book}. Thời điểm: {week_info}."
-    except: return "NỘI DUNG: Theo chuẩn CTGDPT 2018."
+    except Exception: return "NỘI DUNG: Theo chuẩn CTGDPT 2018."
 # --- [BỔ SUNG] HÀM CHECK TIỀN TỰ ĐỘNG (Dùng SePay) ---
 def check_sepay_transaction(amount, content_search):
     token = st.secrets.get("SEPAY_API_TOKEN", "")
@@ -1000,7 +1117,7 @@ def check_sepay_transaction(amount, content_search):
                 # Kiểm tra số tiền và nội dung
                 if float(t['amount_in']) >= amount and content_search in t['transaction_content']:
                     return True
-    except:
+    except Exception:
         return False
 # ==============================================================================
 # [MỚI] HỆ THỐNG ĐIỂM (VIP POINTS)
@@ -1132,9 +1249,271 @@ def require_points_or_block(cost: int, action_name: str = "thao tác") -> bool:
         return False
     return True
     return False
+def _normalize_log_meta(meta):
+    try:
+        return json.loads(json.dumps(meta or {}, ensure_ascii=False, default=str))
+    except Exception:
+        return {"raw": str(meta)}
+def log_usage_event(
+    module_name: str,
+    action_name: str,
+    username: str | None = None,
+    success: bool = True,
+    meta: dict | None = None,
+    client=None,
+) -> bool:
+    """Best-effort nghiệp vụ: ghi usage_events và cập nhật last_activity_at nếu có thể.
+
+    Không được làm hỏng tác vụ chính, nên mọi lỗi đều bị nuốt có kiểm soát.
+    """
+    try:
+        username = (username or "").strip()
+        module_name = (module_name or "").strip()
+        action_name = (action_name or "").strip()
+        if not username or not module_name or not action_name:
+            return False
+
+        client = client or init_supabase()
+        if not client:
+            return False
+
+        payload = {
+            "username": username,
+            "module_name": module_name,
+            "action_name": action_name,
+            "success": bool(success),
+            "meta": _normalize_log_meta(meta),
+        }
+
+        logged = False
+        try:
+            res = client.table("usage_events").insert(payload).execute()
+            logged = bool(getattr(res, "data", None) is not None)
+        except Exception:
+            try:
+                legacy_payload = dict(payload)
+                legacy_payload.pop("success", None)
+                res = client.table("usage_events").insert(legacy_payload).execute()
+                logged = bool(getattr(res, "data", None) is not None)
+            except Exception:
+                logged = False
+
+        try:
+            client.table("users_pro").update({
+                "last_activity_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("username", username).execute()
+        except Exception:
+            pass
+
+        return logged
+    except Exception:
+        return False
+def hash_password(raw_password: str) -> str:
+    if bcrypt is None:
+        raise RuntimeError("bcrypt is not available")
+    return bcrypt.hashpw((raw_password or "").encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+def verify_password_compat(stored_password: str | None, raw_password: str | None) -> bool:
+    stored_password = stored_password or ""
+    raw_password = raw_password or ""
+    try:
+        if isinstance(stored_password, str) and stored_password.startswith("$2"):
+            if bcrypt is None:
+                return False
+            return bcrypt.checkpw(raw_password.encode("utf-8"), stored_password.encode("utf-8"))
+        return stored_password == raw_password
+    except Exception:
+        return False
+def generate_otp():
+    return str(random.randint(100000, 999999))
+def create_reset_token(supabase, username):
+    try:
+        if not supabase or not username:
+            return None
+        token = generate_otp()
+        expired_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+        supabase.table("reset_tokens").insert({
+            "username": username,
+            "token": token,
+            "expired_at": expired_at.isoformat(),
+            "used": False,
+        }).execute()
+        return token
+    except Exception:
+        return None
+def verify_reset_token(supabase, username, token):
+    try:
+        if not supabase or not username or not token:
+            return False
+        res = (
+            supabase.table("reset_tokens")
+            .select("*")
+            .eq("username", username)
+            .eq("token", token)
+            .eq("used", False)
+            .execute()
+        )
+        if not getattr(res, "data", None):
+            return False
+        row = res.data[0]
+        expired_at_raw = row.get("expired_at")
+        if not expired_at_raw:
+            return False
+        expired_at = datetime.fromisoformat(expired_at_raw)
+        if expired_at.tzinfo is None:
+            expired_at = expired_at.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) <= expired_at
+    except Exception:
+        return False
+def update_password(supabase, username, new_password):
+    try:
+        if not supabase or not username or not new_password:
+            return False
+        if bcrypt is None:
+            return False
+        hashed = hash_password(new_password)
+        supabase.table("users_pro").update({"password": hashed}).eq("username", username).execute()
+        return True
+    except Exception:
+        return False
+def mark_token_used(supabase, username, token):
+    try:
+        if not supabase or not username or not token:
+            return
+        supabase.table("reset_tokens").update({"used": True}).eq("username", username).eq("token", token).execute()
+    except Exception:
+        pass
+def forgot_password_ui(supabase):
+    st.markdown("### 🔑 Quên mật khẩu")
+    st.caption("OTP hiện ngay trên màn hình chỉ để test nội bộ. Sau này có thể đổi sang email/SMS mà không phải sửa lại luồng.")
+    username = st.text_input("Tên đăng nhập", key="forgot_username")
+    if st.button("Gửi mã xác nhận", key="forgot_send_otp"):
+        token = create_reset_token(supabase, username)
+        if token:
+            st.success(f"Mã xác nhận của bạn: {token}")
+        else:
+            st.error("Không thể tạo mã")
+    otp = st.text_input("Nhập mã OTP", key="forgot_otp")
+    new_password = st.text_input("Mật khẩu mới", type="password", key="forgot_new_password")
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Đặt lại mật khẩu", key="forgot_reset_btn"):
+            if verify_reset_token(supabase, username, otp):
+                if update_password(supabase, username, new_password):
+                    mark_token_used(supabase, username, otp)
+                    st.success("Đổi mật khẩu thành công")
+                    st.session_state["show_forgot"] = False
+                else:
+                    st.error("Lỗi cập nhật mật khẩu")
+            else:
+                st.error("OTP không hợp lệ hoặc đã hết hạn")
+    with c2:
+        if st.button("Quay lại đăng nhập", key="forgot_back_btn"):
+            st.session_state["show_forgot"] = False
+            st.rerun()
 # ==============================================================================
 # [MỚI - ĐÃ SỬA LỖI JSON] MODULE QUẢN LÝ YÊU CẦU CẦN ĐẠT (KHÔNG CẦN FILE JSON)
 # ==============================================================================
+def _safe_exact_count(client, table_name: str, filters: list[tuple[str, str, object]] | None = None) -> int | None:
+    if not client or not table_name:
+        return None
+    try:
+        query = client.table(table_name).select("id", count="exact")
+        for col, op, value in filters or []:
+            if op == "eq":
+                query = query.eq(col, value)
+            elif op == "gte":
+                query = query.gte(col, value)
+            elif op == "lte":
+                query = query.lte(col, value)
+        res = query.execute()
+        count = getattr(res, "count", None)
+        if count is not None:
+            return int(count)
+        data = getattr(res, "data", None)
+        return len(data) if isinstance(data, list) else None
+    except Exception:
+        return None
+def _safe_fetch_rows(client, table_name: str, columns: str = "*", filters: list[tuple[str, str, object]] | None = None) -> list[dict]:
+    if not client or not table_name:
+        return []
+    try:
+        query = client.table(table_name).select(columns)
+        for col, op, value in filters or []:
+            if op == "eq":
+                query = query.eq(col, value)
+            elif op == "gte":
+                query = query.gte(col, value)
+            elif op == "lte":
+                query = query.lte(col, value)
+        res = query.execute()
+        data = getattr(res, "data", None)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+def _format_metric_value(value) -> str:
+    if value is None:
+        return "Chưa đủ dữ liệu"
+    try:
+        return f"{int(value):,}".replace(",", ".")
+    except Exception:
+        return str(value)
+def _build_implementation_evidence(client):
+    stats = {
+        "teachers_total": None,
+        "active_teachers_30d": None,
+        "exam_success": None,
+        "lesson_plan_success": None,
+        "doc_ai_success": None,
+        "top_module": None,
+        "top_module_count": None,
+        "exam_history_total": None,
+        "module_counts": {},
+    }
+    if not client:
+        return stats
+    stats["teachers_total"] = _safe_exact_count(client, "users_pro")
+    stats["exam_history_total"] = _safe_exact_count(client, "exam_history")
+    recent_since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    recent_rows = _safe_fetch_rows(
+        client,
+        "usage_events",
+        columns="username, module_name, success, created_at",
+        filters=[("created_at", "gte", recent_since)],
+    )
+    if recent_rows:
+        recent_users = {str(r.get("username") or "").strip() for r in recent_rows if str(r.get("username") or "").strip()}
+        stats["active_teachers_30d"] = len(recent_users) if recent_users else None
+    success_rows = _safe_fetch_rows(
+        client,
+        "usage_events",
+        columns="username, module_name, success, created_at",
+        filters=[("success", "eq", True)],
+    )
+    if success_rows:
+        exam_count = 0
+        lesson_count = 0
+        doc_count = 0
+        module_counts = {}
+        for row in success_rows:
+            module_name = str(row.get("module_name") or "").strip()
+            if not module_name:
+                continue
+            module_counts[module_name] = module_counts.get(module_name, 0) + 1
+            if module_name == "exam":
+                exam_count += 1
+            elif module_name == "lesson_plan":
+                lesson_count += 1
+            elif module_name == "doc_ai":
+                doc_count += 1
+        stats["exam_success"] = exam_count if exam_count > 0 else None
+        stats["lesson_plan_success"] = lesson_count if lesson_count > 0 else None
+        stats["doc_ai_success"] = doc_count if doc_count > 0 else None
+        stats["module_counts"] = module_counts
+        if module_counts:
+            top_module, top_count = max(module_counts.items(), key=lambda kv: kv[1])
+            stats["top_module"] = top_module
+            stats["top_module_count"] = top_count
+    return stats
 class YCCDManager:
     def __init__(self):
         # Đọc trực tiếp từ biến trong code, không đọc file nữa
@@ -2024,6 +2403,26 @@ def main_app():
                                             client.table('users_pro').update({'usage_count': usage_count + 1}).eq('username', user.get('email')).execute()
                                             
                                             st.success(f"✅ Tạo thành công! (Đã dùng: {usage_count + 1}/{limit_check})")
+                                            try:
+                                                log_usage_event(
+                                                    module_name="exam",
+                                                    action_name="generate_exam",
+                                                    username=user.get('email', ''),
+                                                    success=True,
+                                                    client=client,
+                                                    meta={
+                                                        "subject": subject,
+                                                        "grade": grade,
+                                                        "scope": scope,
+                                                        "num_exams": int(num_exams),
+                                                        "start_code": int(start_code),
+                                                        "num_choice": int(num_choice),
+                                                        "num_essay": int(num_essay),
+                                                        "num_practice": int(num_practice),
+                                                    },
+                                                )
+                                            except Exception:
+                                                pass
                                             # Trừ điểm nếu hệ thống points đã bật
                                             try:
                                                 if get_user_points(client, user.get('email','')) >= 0:
@@ -2119,7 +2518,7 @@ def main_app():
                 # [FIX LỖI] TRY-EXCEPT ĐỂ TRÁNH SẬP APP NẾU LỖI ẢNH
                 try:
                     st.image(qr_url, caption=f"Mã QR ({current_price:,.0f}đ)", width=300)
-                except:
+                except Exception:
                     st.error("Không tải được QR. Vui lòng chuyển khoản thủ công.")
             
             with c_qr2: 
@@ -2185,7 +2584,7 @@ def main_app():
                     if not df_ref.empty:
                         st.dataframe(df_ref[['username', 'fullname', 'role', 'created_at']], use_container_width=True)
                 else: st.info("Bạn chưa giới thiệu được ai. Hãy chia sẻ Mã giới thiệu ngay!")
-            except: st.error("Lỗi tải dữ liệu đối tác.")
+            except Exception: st.error("Lỗi tải dữ liệu đối tác.")
     # --- TAB 7: HỒ SƠ & LỊCH SỬ ---
     with tabs[6]:
         c1, c2 = st.columns([2, 1])
@@ -2206,7 +2605,7 @@ def main_app():
                             time.sleep(1)
                             st.rerun()
                         else: st.info("Bạn chưa lưu đề nào.")
-                    except: st.error("Lỗi tải lịch sử.")
+                    except Exception: st.error("Lỗi tải lịch sử.")
             
             if st.session_state['dossier']:
                 for e in st.session_state['dossier']: st.write(f"📄 {e['title']}")
@@ -2316,7 +2715,7 @@ def _lp_get_active(default_page):
     return st.session_state.get("lp_active_page_admin_state", default_page)
 def _lp_set_active(page: str):
     st.session_state["lp_active_page_admin_state"] = page
-def module_lesson_plan():
+def module_lesson_plan_legacy():
     """Module soạn giáo án (tối giản):
     - Input cốt lõi (môn/lớp/bộ sách/PPCT/tên bài/thời lượng)
     - (Tùy chọn) Tải tài liệu bài học để AI bám sát (PDF/Word)
@@ -2324,7 +2723,7 @@ def module_lesson_plan():
     """
     _lp_init_state()
     st.markdown(f"""<style>
-          .lp-hero{
+          .lp-hero{{
             background: linear-gradient(135deg, #0F172A 0%, #1D4ED8 55%, #60A5FA 100%);
             border-radius: 14px;
             padding: 18px 18px 14px 18px;
@@ -2332,10 +2731,10 @@ def module_lesson_plan():
             border: 1px solid rgba(255,255,255,.18);
             box-shadow: 0 10px 18px rgba(2,6,23,.18);
             margin-bottom: 14px;
-          }
-          .lp-hero h2{margin:0; font-weight:800;}
-          .lp-box{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:14px;margin-bottom:12px;}
-          .lp-h{font-weight:800;color:#0F172A;margin:0 0 8px 0;}
+          }}
+          .lp-hero h2{{margin:0; font-weight:800;}}
+          .lp-box{{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:14px;margin-bottom:12px;}}
+          .lp-h{{font-weight:800;color:#0F172A;margin:0 0 8px 0;}}
         </style>""",
         unsafe_allow_html=True
     )
@@ -2489,6 +2888,30 @@ YÊU CẦU CHẤT LƯỢNG:
         st.session_state[_lp_key("last_title")] = f"Giáo án - {lesson_title}"
         st.session_state[_lp_key("last_html")] = content_html
         st.toast("Đã tạo giáo án!", icon="✅")
+        try:
+            client = init_supabase()
+            usern = st.session_state.get('user', {}).get('email', '')
+            if client and usern:
+                log_usage_event(
+                    module_name="lesson_plan",
+                    action_name="generate_lesson_plan",
+                    username=usern,
+                    success=True,
+                    client=client,
+                    meta={
+                        "cap_hoc": level_key,
+                        "mon": subject,
+                        "lop": grade,
+                        "bo_sach": book,
+                        "tuan": ppct_week_val,
+                        "tiet": ppct_period_val,
+                        "lesson_title": lesson_title,
+                        "has_lesson_file": bool(extracted_text),
+                        "has_ppct_file": bool(ppct_text),
+                    },
+                )
+        except Exception:
+            pass
         # Trừ điểm nếu hệ thống points đã bật
         try:
             client = init_supabase()
@@ -2524,7 +2947,73 @@ YÊU CẦU CHẤT LƯỢNG:
                 use_container_width=True,
                 key=_lp_key("dl_html")
             )
+def module_evidence_implementation():
+    _ensure_nav_state()
+    if not st.session_state.get("user"):
+        require_login("evidence")
+        return
+    st.markdown("## 📊 Minh chứng triển khai")
+    st.caption("Trang đọc-only tổng hợp số liệu từ `users_pro`, `exam_history` và `usage_events`.")
+
+    client = init_supabase()
+    stats = _build_implementation_evidence(client) if client else {}
+    usage_total = _safe_exact_count(client, "usage_events") if client else None
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("👨‍🏫 Giáo viên đăng ký", _format_metric_value(stats.get("teachers_total")))
+    with c2:
+        st.metric("🔥 Giáo viên hoạt động", _format_metric_value(stats.get("active_teachers_30d")))
+    with c3:
+        st.metric("📝 Lượt tạo đề", _format_metric_value(stats.get("exam_success")))
+
+    c4, c5, c6 = st.columns(3)
+    with c4:
+        st.metric("📘 Lượt tạo giáo án", _format_metric_value(stats.get("lesson_plan_success")))
+    with c5:
+        st.metric("📄 Lượt xử lý tài liệu", _format_metric_value(stats.get("doc_ai_success")))
+    with c6:
+        top_module = stats.get("top_module")
+        top_count = stats.get("top_module_count")
+        st.metric("🏆 Module dùng nhiều nhất", "Chưa đủ dữ liệu" if not top_module else f"{top_module} ({_format_metric_value(top_count)})")
+
+    st.caption(
+        "🧠 Các số liệu trên phản ánh mức độ sử dụng thực tế của giáo viên trên hệ thống AIEXAM. "
+        "AI chỉ hỗ trợ tạo nội dung gợi ý, giáo viên là người kiểm tra và quyết định nội dung sử dụng."
+    )
+
+    st.write("")
+    st.markdown("### Nguồn dữ liệu")
+    s1, s2, s3 = st.columns(3)
+    with s1:
+        st.metric("users_pro", _format_metric_value(stats.get("teachers_total")))
+    with s2:
+        st.metric("exam_history", _format_metric_value(stats.get("exam_history_total")))
+    with s3:
+        st.metric("usage_events", _format_metric_value(usage_total))
+
+    st.write("")
+    st.markdown("### Biểu đồ module dùng")
+    module_counts = stats.get("module_counts") or {}
+    if module_counts:
+        chart_df = pd.DataFrame(
+            [{"module_name": k, "count": v} for k, v in module_counts.items()]
+        ).sort_values("count", ascending=False)
+        st.bar_chart(chart_df.set_index("module_name"))
+        st.dataframe(
+            chart_df.rename(columns={"module_name": "Module", "count": "Số lượt"}),
+            use_container_width=True,
+            hide_index=True,
+        )
+    else:
+        st.info("Chưa đủ dữ liệu để hiển thị biểu đồ.")
+
+    st.write("")
+    st.markdown("### Ghi chú")
+    st.caption("Các chỉ số này chỉ đọc dữ liệu, không ảnh hưởng tới đăng nhập, tạo đề hay soạn giáo án.")
 def login_screen():
+    st.session_state.setdefault("show_forgot", False)
+    client = init_supabase()
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
         st.markdown(
@@ -2540,24 +3029,26 @@ def login_screen():
             u = st.text_input("Tên đăng nhập", key="login_username")
             p = st.text_input("Mật khẩu", type="password", key="login_password")
             if st.button("ĐĂNG NHẬP", type="primary", key="login_btn"):
-                client = init_supabase()
                 if client:
                     try:
                         res = (
                             client.table("users_pro")
                             .select("*")
                             .eq("username", u)
-                            .eq("password", p)
                             .execute()
                         )
                         if res.data:
                             user_data = res.data[0]
+                            if not verify_password_compat(user_data.get("password"), p):
+                                st.error("Sai tài khoản hoặc mật khẩu")
+                                return
                             st.session_state["user"] = {
                                 "email": user_data["username"],
                                 "fullname": user_data["fullname"],
                                 "role": user_data.get("role", "free"),
                                 "points": user_data.get("points", 0),
                             }
+                            st.session_state["show_forgot"] = False
                             st.toast("✅ Đăng nhập thành công! Đang chuyển về Trang chủ…", icon="✅")
                             target = st.session_state.pop("requested_page", None) or "dashboard"
                             go(target)
@@ -2565,6 +3056,9 @@ def login_screen():
                             st.error("Sai tài khoản hoặc mật khẩu")
                     except Exception as e:
                         st.error(f"Lỗi đăng nhập: {e}")
+            if st.button("Quên mật khẩu", key="forgot_password_toggle"):
+                st.session_state["show_forgot"] = True
+                st.rerun()
         # ======================
         # TAB ĐĂNG KÝ
         # ======================
@@ -2573,7 +3067,6 @@ def login_screen():
             new_p = st.text_input("Mật khẩu mới", type="password", key="signup_password")
             new_name = st.text_input("Họ và tên", key="signup_fullname")
             if st.button("TẠO TÀI KHOẢN", key="signup_btn"):
-                client = init_supabase()
                 if client and new_u and new_p:
                     try:
                         check = (
@@ -2585,10 +3078,13 @@ def login_screen():
                         if check.data:
                             st.warning("Tên đăng nhập đã tồn tại!")
                         else:
+                            if bcrypt is None:
+                                st.error("Thiếu thư viện bcrypt, không thể tạo mật khẩu an toàn.")
+                                return
                             client.table("users_pro").insert(
                                 {
                                     "username": new_u,
-                                    "password": new_p,
+                                    "password": hash_password(new_p),
                                     "fullname": new_name,
                                     "role": "free",
                                     "usage_count": 0,
@@ -2598,6 +3094,9 @@ def login_screen():
                             st.success("Đăng ký thành công! Mời đăng nhập.")
                     except Exception as e:
                         st.error(f"Lỗi đăng ký: {e}")
+        if st.session_state.get("show_forgot"):
+            st.write("")
+            forgot_password_ui(client)
 # ==============================================================================
 # 8. ROUTER + SIDEBAR MENU (ỔN ĐỊNH, KHÔNG TRÙNG KEY, KHÔNG MẤT LOGIN)
 # ==============================================================================
@@ -2624,24 +3123,31 @@ def dashboard_screen():
     <div class="sb-logo" style="width:56px;height:56px;border-radius:14px;background:transparent;box-shadow:none;">{logo_svg(56)}</div>
     <div style="text-align:left">
       <div style="font-weight:800; font-size:14px; letter-spacing:.02em;">AIEXAM.VN</div>
-      <div class="small-muted">Nền tảng AI dành cho giáo viên</div>
+      <div class="small-muted">Ứng dụng thực tế cho giáo viên trong soạn bài, ra đề và đánh giá học sinh</div>
     </div>
   </div>
-  <h1>Trợ lý AI giúp giáo viên làm nhanh — chuẩn — đẹp</h1>
-  <p>Tạo đề kiểm tra, soạn giáo án, viết nội dung năng lực số và tư vấn nhận xét chỉ với vài thao tác.</p>
+  <h1 style="font-size:clamp(24px, 2.2vw, 34px); line-height:1.12; text-wrap:balance; overflow-wrap:anywhere; max-width:100%;">Nền tảng AI cho giáo viên soạn bài, ra đề và đánh giá học sinh</h1>
+  <p>Hỗ trợ dạy học theo định hướng phát triển năng lực, giúp giáo viên tiết kiệm thời gian và nâng cao hiệu quả chuyên môn.</p>
+  <div class="hero-badges">
+    <span class="hero-badge">Ra đề nhanh</span>
+    <span class="hero-badge">Soạn giáo án</span>
+    <span class="hero-badge">Phân tích tài liệu</span>
+    <span class="hero-badge">Đánh giá học sinh</span>
+  </div>
+  <div class="hero-cta">Bắt đầu từ khung nhập nhanh bên dưới hoặc chọn tác vụ chuyên môn ngay.</div>
 </div>
 """, unsafe_allow_html=True)
     # Ask box + pills
     st.write("")
-    c1, c2, c3 = st.columns([1, 2.2, 1])
+    c1, c2, c3 = st.columns([1, 2.2, 1], gap="small")
 
     def dien_text_mau():
         st.session_state["dash_quick_ask"] = "Hãy tạo ma trận đề theo yêu cầu: [môn/lớp/chủ đề/số câu/mức độ], sau đó sinh đề và đáp án."
     with c2:
         st.markdown('<div class="glass">', unsafe_allow_html=True)
         q = st.text_input(
-            "",
-            placeholder="Hỏi nhanh: “Tạo ma trận đề Toán 10 – chương Hàm số, mức độ vận dụng…”",
+            "Câu hỏi nhanh",
+            placeholder="Nhập yêu cầu: ra đề, soạn giáo án, nhận xét học sinh, tích hợp năng lực số…",
             key="dash_quick_ask",
             label_visibility="collapsed"
         )
@@ -2676,55 +3182,151 @@ def dashboard_screen():
 """, unsafe_allow_html=True)
     st.write("")
     # Stat cards
-    s1, s2, s3 = st.columns(3)
+    s1, s2, s3 = st.columns(3, gap="small")
+    def _stat_icon_svg(kind: str) -> str:
+        if kind == "user":
+            return """
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="8" r="3.2" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M5.5 19c1.3-3.2 4-4.8 6.5-4.8S16.7 15.8 18.5 19" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>"""
+        if kind == "state":
+            return """
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3.5 19 7v5.2c0 4.3-3 7.5-7 8.3-4-.8-7-4-7-8.3V7l7-3.5Z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+              <path d="m9.5 12.2 1.9 1.9 3.3-3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>"""
+        return """
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 18.5h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+          <path d="M6 15.5v-3m4 3V8m4 7.5v-5m4 5V10" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+          <path d="m6 10 4 2.2 4-4.2 4 2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>"""
     with s1:
-        st.markdown(f"""<div class="card">
-<b>👤 Tài khoản</b><div class="small-muted">{username or "Chưa đăng nhập"}</div>
+        st.markdown(f"""<div class="card stat-card">
+<div class="stat-head">
+  <div class="stat-icon user">{_stat_icon_svg("user")}</div>
+  <div class="stat-title">Người dùng</div>
+</div>
+<div class="stat-value">{username or "Chưa đăng nhập"}</div>
+<div class="stat-sub">Đang đồng bộ dữ liệu tài khoản</div>
 </div>""", unsafe_allow_html=True)
     with s2:
         badge = "PRO" if role == "pro" else "FREE"
-        st.markdown(f"""<div class="card">
-<b>⭐ Gói</b><div class="small-muted">{badge}</div>
+        st.markdown(f"""<div class="card stat-card">
+<div class="stat-head">
+  <div class="stat-icon state">{_stat_icon_svg("state")}</div>
+  <div class="stat-title">Trạng thái sử dụng</div>
+</div>
+<div class="stat-value">{badge}</div>
+<div class="stat-sub">Quyền truy cập và giới hạn hiện tại</div>
 </div>""", unsafe_allow_html=True)
     with s3:
-        st.markdown(f"""<div class="card">
-<b>💎 Điểm</b><div class="small-muted">{points if points != -1 else "—"}</div>
+        st.markdown(f"""<div class="card stat-card">
+<div class="stat-head">
+  <div class="stat-icon activity">{_stat_icon_svg("activity")}</div>
+  <div class="stat-title">Mức độ hoạt động</div>
+</div>
+<div class="stat-value">{points if points != -1 else "—"}</div>
+<div class="stat-sub">Dựa trên điểm và lịch sử sử dụng</div>
 </div>""", unsafe_allow_html=True)
-    st.write("")
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     st.markdown("### Truy cập nhanh")
-    qa = st.columns(6)
+    qa = st.columns(6, gap="small")
+    def _quick_icon_svg(kind: str) -> str:
+        icon_styles = {
+            "exam": "color:rgba(255,255,255,.98);filter:drop-shadow(0 8px 14px rgba(15,23,42,.18));",
+            "lesson": "color:rgba(255,255,255,.98);filter:drop-shadow(0 8px 14px rgba(15,23,42,.18));",
+            "digital": "color:rgba(255,255,255,.98);filter:drop-shadow(0 8px 14px rgba(15,23,42,.18));",
+            "advisor": "color:rgba(255,255,255,.98);filter:drop-shadow(0 8px 14px rgba(15,23,42,.18));",
+            "library": "color:rgba(255,255,255,.98);filter:drop-shadow(0 8px 14px rgba(15,23,42,.18));",
+            "help": "color:rgba(255,255,255,.98);filter:drop-shadow(0 8px 14px rgba(15,23,42,.18));",
+        }
+        icons = {
+            "exam": """
+<svg viewBox="0 0 24 24" width="30" height="30" style="{style}" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M8.5 3.5h6.2a1 1 0 0 1 1 1v2.1H7.5V4.5a1 1 0 0 1 1-1Z"/>
+  <path d="M7.2 5.8h9.6a1.5 1.5 0 0 1 1.5 1.5v11.4a1.5 1.5 0 0 1-1.5 1.5H7.2a1.5 1.5 0 0 1-1.5-1.5V7.3a1.5 1.5 0 0 1 1.5-1.5Z"/>
+  <path d="M9 10h5.8M9 13.5h3.9"/>
+  <path d="m14.2 12.2 4.6-4.6 1.4 1.4-4.6 4.6-2 .6.6-2Z"/>
+  <path d="M17.3 7.6l.4-.4M18.7 6.2l.4-.4"/>
+</svg>
+""",
+            "lesson": """
+<svg viewBox="0 0 24 24" width="30" height="30" style="{style}" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M4.5 6.2A11.7 11.7 0 0 1 12 8.2a11.7 11.7 0 0 1 7.5-2v10.9A11.7 11.7 0 0 0 12 19.8a11.7 11.7 0 0 0-7.5-2V6.2Z"/>
+  <path d="M12 8.2v11.6"/>
+  <path d="M6.2 10.2h4.7M6.2 13h4.7M13.1 10.2h4.7M13.1 13h4.7"/>
+</svg>
+""",
+            "digital": """
+<svg viewBox="0 0 24 24" width="30" height="30" style="{style}" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <rect x="4.2" y="6.2" width="15.6" height="9.6" rx="1.8"/>
+  <path d="M3.5 18h17"/>
+  <path d="M12 15.8v2.2"/>
+  <path d="M8.3 10.5l1.4 1.4M15.7 10.5l-1.4 1.4"/>
+  <path d="M12 8.8v3.2"/>
+</svg>
+""",
+            "advisor": """
+<svg viewBox="0 0 24 24" width="30" height="30" style="{style}" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M7 6.7h10a3 3 0 0 1 3 3v3.2a3 3 0 0 1-3 3h-4.3L8 18.9v-2H7a3 3 0 0 1-3-3V9.7a3 3 0 0 1 3-3Z"/>
+  <path d="M9.1 10.1h.01M12 10.1h.01M14.9 10.1h.01"/>
+  <path d="M10.1 13.1c.7.5 1.4.7 1.9.7s1.2-.2 1.9-.7"/>
+</svg>
+""",
+            "library": """
+<svg viewBox="0 0 24 24" width="30" height="30" style="{style}" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M6.2 4.5h11.2a1.4 1.4 0 0 1 1.4 1.4v12.2a1.4 1.4 0 0 1-1.4 1.4H6.2a1.4 1.4 0 0 1-1.4-1.4V5.9a1.4 1.4 0 0 1 1.4-1.4Z"/>
+  <path d="M7.7 7.2h8.1M7.7 10.2h8.1M7.7 13.2h5.8"/>
+  <path d="M17.4 6.2v10.4"/>
+  <path d="M9 16.6h4.3"/>
+</svg>
+""",
+            "help": """
+<svg viewBox="0 0 24 24" width="30" height="30" style="{style}" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M12 3.5a8.5 8.5 0 1 1 0 17 8.5 8.5 0 0 1 0-17Z"/>
+  <path d="M9.7 9.3a2.7 2.7 0 0 1 5 1.2c0 1.5-1.5 2-2.2 2.9-.2.3-.3.6-.3 1"/>
+  <path d="M12 17.2h.01"/>
+  <path d="M7.7 7.7l.7.7M16.3 7.7l-.7.7"/>
+</svg>
+""",
+        }
+        style = icon_styles.get(kind, icon_styles["exam"])
+        return icons.get(kind, icons["exam"]).format(style=style)
     quick = [
-        ("📝", "Ra đề – KTĐG", "exam", "ic1"),
-        ("📘", "Soạn giáo án", "lesson_plan", "ic2"),
-        ("💻", "Năng lực số", "digital", "ic3"),
-        ("🧠", "Nhận xét/Tư vấn", "advisor", "ic4"),
-        ("📚", "Kho/Quản lý", "dashboard", "ic5"),
-        ("📘", "Hướng dẫn", "help", "ic6"),
+        ("exam", "Ra đề – KTĐG", "exam", "ic1"),
+        ("lesson", "Soạn giáo án", "lesson_plan", "ic2"),
+        ("digital", "Năng lực số", "digital", "ic3"),
+        ("advisor", "Nhận xét/Tư vấn", "advisor", "ic4"),
+        ("library", "Kho học liệu", "dashboard", "ic5"),
+        ("help", "Hướng dẫn", "help", "ic6"),
     ]
     for i, (emo, label, page_key, klass) in enumerate(quick):
         with qa[i]:
-            st.markdown(f"""<div class="card soft" style="text-align:center;">
-  <div class="icon-circle {klass}">{emo}</div>
-  <div style="font-weight:750;">{label}</div>
-  <div class="small-muted" style="margin-top:2px;">Mở ngay</div>
+            st.markdown(f"""<div class="card soft" style="text-align:center;padding:12px 12px 14px 12px;">
+  <div class="icon-circle {klass}">{_quick_icon_svg(emo)}</div>
+  <div style="font-weight:800; font-size:15px; line-height:1.2;">{label}</div>
+  <div class="small-muted" style="margin-top:4px; font-size:12px;">Mở ngay</div>
 </div>""", unsafe_allow_html=True)
             if st.button("Mở", use_container_width=True, key=f"qa_open_{page_key}_{i}"):
                 go(page_key)
-    st.write("")
-    left, right = st.columns([1.2, 1])
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    left, right = st.columns([1.2, 1], gap="small")
     with left:
         st.markdown(f"""<div class="card">
-<b>📌 Gợi ý dùng nhanh</b>
-<ul style="margin:10px 0 0 18px; color: rgba(15,23,42,.78);">
-  <li>Vào <b>Ra đề – KTĐG</b> để tạo ma trận → đề → đáp án → xuất file.</li>
-  <li>Vào <b>Soạn giáo án</b> để soạn theo PPCT/chuẩn mẫu.</li>
-  <li>Vào <b>Năng lực số</b> để phân tích + tạo kế hoạch bài dạy tích hợp.</li>
+<b>📌 Quy trình sử dụng</b>
+<ul style="margin:10px 0 0 18px; color: rgba(15,23,42,.78); line-height:1.55;">
+  <li>Bắt đầu từ <b>Ra đề – KTĐG</b> để tạo ma trận, đề và đáp án theo chuẩn.</li>
+  <li>Chuyển sang <b>Soạn giáo án</b> khi cần bám PPCT hoặc mẫu nhà trường.</li>
+  <li>Dùng <b>Năng lực số</b> cho các bài dạy tích hợp và hoạt động số hóa.</li>
 </ul>
 </div>""", unsafe_allow_html=True)
     with right:
         st.markdown(f"""<div class="card">
-<b>🚀 Nâng cấp & thanh toán</b>
-<div class="small-muted" style="margin-top:6px;">Quét VietQR → hệ thống xác minh SePay tự động. Sau khi chuyển khoản, bấm “Kích hoạt”.</div>
+<b>🚀 Minh chứng thực tế</b>
+<div class="small-muted" style="margin-top:6px; line-height:1.55;">Hệ thống đang ghi nhận lịch sử tạo đề, soạn giáo án và xử lý tài liệu từ giáo viên sử dụng thật.</div>
+<div class="small-muted" style="margin-top:10px; line-height:1.55;">Mục tiêu là hỗ trợ thao tác nhanh, giữ chất lượng chuyên môn và có dữ liệu minh bạch để đối chiếu.</div>
 </div>""", unsafe_allow_html=True)
     # VIP Topup (giữ đúng logic gốc, chỉ bọc UI)
     with st.expander("⭐ Nạp VIP / Kích hoạt PRO (SePay tự xác minh)", expanded=False):
@@ -2855,7 +3457,7 @@ def module_digital():
                     
                     # Gọi hàm xử lý (Đã định nghĩa ở Bước 1)
                     result_text = generate_nls_lesson_plan(
-                        api_key, lesson_text, ppct_text, textbook, subject, grade, analyze_only
+                        api_key, lesson_text, subject, grade, textbook, ppct_text, analyze_only
                     )
                     
                     # Lưu kết quả vào session
@@ -3146,7 +3748,7 @@ def module_lesson_plan():
 # - Demo 1 câu hỏi AI thật ở Home/Chat (guest)
 # - Chỉ khi dùng tiếp hoặc dùng module nâng cao mới yêu cầu đăng nhập
 # ==============================================================================
-PROTECTED_PAGES = {"exam", "lesson_plan", "digital", "advisor", "doc_ai", "mindmap", "profile"}
+PROTECTED_PAGES = {"exam", "lesson_plan", "digital", "advisor", "doc_ai", "mindmap", "profile", "evidence"}
 DEMO_ALLOWED_PAGES = {"dashboard", "chat"}  # guest được xem + demo 1 câu
 def _get_api_key_effective() -> str:
     # Ưu tiên key user nhập, fallback key hệ thống
@@ -3171,7 +3773,7 @@ def render_topbar():
     user = st.session_state.get("user") or {}
     is_authed = bool(user)
     fullname = user.get("fullname") or user.get("email") or "Khách"
-    c1, c2, c3 = st.columns([2.8, 5.2, 2.0], vertical_alignment="center")
+    c1, c2, c3 = st.columns([2.8, 5.2, 2.0], vertical_alignment="center", gap="small")
     with c1:
         st.markdown(
             f"""
@@ -3192,7 +3794,7 @@ def render_topbar():
         cc1, cc2 = st.columns([1, 1], vertical_alignment="center")
         with cc1:
             st.text_input(
-                "",
+                "Tìm kiếm nhanh",
                 placeholder="Tìm nhanh: 'ra đề', 'soạn bài', 'năng lực số'…",
                 key="global_search",
                 label_visibility="collapsed",
@@ -3326,6 +3928,37 @@ def module_doc_ai():
                 st.session_state["docai_text"] = raw[:20000]
                 st.session_state["docai_chunks"] = _chunk_text(st.session_state["docai_text"])
                 st.success(f"Đã nạp tài liệu: {getattr(doc_file,'name','file')}")
+                docai_ready = bool((st.session_state.get("docai_text") or "").strip()) or len(st.session_state.get("docai_chunks") or []) > 0
+                if docai_ready:
+                    try:
+                        file_bytes = b""
+                        try:
+                            file_bytes = doc_file.getvalue() or b""
+                        except Exception:
+                            file_bytes = b""
+                        doc_sig = hashlib.sha256(file_bytes).hexdigest() if file_bytes else f"{getattr(doc_file, 'name', 'file')}|{len(raw)}|{max_pages}|{int(bool(try_ocr))}"
+                        last_sig = st.session_state.get("docai_last_logged_sig")
+                        if doc_sig != last_sig:
+                            client = init_supabase()
+                            username = st.session_state.get("user", {}).get("email", "")
+                            if client and username:
+                                ok = log_usage_event(
+                                    module_name="doc_ai",
+                                    action_name="process_document",
+                                    username=username,
+                                    success=True,
+                                    client=client,
+                                    meta={
+                                        "filename": getattr(doc_file, "name", ""),
+                                        "max_pages": int(max_pages),
+                                        "try_ocr": bool(try_ocr),
+                                        "text_len": len(raw),
+                                    },
+                                )
+                                if ok:
+                                    st.session_state["docai_last_logged_sig"] = doc_sig
+                    except Exception:
+                        pass
     tabs = st.tabs(["🧾 Tóm tắt", "💬 Chat theo tài liệu", "👁️ Xem nội dung"])
     with tabs[0]:
         if st.button("✨ Tạo tóm tắt", type="primary", key="docai_sum"):
@@ -3621,6 +4254,7 @@ with st.sidebar:
     st.divider()
     page_map = {
         "🏡 Trang chủ": "dashboard",
+        "📊 Minh chứng triển khai": "evidence",
         "💬 Chat AI": "chat",
         "📑 Doc AI": "doc_ai",
         "🧠 Mindmap": "mindmap",
@@ -3688,6 +4322,8 @@ elif page == "chat":
     module_chat()
 elif page == "doc_ai":
     module_doc_ai()
+elif page == "evidence":
+    module_evidence_implementation()
 elif page == "mindmap":
     module_mindmap()
 elif page == "help":
