@@ -3870,12 +3870,50 @@ def _simple_retrieve(query: str, chunks: list[str], k: int = 4) -> list[str]:
     scored.sort(key=lambda x: x[0], reverse=True)
     top = [c for s, c in scored[:k] if s > 0]
     return top if top else chunks[:k]
+CHAT_EDUCATION_SYSTEM_PROMPT = (
+    "Bạn là trợ lý AI dành riêng cho giáo viên Việt Nam. "
+    "Chỉ ưu tiên hỗ trợ các chủ đề giáo dục và sư phạm: soạn bài, giáo án, kiểm tra đánh giá, "
+    "ra đề, nhận xét học sinh, CTGDPT 2018, năng lực số, phương pháp dạy học, quản lý lớp học, "
+    "hỗ trợ chuyên môn cho giáo viên. "
+    "Nếu câu hỏi nằm ngoài phạm vi giáo dục, hãy từ chối nhẹ nhàng, ngắn gọn và hướng người dùng quay lại chủ đề giáo dục."
+)
+_EDU_TOPIC_KEYWORDS = (
+    "giáo viên", "giáo dục", "dạy học", "soạn bài", "giáo án", "bài giảng", "ra đề", "đề thi",
+    "kiểm tra", "đánh giá", "nhận xét", "học sinh", "lớp học", "ctgdpt", "chương trình",
+    "năng lực số", "nls", "phương pháp dạy học", "sư phạm", "môn học", "tài liệu dạy học",
+    "học liệu", "đặc tả", "ma trận", "rubric", "bài tập", "mục tiêu bài học", "kế hoạch bài dạy",
+    "ppct", "chuyên môn"
+)
+def _is_education_question(text: str) -> bool:
+    q = (text or "").strip().lower()
+    if not q:
+        return True
+    if any(k in q for k in _EDU_TOPIC_KEYWORDS):
+        return True
+    # Một số câu hỏi ngắn thường gặp của giáo viên nhưng không chứa đủ keyword rõ ràng.
+    if any(k in q for k in ("lesson", "exam", "curriculum", "worksheet", "classroom", "feedback")):
+        return True
+    return False
+def _build_limited_chat_context(messages: list[dict], current_prompt: str, max_turns: int = 4) -> str:
+    recent = (messages or [])[-(max_turns * 2):]
+    parts = [CHAT_EDUCATION_SYSTEM_PROMPT, "", "Ngữ cảnh hội thoại gần nhất:"]
+    for m in recent:
+        role = "Người dùng" if m.get("role") == "user" else "Trợ lý"
+        content = (m.get("content") or "").strip()
+        if content:
+            parts.append(f"{role}: {content}")
+    parts.append("")
+    parts.append(f"Câu hỏi hiện tại: {current_prompt.strip()}")
+    parts.append("")
+    parts.append("Yêu cầu trả lời: ngắn gọn, đúng trọng tâm, ưu tiên nội dung giáo dục cho giáo viên.")
+    return "\n".join(parts)
 def module_chat():
     _ensure_nav_state()
     user = st.session_state.get("user")
     # Guest: cho demo 1 câu ở Chat; lần 2 yêu cầu login
     st.markdown("## 💬 Chat AI")
     st.caption("Hỏi AI như ChatGPT. Khách được dùng thử 1 câu. Đăng nhập để dùng đầy đủ.")
+    st.caption("AI chỉ hỗ trợ gợi ý nội dung giáo dục; giáo viên là người kiểm tra và quyết định nội dung sử dụng.")
     st.session_state.setdefault("chat_messages", [])
     # Hiển thị lịch sử
     for m in st.session_state["chat_messages"]:
@@ -3892,9 +3930,19 @@ def module_chat():
             st.markdown(prompt)
         with st.chat_message("assistant"):
             with st.spinner("AI đang trả lời…"):
-                reply = _gemini_generate(
-                    f"Bạn là trợ lý AI cho giáo viên. Trả lời ngắn gọn, đúng trọng tâm.\n\nCâu hỏi: {prompt}"
-                )
+                if not _is_education_question(prompt):
+                    reply = (
+                        "Tôi ưu tiên hỗ trợ nội dung giáo dục cho giáo viên như soạn bài, ra đề, "
+                        "đánh giá học sinh, CTGDPT 2018 và năng lực số. "
+                        "Bạn hãy hỏi lại theo chủ đề này để tôi hỗ trợ tốt hơn."
+                    )
+                else:
+                    limited_context = _build_limited_chat_context(
+                        st.session_state["chat_messages"][:-1],
+                        prompt,
+                        max_turns=4,
+                    )
+                    reply = _gemini_generate(limited_context, system=CHAT_EDUCATION_SYSTEM_PROMPT)
                 st.markdown(reply if reply else "…")
         st.session_state["chat_messages"].append({"role": "assistant", "content": reply})
         if not user:
@@ -4349,6 +4397,18 @@ elif page == "advisor":
 else:
     # exam + fallback
     main_app()
+
+st.markdown(
+    """
+<div style="margin-top:36px; padding-top:14px; border-top:1px solid rgba(107,114,128,.22); text-align:center;">
+  <div style="font-size:12.5px; line-height:1.55; color:#4b5563; max-width:920px; margin:0 auto;">
+    <div style="font-weight:500; margin-bottom:6px;">© 2026 Trần Thanh Tuấn – Ứng dụng AI hỗ trợ giáo viên trong dạy học và kiểm tra đánh giá.</div>
+    <div>Hệ thống được phát triển phục vụ mục đích giáo dục. AI chỉ hỗ trợ gợi ý nội dung, giáo viên là người kiểm tra và quyết định sử dụng.</div>
+  </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
 
 
