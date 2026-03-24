@@ -4130,23 +4130,117 @@ def module_mindmap():
         require_login("mindmap")
         return
     st.markdown("## 🧠 Mindmap AI")
-    st.caption("Nhập chủ đề hoặc nội dung → AI tạo mindmap dạng cây (Markdown). Dùng cho soạn bài/ôn tập.")
+    st.caption("Nhập chủ đề hoặc nội dung → AI tạo mindmap dạng cây (Markdown). Dùng cho soạn bài, ôn tập, trình chiếu.")
     inp = st.text_area("Nội dung / chủ đề", height=200, key="mm_in")
+    st.caption("Gợi ý: thêm từ khóa như 'soạn bài', 'ôn tập', 'trình chiếu' hoặc 'hoạt động nhóm' để AI chọn đúng style.")
+
+    def _detect_mindmap_style(text: str) -> tuple[str, str]:
+        q = (text or "").strip().lower()
+        if any(k in q for k in ("trình chiếu", "slide", "thuyết trình", "powerpoint", "ppt")):
+            return ("trình chiếu", "cực ngắn, dễ nhìn")
+        if any(k in q for k in ("hoạt động nhóm", "nhóm", "thảo luận", "giao nhiệm vụ", "trạm")):
+            return ("hoạt động nhóm", "chia ý rõ, giao nhiệm vụ")
+        if any(k in q for k in ("ôn tập", "củng cố", "nhắc lại", "review", "revision")):
+            return ("ôn tập", "ngắn gọn, trọng tâm")
+        if any(k in q for k in ("soạn bài", "giáo án", "kế hoạch bài dạy", "bài dạy", "chuẩn bị bài")):
+            return ("soạn bài", "đầy đủ cấu trúc nội dung")
+        return ("soạn bài", "đầy đủ cấu trúc nội dung")
+
     if st.button("✨ Tạo Mindmap", type="primary", key="mm_go"):
         if not inp.strip():
             st.warning("Nhập nội dung trước.")
         else:
             with st.spinner("AI đang tạo mindmap…"):
-                out = _gemini_generate(
-                    """Bạn là trợ lý giáo dục. Tạo mindmap dạng Markdown Tree (bullet phân cấp),
-ngắn gọn, rõ ý, dễ học, phù hợp giáo viên.
-Quy tắc:
-- Dòng đầu là chủ đề chính
-- Tối đa 4 cấp
-- Mỗi nhánh 2-6 ý
-\n\nNội dung:
-""" + inp[:12000]
-                )
+                topic = inp.strip().splitlines()[0][:80]
+                mindmap_style, mindmap_goal = _detect_mindmap_style(inp)
+                if mindmap_style == "trình chiếu":
+                    branch_rule = "3 nhánh chính, mỗi nhánh 1–2 ý phụ rất ngắn."
+                elif mindmap_style == "hoạt động nhóm":
+                    branch_rule = "4 nhánh chính, mỗi nhánh 2 ý phụ, ưu tiên nhiệm vụ rõ ràng."
+                elif mindmap_style == "ôn tập":
+                    branch_rule = "3–4 nhánh chính, mỗi nhánh 2–3 ý phụ, ưu tiên trọng tâm."
+                else:
+                    branch_rule = "4 nhánh chính, mỗi nhánh 2–4 ý phụ, đầy đủ nhưng gọn."
+                prompt = f"""
+Bạn là trợ lý AI chuyên tạo sơ đồ tư duy cho giáo viên.
+Hãy xuất đúng một mindmap dạng Markdown cây, KHÔNG viết dàn ý, KHÔNG giải thích thêm.
+
+YÊU CẦU BẮT BUỘC:
+1. Có đúng 1 chủ đề trung tâm.
+2. Tối đa 4 nhánh chính.
+3. Mỗi nhánh chính có 2–4 nhánh phụ.
+4. Chỉ dùng từ khóa ngắn, mỗi ý 3–6 từ.
+5. Không dùng câu dài, không dùng đoạn văn.
+6. Không dùng câu hỏi kiểu "Vì sao", "Ai", "Khi nào".
+7. Nếu chủ đề phù hợp cấp học, hãy điều chỉnh ngôn ngữ:
+   - Tiểu học: đơn giản, dễ hiểu
+   - THCS: rõ khái niệm, có hệ thống
+   - THPT: khái quát, logic, có chiều sâu
+8. Mục đích hiện tại: {mindmap_style}
+9. Phong cách cần ưu tiên: {mindmap_goal}
+10. Quy tắc nhánh: {branch_rule}
+
+ĐỊNH DẠNG ĐẦU RA BẮT BUỘC:
+# [Tên chủ đề]
+
+- [Chủ đề trung tâm]
+  - [Nhánh chính 1]
+    - [Ý phụ 1]
+    - [Ý phụ 2]
+  - [Nhánh chính 2]
+    - [Ý phụ 1]
+    - [Ý phụ 2]
+  - [Nhánh chính 3]
+    - [Ý phụ 1]
+    - [Ý phụ 2]
+  - [Nhánh chính 4]
+    - [Ý phụ 1]
+    - [Ý phụ 2]
+
+Kết thúc bằng đúng 1 dòng "Gợi ý sử dụng: ..." nếu cần, ngắn gọn.
+
+Nội dung đầu vào:
+{inp[:12000]}
+"""
+                raw_out = _gemini_generate(prompt)
+                out = (raw_out or "").strip()
+                # Nếu model lạc sang dàn ý/prose, tự sửa lại theo đúng cây Markdown trước khi hiển thị.
+                def _mindmap_is_valid(markdown_text: str) -> bool:
+                    lines = [ln.strip() for ln in (markdown_text or "").splitlines() if ln.strip()]
+                    if not lines:
+                        return False
+                    if not lines[0].startswith("# "):
+                        return False
+                    branch_lines = [ln for ln in lines if ln.startswith("- ")]
+                    sub_lines = [ln for ln in lines if ln.startswith("  - ")]
+                    return len(branch_lines) >= 2 and len(sub_lines) >= 4
+
+                if not _mindmap_is_valid(out):
+                    repair_prompt = f"""
+Chuyển nội dung sau thành mindmap Markdown cây đúng nghĩa cho giáo viên.
+Chỉ xuất ra Markdown, không giải thích, không thêm đoạn văn.
+Phải có:
+- 1 tiêu đề dạng # ...
+- 1 chủ đề trung tâm
+- tối đa 4 nhánh chính
+- mỗi nhánh theo đúng mục đích: {mindmap_style}
+- từ khóa ngắn, không câu dài
+- có thể thêm 1 dòng "Gợi ý sử dụng: ..." ngắn ở cuối
+
+Nội dung cần sửa:
+{raw_out}
+"""
+                    out = _gemini_generate(repair_prompt).strip() or out
+                if out and not out.startswith("# "):
+                    topic_line = topic or "Mindmap"
+                    if mindmap_style == "trình chiếu":
+                        out = f"# {topic_line}\n\n- {topic_line}\n  - Ý 1\n  - Ý 2\n  - Ý 3\n\nGợi ý sử dụng: Dùng trên slide."
+                    elif mindmap_style == "hoạt động nhóm":
+                        out = f"# {topic_line}\n\n- {topic_line}\n  - Nhiệm vụ 1\n  - Nhiệm vụ 2\n  - Nhiệm vụ 3\n  - Nhiệm vụ 4\n\nGợi ý sử dụng: Giao nhóm thảo luận."
+                    elif mindmap_style == "ôn tập":
+                        out = f"# {topic_line}\n\n- {topic_line}\n  - Trọng tâm 1\n  - Trọng tâm 2\n  - Trọng tâm 3\n\nGợi ý sử dụng: Ôn nhanh trước giờ học."
+                    else:
+                        out = f"# {topic_line}\n\n- {topic_line}\n  - Ý chính 1\n  - Ý chính 2\n  - Ý chính 3\n  - Ý chính 4\n\nGợi ý sử dụng: Dùng trực tiếp trên lớp."
             st.markdown(out)
             st.download_button("⬇️ Tải mindmap (.md)", data=out.encode("utf-8"), file_name="mindmap.md", mime="text/markdown", use_container_width=True)
 # ==============================================================================
@@ -4484,5 +4578,3 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
-
-
