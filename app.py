@@ -3519,11 +3519,187 @@ def module_digital():
                 mime="application/msword",
                 type="primary"
             )
+AI_EDU_ADVISOR_SYSTEM_PROMPT = """
+Bạn là trợ lý AI hỗ trợ giáo viên nhận xét học sinh và tư vấn dạy học.
+
+Yêu cầu:
+- viết ngắn gọn, rõ ràng
+- ngôn ngữ tích cực, sư phạm
+- không dùng từ tiêu cực nặng
+- luôn có gợi ý cải thiện
+- không lặp câu
+- phù hợp cấp học
+
+Nếu là nhận xét học sinh:
+- nêu ưu điểm
+- nêu điểm cần cải thiện
+- đưa hướng cải thiện
+
+Nếu là tư vấn:
+- đưa giải pháp thực tế
+- dễ áp dụng trong lớp học
+
+Không viết dài dòng.
+"""
+
+def _advisor_output_markdown(text: str) -> str:
+    text = (text or "").strip()
+    text = re.sub(r"^\s*```(?:markdown|md)?\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s*```\s*$", "", text)
+    return text.strip()
+
+def _advisor_generate(user_prompt: str) -> str:
+    result = _gemini_generate(user_prompt, system=AI_EDU_ADVISOR_SYSTEM_PROMPT)
+    return _advisor_output_markdown(result)
+
+def module_ai_edu_advisor():
+    st.markdown(
+        """
+<div style="background:linear-gradient(135deg,#0F172A 0%,#1D4ED8 55%,#60A5FA 100%);
+  border-radius:14px;padding:16px 18px;color:#fff;border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 10px 18px rgba(2,6,23,.18);margin-bottom:14px;">
+  <h2 style="margin:0;font-weight:800;">🧠 AI EDU Advisor – Nhận xét & Tư vấn</h2>
+  <div style="opacity:.92;margin-top:6px;">Hỗ trợ giáo viên tạo nhận xét học sinh, nhận xét năng lực/phẩm chất và gợi ý tư vấn dạy học.</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    tab1, tab2, tab3 = st.tabs(["Nhận xét học sinh", "Năng lực & phẩm chất", "Tư vấn dạy học"])
+
+    with tab1:
+        with st.form("advisor_tab1_form", clear_on_submit=False):
+            c1, c2, c3 = st.columns([1.1, 1.0, 1.0])
+            with c1:
+                subject = st.text_input("Môn học", placeholder="Ví dụ: Toán, Tiếng Việt, Ngữ văn...")
+            with c2:
+                school_class = st.text_input("Lớp", placeholder="Ví dụ: 3A1, 6B, 10C2...")
+            with c3:
+                level = st.selectbox("Mức độ học sinh", ["yếu", "trung bình", "khá", "giỏi"], index=1)
+
+            characteristics = st.multiselect(
+                "Đặc điểm",
+                ["chăm học", "mất tập trung", "tiến bộ", "thiếu bài", "tự tin", "còn chậm", "hợp tác tốt", "cần nhắc nhở"],
+                default=["chăm học", "tiến bộ"],
+            )
+            tone = st.selectbox("Giọng văn", ["tích cực", "góp ý nhẹ", "nghiêm túc"], index=0)
+            extra_note = st.text_area(
+                "Ghi chú thêm (tuỳ chọn)",
+                height=90,
+                placeholder="Ví dụ: em làm bài khá đều, đôi lúc còn chậm khi trình bày, cần mạnh dạn phát biểu hơn.",
+            )
+            submit_tab1 = st.form_submit_button("Tạo", type="primary", use_container_width=True)
+
+        if submit_tab1:
+            if not subject.strip() or not school_class.strip():
+                st.error("Vui lòng nhập Môn học và Lớp.")
+            else:
+                user_prompt = f"""
+Hãy viết nhận xét học sinh theo thông tin sau:
+- Môn học: {subject.strip()}
+- Lớp: {school_class.strip()}
+- Mức độ: {level}
+- Đặc điểm: {", ".join(characteristics) if characteristics else "không nêu"}
+- Giọng văn: {tone}
+- Ghi chú thêm: {extra_note.strip() if extra_note.strip() else "(không có)"}
+
+Yêu cầu đầu ra:
+- 1 đến 3 câu
+- có ưu điểm
+- có góp ý cải thiện
+- văn phong giáo viên
+"""
+                with st.spinner("AI đang tạo nhận xét..."):
+                    result = _advisor_generate(user_prompt)
+                if result.startswith("⚠️") or result.lower().startswith("lỗi"):
+                    st.error(result)
+                else:
+                    st.markdown(result)
+
+    with tab2:
+        with st.form("advisor_tab2_form", clear_on_submit=False):
+            c1, c2 = st.columns(2)
+            with c1:
+                competences = st.multiselect(
+                    "Năng lực",
+                    ["tự học", "giao tiếp", "giải quyết vấn đề"],
+                    default=["tự học", "giao tiếp"],
+                )
+            with c2:
+                qualities = st.multiselect(
+                    "Phẩm chất",
+                    ["chăm chỉ", "trung thực", "trách nhiệm"],
+                    default=["chăm chỉ", "trách nhiệm"],
+                )
+            class_context = st.text_area(
+                "Bối cảnh lớp (tuỳ chọn)",
+                height=90,
+                placeholder="Ví dụ: học sinh còn ngại phát biểu, cần tăng tương tác nhóm, lớp học ồn khi hoạt động đôi...",
+            )
+            submit_tab2 = st.form_submit_button("Tạo", type="primary", use_container_width=True)
+
+        if submit_tab2:
+            if not competences and not qualities:
+                st.error("Vui lòng chọn ít nhất một năng lực hoặc phẩm chất.")
+            else:
+                user_prompt = f"""
+Hãy viết nhận xét theo năng lực và phẩm chất đúng chuẩn CTGDPT 2018.
+
+Thông tin:
+- Năng lực: {", ".join(competences) if competences else "(không nêu)"}
+- Phẩm chất: {", ".join(qualities) if qualities else "(không nêu)"}
+- Bối cảnh lớp: {class_context.strip() if class_context.strip() else "(không có)"}
+
+Yêu cầu:
+- ngắn gọn, rõ ràng
+- đúng phong cách nhận xét học sinh
+- có thể dùng trực tiếp trong sổ nhận xét
+"""
+                with st.spinner("AI đang tạo nhận xét năng lực & phẩm chất..."):
+                    result = _advisor_generate(user_prompt)
+                if result.startswith("⚠️") or result.lower().startswith("lỗi"):
+                    st.error(result)
+                else:
+                    st.markdown(result)
+
+    with tab3:
+        with st.form("advisor_tab3_form", clear_on_submit=False):
+            situation = st.text_area(
+                "Mô tả tình huống lớp học",
+                height=170,
+                placeholder="Ví dụ: Lớp yếu, nhiều học sinh mất tập trung, lớp đông 45 em, thời lượng ngắn, thiết bị hạn chế...",
+            )
+            submit_tab3 = st.form_submit_button("Tạo", type="primary", use_container_width=True)
+
+        if submit_tab3:
+            if not situation.strip():
+                st.error("Vui lòng mô tả tình huống lớp học.")
+            else:
+                user_prompt = f"""
+Hãy tư vấn dạy học cho giáo viên dựa trên tình huống sau:
+
+Tình huống lớp học:
+{situation.strip()}
+
+Yêu cầu:
+- 3 đến 5 gợi ý thực tế
+- dễ áp dụng trên lớp học
+- phù hợp điều kiện giáo viên
+- không dài dòng
+"""
+                with st.spinner("AI đang tạo tư vấn dạy học..."):
+                    result = _advisor_generate(user_prompt)
+                if result.startswith("⚠️") or result.lower().startswith("lỗi"):
+                    st.error(result)
+                else:
+                    st.markdown(result)
+
+    st.markdown(
+        "🧠 Nhận xét do AI hỗ trợ gợi ý. Giáo viên là người điều chỉnh và quyết định nội dung sử dụng."
+    )
+
 def module_advisor():
-    st.markdown("<div class='css-card'>", unsafe_allow_html=True)
-    st.markdown("## 🧠 AI EDU Advisor – Nhận xét & Tư vấn")
-    st.info("Mô-đun đang hoàn thiện. (Sẽ tích hợp sau)")
-    st.markdown("</div>", unsafe_allow_html=True)
+    module_ai_edu_advisor()
 # ==============================================================================
 # [LESSON PLAN SIMPLE v1] – TẠO GIÁO ÁN "NHƯ CHAT BÌNH THƯỜNG" (HTML TRỰC TIẾP)
 # ==============================================================================
