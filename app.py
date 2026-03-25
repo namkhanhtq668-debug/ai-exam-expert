@@ -81,6 +81,44 @@ def html_escape(text: str) -> str:
     if not text:
         return ""
     return html.escape(str(text))
+
+def exam_html_to_edit_text(exam_html: str) -> str:
+    """
+    Convert a simple exam HTML draft into teacher-friendly plain text.
+    Keeps title/question structure and A/B/C/D options where possible.
+    """
+    import html
+
+    if not exam_html:
+        return ""
+
+    text = str(exam_html)
+    text = re.sub(r"(?is)<\s*br\s*/?\s*>", "\n", text)
+    text = re.sub(r"(?is)</\s*(p|div|h1|h2|h3|h4|h5|h6|li|tr)\s*>", "\n", text)
+    text = re.sub(r"(?is)<\s*li\b[^>]*>", "\n- ", text)
+    text = re.sub(r"(?is)<\s*td\b[^>]*>", " ", text)
+    text = re.sub(r"(?is)<\s*/\s*td\s*>", " ", text)
+    text = re.sub(r"(?is)<[^>]+>", " ", text)
+    text = html.unescape(text)
+
+    # Normalize common exam structures.
+    text = re.sub(r"\b(Câu\s*\d+\s*[:.])", r"\n\1", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(Phần\s+[IVX0-9A-Z]+\s*[:.])", r"\n\n\1", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(Tự luận\s*[:.]?)", r"\n\n\1", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s+([A-D])\s*[\.\):\-]\s*", r"\n\1. ", text)
+
+    # Cleanup spacing/newlines.
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"\n[ \t]+", "\n", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+def exam_edit_text_to_preview_html(exam_edit_text: str) -> str:
+    if not exam_edit_text:
+        return ""
+    safe_text = html_escape(exam_edit_text)
+    return f'<div style="white-space:pre-wrap; line-height:1.65;">{safe_text}</div>'
 # ==============================================================================
 # [MODULE NLS] DỮ LIỆU & CẤU HÌNH CHO SOẠN GIÁO ÁN NĂNG LỰC SỐ
 # ==============================================================================
@@ -2452,42 +2490,49 @@ def main_app():
             all_e = st.session_state['dossier']
             sel = st.selectbox("Chọn mã đề:", range(len(all_e)), format_func=lambda x: f"[{all_e[x]['id']}] {all_e[x]['title']}")
             curr = all_e[sel]
+            curr_exam_html = curr.get("exam_html") or curr.get("content", "")
+            baseline_exam_edit_text = exam_html_to_edit_text(curr_exam_html)
+            curr_exam_edit_text = curr.get("exam_edit_text") or baseline_exam_edit_text
+            has_saved_teacher_edit = curr_exam_edit_text.strip() != baseline_exam_edit_text.strip()
             if st.session_state.get("current_exam_id") != curr.get("id"):
                 st.session_state["current_exam_id"] = curr.get("id")
-                st.session_state["ai_draft"] = curr.get("content", "")
-                st.session_state["teacher_edited"] = False
+                st.session_state["exam_html"] = curr_exam_html
+                st.session_state["exam_edit_text"] = curr_exam_edit_text
+                st.session_state["teacher_edited"] = has_saved_teacher_edit
                 st.session_state["exam_edit_mode"] = False
 
             top_a, top_b = st.columns([1, 3])
             with top_a:
                 if st.button("✏️ Chỉnh sửa đề", use_container_width=True, key=f"edit_exam_{curr['id']}"):
                     st.session_state["exam_edit_mode"] = True
-                    st.session_state["ai_draft"] = st.session_state.get("ai_draft") or curr.get("content", "")
+                    st.session_state["exam_html"] = st.session_state.get("exam_html") or curr_exam_html
+                    st.session_state["exam_edit_text"] = st.session_state.get("exam_edit_text") or curr_exam_edit_text
             with top_b:
                 if st.session_state.get("teacher_edited"):
                     st.success("Đề này đã được giáo viên chỉnh sửa trong phiên làm việc hiện tại.")
 
             if st.session_state.get("exam_edit_mode"):
-                st.caption("Chỉnh sửa nội dung đề bên dưới rồi bấm lưu để cập nhật bản xem hiện tại.")
-                st.session_state["ai_draft"] = st.text_area(
+                st.caption("Chỉnh sửa nội dung đề dạng text bên dưới rồi bấm lưu để cập nhật bản chỉnh sửa trong phiên hiện tại.")
+                st.session_state["exam_edit_text"] = st.text_area(
                     "Nội dung đề có thể chỉnh sửa",
-                    value=st.session_state.get("ai_draft", curr.get("content", "")),
+                    value=st.session_state.get("exam_edit_text", curr_exam_edit_text),
                     height=420,
-                    key=f"ai_draft_editor_{curr['id']}",
+                    key=f"exam_edit_text_editor_{curr['id']}",
                 )
                 save_c1, save_c2 = st.columns([1, 1])
                 with save_c1:
                     if st.button("💾 Lưu chỉnh sửa", type="primary", use_container_width=True, key=f"save_exam_{curr['id']}"):
-                        updated_content = st.session_state.get("ai_draft", curr.get("content", ""))
-                        st.session_state['dossier'][sel]['content'] = updated_content
-                        st.session_state["teacher_edited"] = True
+                        updated_text = st.session_state.get("exam_edit_text", curr_exam_edit_text)
+                        st.session_state['dossier'][sel]['exam_html'] = st.session_state.get("exam_html", curr_exam_html)
+                        st.session_state['dossier'][sel]['exam_edit_text'] = updated_text
+                        st.session_state["teacher_edited"] = updated_text.strip() != baseline_exam_edit_text.strip()
                         st.session_state["exam_edit_mode"] = False
                         curr = st.session_state['dossier'][sel]
                         st.success("✅ Đã lưu chỉnh sửa vào phiên làm việc hiện tại.")
                 with save_c2:
                     if st.button("↩️ Hủy chỉnh sửa", use_container_width=True, key=f"cancel_exam_{curr['id']}"):
                         st.session_state["exam_edit_mode"] = False
-                        st.session_state["ai_draft"] = curr.get("content", "")
+                        st.session_state["exam_edit_text"] = curr_exam_edit_text
                         st.rerun()
 
             approve_col1, approve_col2 = st.columns([1, 3])
@@ -2495,7 +2540,7 @@ def main_app():
                 if st.button("✅ Xác nhận sử dụng", type="primary", use_container_width=True, key=f"approve_exam_{curr['id']}"):
                     st.session_state["final_approved"] = True
                     st.session_state["approved_exam_id"] = curr.get("id")
-                    st.session_state["approved_exam_content"] = st.session_state.get("ai_draft", curr.get("content", ""))
+                    st.session_state["approved_exam_content"] = st.session_state.get("exam_edit_text", curr_exam_edit_text)
                     st.session_state["approved_exam_title"] = curr.get("title", "")
                     st.success("✅ Đã xác nhận sử dụng đề này. Giáo viên là người quyết định cuối cùng.")
                     try:
@@ -2526,10 +2571,15 @@ def main_app():
             st1, st2, st3 = st.tabs(["📄 NỘI DUNG ĐỀ", "📊 MA TRẬN", "📝 ĐẶC TẢ"])
             
             with st1:
-                st.markdown(f"""<div class="paper-view">{st.session_state.get('ai_draft', curr.get('content', ''))}</div>""", unsafe_allow_html=True)
+                preview_html = st.session_state.get("exam_html", curr_exam_html)
+                if st.session_state.get("teacher_edited") or has_saved_teacher_edit:
+                    preview_html = exam_edit_text_to_preview_html(
+                        st.session_state.get("exam_edit_text", curr_exam_edit_text)
+                    )
+                st.markdown(f"""<div class="paper-view">{preview_html}</div>""", unsafe_allow_html=True)
                 footer = f"<br/><center><p>{APP_CONFIG['name']}</p></center>"
                 if is_admin or user.get('role') == 'pro': 
-                    st.download_button("⬇️ Tải Đề (.doc)", create_word_doc(st.session_state.get('ai_draft', curr.get('content', '')) + footer, curr['title']), f"De_{curr['id']}.doc", type="primary")
+                    st.download_button("⬇️ Tải Đề (.doc)", create_word_doc(preview_html + footer, curr['title']), f"De_{curr['id']}.doc", type="primary")
                 else: st.warning("🔒 Nâng cấp PRO để tải file Word")
             
             with st2:
