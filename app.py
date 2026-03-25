@@ -2482,7 +2482,7 @@ def main_app():
                     except Exception as e: st.error(f"Lỗi DB: {e}")
                 else: st.error("Lỗi kết nối.")
         st.markdown('</div>', unsafe_allow_html=True)
-        st.caption("🧠 Đề kiểm tra và đáp án do AI hỗ trợ tạo nháp. Giáo viên là người kiểm tra, điều chỉnh và quyết định sử dụng.")
+        st.caption("🧠 Đề kiểm tra được AI hỗ trợ tạo nháp theo yêu cầu. Giáo viên là người kiểm tra, điều chỉnh và quyết định nội dung sử dụng.")
     # --- TAB 2: XEM & XUẤT (CLASS paper-view ĐÃ CHUẨN HÓA FONT) ---
     with tabs[1]:
         if not st.session_state['dossier']: st.info("👈 Chưa có dữ liệu.")
