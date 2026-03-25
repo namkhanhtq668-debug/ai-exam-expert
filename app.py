@@ -2697,8 +2697,7 @@ def main_app():
                     status_text.success("🎉 Hoàn thành!")
                     my_bar.empty()
     
-    st.markdown("---")
-    st.markdown(textwrap.dedent('''<div style="text-align: center; color: #64748b; font-size: 14px; padding: 20px;"><strong>AI EXAM EXPERT v10</strong> © Tác giả: <strong>Trần Thanh Tuấn</strong> – Trường Tiểu học Hồng Thái – Năm 2026.<br>SĐT: 0918198687</div>'''), unsafe_allow_html=True)            
+            
 # ==============================================================================
 # 7A. MODULE: TRỢ LÝ SOẠN GIÁO ÁN (TỔNG QUÁT TẤT CẢ MÔN/CẤP/BỘ SÁCH)
 # ==============================================================================
