@@ -2175,11 +2175,12 @@ def main_app():
         if st.button("ĐĂNG XUẤT", use_container_width=True):
             st.session_state.pop('user', None)
             st.rerun()
-    # --- CẬP NHẬT TAB MỚI: THÊM '🎯 ĐỀ CHUẨN YCCĐ' (TAB SỐ 8) ---
-    tabs = st.tabs(["🚀 THIẾT LẬP", "📄 XEM ĐỀ", "✅ ĐÁP ÁN", "⚖️ PHÁP LÝ", "💎 NÂNG CẤP VIP", "💰 ĐỐI TÁC", "📂 HỒ SƠ", "🎯 ĐỀ CHUẨN YCCĐ"])
+    # --- CẬP NHẬT TAB MỚI: THÊM '🎯 ĐỀ CHUẨN YCCĐ' ---
+    tabs = st.tabs(["🚀 THIẾT LẬP", "📄 XEM ĐỀ", "✅ ĐÁP ÁN", "⚖️ PHÁP LÝ", "📂 HỒ SƠ", "🎯 ĐỀ CHUẨN YCCĐ"])
     # --- TAB 1: THIẾT LẬP ---
     with tabs[0]:
         st.markdown('<div class="css-card">', unsafe_allow_html=True)
+        st.caption("Dùng để tạo đề nhanh trong thực tế giảng dạy.")
         
         col_year, col_lvl = st.columns(2)
         with col_year: school_year = st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=1)
@@ -2216,6 +2217,14 @@ def main_app():
         if not mt_file and not dt_file:
             auto_mode = True
             st.markdown('<div style="text-align:center;"><span class="auto-tag">✨ CHẾ ĐỘ TỰ ĐỘNG: AI SẼ TỰ XÂY DỰNG MA TRẬN & ĐẶC TẢ</span></div>', unsafe_allow_html=True)
+        with st.expander("🧠 AI hoạt động như thế nào?", expanded=False):
+            st.markdown(
+                """
+- Giáo viên nhập môn, lớp, cấu trúc đề, mức độ đánh giá.
+- AI tạo đề nháp và đáp án theo yêu cầu.
+- Giáo viên kiểm tra, chỉnh sửa và xác nhận trước khi sử dụng.
+""".strip()
+            )
         user_req = st.text_area("Ghi chú chuyên môn:", "Ví dụ: Đề cần phân loại học sinh giỏi...", height=80)
         # --- CÔNG CỤ CẤU HÌNH SỐ LƯỢNG ---
         st.markdown("---")
@@ -2411,8 +2420,10 @@ def main_app():
                                                     success=True,
                                                     client=client,
                                                     meta={
-                                                        "subject": subject,
-                                                        "grade": grade,
+                                                        "subject": subject or "",
+                                                        "grade": grade or "",
+                                                        "exam_type": scope or "",
+                                                        "num_versions": int(num_exams) if num_exams is not None else None,
                                                         "scope": scope,
                                                         "num_exams": int(num_exams),
                                                         "start_code": int(start_code),
@@ -2433,6 +2444,7 @@ def main_app():
                     except Exception as e: st.error(f"Lỗi DB: {e}")
                 else: st.error("Lỗi kết nối.")
         st.markdown('</div>', unsafe_allow_html=True)
+        st.caption("🧠 Đề kiểm tra và đáp án do AI hỗ trợ tạo nháp. Giáo viên là người kiểm tra, điều chỉnh và quyết định sử dụng.")
     # --- TAB 2: XEM & XUẤT (CLASS paper-view ĐÃ CHUẨN HÓA FONT) ---
     with tabs[1]:
         if not st.session_state['dossier']: st.info("👈 Chưa có dữ liệu.")
@@ -2440,14 +2452,84 @@ def main_app():
             all_e = st.session_state['dossier']
             sel = st.selectbox("Chọn mã đề:", range(len(all_e)), format_func=lambda x: f"[{all_e[x]['id']}] {all_e[x]['title']}")
             curr = all_e[sel]
+            if st.session_state.get("current_exam_id") != curr.get("id"):
+                st.session_state["current_exam_id"] = curr.get("id")
+                st.session_state["ai_draft"] = curr.get("content", "")
+                st.session_state["teacher_edited"] = False
+                st.session_state["exam_edit_mode"] = False
+
+            top_a, top_b = st.columns([1, 3])
+            with top_a:
+                if st.button("✏️ Chỉnh sửa đề", use_container_width=True, key=f"edit_exam_{curr['id']}"):
+                    st.session_state["exam_edit_mode"] = True
+                    st.session_state["ai_draft"] = st.session_state.get("ai_draft") or curr.get("content", "")
+            with top_b:
+                if st.session_state.get("teacher_edited"):
+                    st.success("Đề này đã được giáo viên chỉnh sửa trong phiên làm việc hiện tại.")
+
+            if st.session_state.get("exam_edit_mode"):
+                st.caption("Chỉnh sửa nội dung đề bên dưới rồi bấm lưu để cập nhật bản xem hiện tại.")
+                st.session_state["ai_draft"] = st.text_area(
+                    "Nội dung đề có thể chỉnh sửa",
+                    value=st.session_state.get("ai_draft", curr.get("content", "")),
+                    height=420,
+                    key=f"ai_draft_editor_{curr['id']}",
+                )
+                save_c1, save_c2 = st.columns([1, 1])
+                with save_c1:
+                    if st.button("💾 Lưu chỉnh sửa", type="primary", use_container_width=True, key=f"save_exam_{curr['id']}"):
+                        updated_content = st.session_state.get("ai_draft", curr.get("content", ""))
+                        st.session_state['dossier'][sel]['content'] = updated_content
+                        st.session_state["teacher_edited"] = True
+                        st.session_state["exam_edit_mode"] = False
+                        curr = st.session_state['dossier'][sel]
+                        st.success("✅ Đã lưu chỉnh sửa vào phiên làm việc hiện tại.")
+                with save_c2:
+                    if st.button("↩️ Hủy chỉnh sửa", use_container_width=True, key=f"cancel_exam_{curr['id']}"):
+                        st.session_state["exam_edit_mode"] = False
+                        st.session_state["ai_draft"] = curr.get("content", "")
+                        st.rerun()
+
+            approve_col1, approve_col2 = st.columns([1, 3])
+            with approve_col1:
+                if st.button("✅ Xác nhận sử dụng", type="primary", use_container_width=True, key=f"approve_exam_{curr['id']}"):
+                    st.session_state["final_approved"] = True
+                    st.session_state["approved_exam_id"] = curr.get("id")
+                    st.session_state["approved_exam_content"] = st.session_state.get("ai_draft", curr.get("content", ""))
+                    st.session_state["approved_exam_title"] = curr.get("title", "")
+                    st.success("✅ Đã xác nhận sử dụng đề này. Giáo viên là người quyết định cuối cùng.")
+                    try:
+                        title_text = str(curr.get("title", ""))
+                        subject_match = re.search(r"^Đề\s+(.*?)\s+(Lớp\s+\d+|Khối\s+\d+|Lớp\s+\w+|Khối\s+\w+)\s*-\s*(.*?)\s*\(Mã", title_text)
+                        parsed_subject = subject_match.group(1).strip() if subject_match else ""
+                        parsed_grade = subject_match.group(2).strip() if subject_match else ""
+                        parsed_exam_type = subject_match.group(3).strip() if subject_match else "exam"
+                        log_client = init_supabase()
+                        log_usage_event(
+                            module_name="exam",
+                            action_name="approve_exam",
+                            username=user.get('email', ''),
+                            success=True,
+                            client=log_client,
+                            meta={
+                                "subject": parsed_subject or curr.get("subject", ""),
+                                "grade": parsed_grade or curr.get("grade", ""),
+                                "exam_type": parsed_exam_type or curr.get("scope", ""),
+                            },
+                        )
+                    except Exception:
+                        pass
+            with approve_col2:
+                if st.session_state.get("final_approved") and st.session_state.get("approved_exam_id") == curr.get("id"):
+                    st.info("Đề hiện tại đã được xác nhận sử dụng trong phiên làm việc này.")
             
             st1, st2, st3 = st.tabs(["📄 NỘI DUNG ĐỀ", "📊 MA TRẬN", "📝 ĐẶC TẢ"])
             
             with st1:
-                st.markdown(f"""<div class="paper-view">{curr.get('content', '')}</div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="paper-view">{st.session_state.get('ai_draft', curr.get('content', ''))}</div>""", unsafe_allow_html=True)
                 footer = f"<br/><center><p>{APP_CONFIG['name']}</p></center>"
                 if is_admin or user.get('role') == 'pro': 
-                    st.download_button("⬇️ Tải Đề (.doc)", create_word_doc(curr.get('content', '') + footer, curr['title']), f"De_{curr['id']}.doc", type="primary")
+                    st.download_button("⬇️ Tải Đề (.doc)", create_word_doc(st.session_state.get('ai_draft', curr.get('content', '')) + footer, curr['title']), f"De_{curr['id']}.doc", type="primary")
                 else: st.warning("🔒 Nâng cấp PRO để tải file Word")
             
             with st2:
@@ -2471,122 +2553,8 @@ def main_app():
             cls = "highlight-card" if doc.get('highlight') else "legal-card"
             st.markdown(f"""<div class="{cls}" style="padding:15px; margin-bottom:10px; border-radius:10px;"><span style="background:#1e293b; color:white; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold">{doc['code']}</span><span style="font-weight:bold; color:#334155; margin-left:8px">{doc['title']}</span><p style="font-size:13px; color:#64748b; margin:5px 0 0 0">{doc['summary']}</p></div>""", unsafe_allow_html=True)
     
-    # --- [NÂNG CẤP] TAB 5: NÂNG CẤP VIP & THANH TOÁN (LOGIC SEVQR) ---
+    # --- TAB 4: HỒ SƠ & LỊCH SỬ ---
     with tabs[4]:
-        st.markdown("<h3 style='text-align: center; color: #1E3A8A;'>🚀 BẢNG GIÁ & NÂNG CẤP VIP</h3>", unsafe_allow_html=True)
-        col_free, col_pro = st.columns(2)
-        with col_free:
-            st.markdown(f"""<div class="pricing-card"><h3>Gói FREE</h3><div class="price-tag">0đ</div><div class="feature-list">✅ Tạo thử <b>{MAX_FREE_USAGE} đề</b><br>❌ Tải file Word<br>❌ Xem đáp án chi tiết<br>❌ Hỗ trợ kỹ thuật</div></div>""", unsafe_allow_html=True)
-        with col_pro:
-            st.markdown(f"""<div class="pricing-card" style="border: 2px solid #2563EB;"><h3 style="color: #2563EB;">Gói PRO VIP</h3><div class="price-tag">{PRICE_VIP:,.0f}đ / gói</div><div class="feature-list">✅ <b>Tạo tối đa {MAX_PRO_USAGE} đề</b><br>✅ <b>Tải file Word chuẩn</b><br>✅ <b>Xem & Tải Đáp án/Ma trận</b><br>✅ Hỗ trợ ưu tiên 24/7</div></div>""", unsafe_allow_html=True)
-        
-        st.markdown("---")
-        st.subheader("📲 QUÉT MÃ QR ĐỂ THANH TOÁN TỰ ĐỘNG")
-        
-        c1, c2 = st.columns([1, 2])
-        with c1:
-            ref_code_input = st.text_input("Mã giới thiệu (Để tặng lượt khi mua Pro):")
-            
-        current_price = PRICE_VIP
-        # [QUAN TRỌNG] THÊM TIỀN TỐ "SEVQR" VÀO NỘI DUNG ĐỂ SEPAY NHẬN DIỆN
-        final_content_ck = f"SEVQR NAP VIP {user.get('email')}"
-        show_qr = True
-        
-        # [LOGIC MỚI] CHECK MÃ GIỚI THIỆU ĐỂ ẨN/HIỆN QR (KHÔNG GIẢM GIÁ)
-        if ref_code_input:
-            client = init_supabase()
-            if client:
-                check_ref = client.table('users_pro').select("*").eq('username', ref_code_input).execute()
-                if check_ref.data and ref_code_input != user.get('email'):
-                    st.success(f"✅ Mã hợp lệ! Bạn sẽ được tặng thêm {BONUS_PRO_REF} lượt khi kích hoạt Pro.")
-                    final_content_ck = f"SEVQR NAP VIP {user.get('email')} REF {ref_code_input}"
-                    show_qr = True
-                elif ref_code_input == user.get('email'):
-                    st.warning("Bạn không thể tự giới thiệu chính mình.")
-                    show_qr = True # Vẫn hiện QR gốc
-                else:
-                    st.error("❌ Mã giới thiệu không tồn tại! (Vui lòng nhập đúng hoặc xóa đi để thanh toán).")
-                    show_qr = False # Ẩn QR
-        if show_qr:
-            # [FIX LỖI] URL ENCODE CHO NỘI DUNG CHUYỂN KHOẢN ĐỂ TRÁNH LỖI MEDIA STORAGE
-            import urllib.parse
-            encoded_content = urllib.parse.quote(final_content_ck)
-            qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_ACC}-compact.png?amount={current_price}&addInfo={encoded_content}&accountName={BANK_NAME}"
-            
-            c_qr1, c_qr2 = st.columns([1, 2])
-            with c_qr1: 
-                # [FIX LỖI] TRY-EXCEPT ĐỂ TRÁNH SẬP APP NẾU LỖI ẢNH
-                try:
-                    st.image(qr_url, caption=f"Mã QR ({current_price:,.0f}đ)", width=300)
-                except Exception:
-                    st.error("Không tải được QR. Vui lòng chuyển khoản thủ công.")
-            
-            with c_qr2: 
-                st.info(f"**Nội dung chuyển khoản:** `{final_content_ck}`\n\n1. Quét mã QR.\n2. Bấm nút **'KÍCH HOẠT NGAY'** bên dưới sau khi chuyển khoản.")
-                
-                # [NÂNG CẤP] NÚT KÍCH HOẠT TỰ ĐỘNG (CHECK SEPAY)
-                if st.button("🚀 KÍCH HOẠT NGAY (Sau khi đã CK)", type="primary"):
-                    if check_sepay_transaction(current_price, final_content_ck):
-                        client = init_supabase()
-                        if client:
-                            # Lấy trạng thái hiện tại để kiểm tra có phải lần đầu không
-                            curr_user_db = client.table('users_pro').select("*").eq('username', user.get('email')).execute()
-                            is_first_time = False
-                            if curr_user_db.data:
-                                if curr_user_db.data[0]['role'] == 'free': is_first_time = True
-                            # 1. Update người mua lên Pro (Reset lượt)
-                            bonus_add = BONUS_PRO_REF if (ref_code_input and is_first_time) else 0
-                            client.table('users_pro').update({
-                                'role': 'pro',
-                                'usage_count': 0,
-                                    'points': 0,
-                                'bonus_turns': bonus_add,
-                                'referred_by': ref_code_input if ref_code_input else None
-                            }).eq('username', user.get('email')).execute()
-                            
-                            # 2. Cộng hoa hồng (Chỉ khi lần đầu lên Pro)
-                            if ref_code_input and is_first_time:
-                                 ref_user = client.table('users_pro').select('commission_balance').eq('username', ref_code_input).execute()
-                                 if ref_user.data:
-                                     curr_comm = ref_user.data[0].get('commission_balance', 0)
-                                     client.table('users_pro').update({
-                                         'commission_balance': curr_comm + COMMISSION_AMT
-                                     }).eq('username', ref_code_input).execute()
-                            st.balloons()
-                            st.success("🎉 CHÚC MỪNG! TÀI KHOẢN ĐÃ NÂNG CẤP LÊN PRO!")
-                            time.sleep(2)
-                            st.rerun()
-                    else:
-                        st.error("⚠️ Hệ thống chưa nhận được tiền. Vui lòng thử lại sau 30s.")
-    # --- [NÂNG CẤP] TAB 6: ĐỐI TÁC (AFFILIATE) ---
-    with tabs[5]:
-        st.subheader("💰 CHƯƠNG TRÌNH ĐỐI TÁC (AFFILIATE)")
-        st.info(f"Mã giới thiệu của bạn chính là tên đăng nhập: **{user.get('email')}**")
-        client = init_supabase()
-        if client:
-            try:
-                # Thống kê số người đã giới thiệu
-                ref_res = client.table('users_pro').select("*").eq('referred_by', user.get('email')).execute()
-                
-                # Lấy số dư hoa hồng
-                me_res = client.table('users_pro').select('commission_balance').eq('username', user.get('email')).execute()
-                comm_balance = me_res.data[0].get('commission_balance', 0) if me_res.data else 0
-                if ref_res.data:
-                    count_ref = len(ref_res.data)
-                    count_pro = sum(1 for u in ref_res.data if u['role'] == 'pro')
-                    c1, c2, c3 = st.columns(3)
-                    with c1: st.metric("Tổng người giới thiệu", f"{count_ref} người")
-                    with c2: st.metric("Đã lên PRO", f"{count_pro} người")
-                    with c3: st.metric("Hoa hồng hiện có", f"{comm_balance:,.0f}đ")
-                    st.write("---")
-                    st.write("**Danh sách thành viên:**")
-                    df_ref = pd.DataFrame(ref_res.data)
-                    if not df_ref.empty:
-                        st.dataframe(df_ref[['username', 'fullname', 'role', 'created_at']], use_container_width=True)
-                else: st.info("Bạn chưa giới thiệu được ai. Hãy chia sẻ Mã giới thiệu ngay!")
-            except Exception: st.error("Lỗi tải dữ liệu đối tác.")
-    # --- TAB 7: HỒ SƠ & LỊCH SỬ ---
-    with tabs[6]:
         c1, c2 = st.columns([2, 1])
         with c1: 
             st.write(f"**👤 Xin chào: {user.get('fullname')}**")
@@ -2614,11 +2582,12 @@ def main_app():
             k = st.text_input("🔑 API Key Gemini (Nếu có)", type="password", key="api_key_in")
             if k: st.session_state['api_key'] = k
     # ==============================================================================
-    # [MỚI - ĐÃ SỬA] TAB 8: TẠO ĐỀ CHUẨN YCCĐ (DÙNG DỮ LIỆU NHÚNG)
+    # [MỚI - ĐÃ SỬA] TAB 5: TẠO ĐỀ CHUẨN YCCĐ (DÙNG DỮ LIỆU NHÚNG)
     # ==============================================================================
-    with tabs[7]:
+    with tabs[5]:
         st.title("🎯 Ngân hàng đề Toán Tiểu học (Chuẩn GDPT 2018)")
         st.caption("Dữ liệu bám sát Yêu cầu cần đạt - Đã tích hợp sẵn.")
+        st.caption("Dùng để xây dựng đề bám yêu cầu cần đạt.")
         
         mgr = YCCDManager()
         current_api_key = st.session_state.get('api_key', '')
@@ -3371,6 +3340,34 @@ def dashboard_screen():
                     st.balloons()
                     st.success("✅ Kích hoạt VIP thành công! Điểm đã được cộng (nếu DB có cột points).")
                     st.rerun()
+    with st.expander("💰 CHƯƠNG TRÌNH ĐỐI TÁC (AFFILIATE)", expanded=False):
+        if not client or not username:
+            st.warning("Bạn cần đăng nhập để xem chương trình đối tác.")
+            return
+        st.info(f"Mã giới thiệu của bạn chính là tên đăng nhập: **{username}**")
+        try:
+            # Thống kê số người đã giới thiệu
+            ref_res = client.table('users_pro').select("*").eq('referred_by', username).execute()
+
+            # Lấy số dư hoa hồng
+            me_res = client.table('users_pro').select('commission_balance').eq('username', username).execute()
+            comm_balance = me_res.data[0].get('commission_balance', 0) if me_res.data else 0
+            if ref_res.data:
+                count_ref = len(ref_res.data)
+                count_pro = sum(1 for u in ref_res.data if u['role'] == 'pro')
+                c1, c2, c3 = st.columns(3)
+                with c1: st.metric("Tổng người giới thiệu", f"{count_ref} người")
+                with c2: st.metric("Đã lên PRO", f"{count_pro} người")
+                with c3: st.metric("Hoa hồng hiện có", f"{comm_balance:,.0f}đ")
+                st.write("---")
+                st.write("**Danh sách thành viên:**")
+                df_ref = pd.DataFrame(ref_res.data)
+                if not df_ref.empty:
+                    st.dataframe(df_ref[['username', 'fullname', 'role', 'created_at']], use_container_width=True)
+            else:
+                st.info("Bạn chưa giới thiệu được ai. Hãy chia sẻ Mã giới thiệu ngay!")
+        except Exception:
+            st.error("Lỗi tải dữ liệu đối tác.")
 def module_digital():
     # --- CSS Tùy chỉnh cho Module NLS (Giống giao diện React) ---
     st.markdown(textwrap.dedent('''
@@ -3520,26 +3517,32 @@ def module_digital():
                 type="primary"
             )
 AI_EDU_ADVISOR_SYSTEM_PROMPT = """
-Bạn là trợ lý AI hỗ trợ giáo viên nhận xét học sinh và tư vấn dạy học.
+Bạn là trợ lý AI hỗ trợ giáo viên soạn nhận xét theo văn phong "sổ liên lạc" và "đánh giá thường xuyên" trong nhà trường.
 
-Yêu cầu:
-- viết ngắn gọn, rõ ràng
-- ngôn ngữ tích cực, sư phạm
-- không dùng từ tiêu cực nặng
-- luôn có gợi ý cải thiện
-- không lặp câu
-- phù hợp cấp học
+Mục tiêu:
+- Viết ngắn gọn, chuẩn mực, dễ dùng trực tiếp cho giáo viên.
+- Văn phong sư phạm, tích cực, khách quan, đúng mực.
+- Câu chữ tự nhiên, không máy móc, không sáo rỗng.
+- Luôn có ưu điểm và gợi ý cải thiện nếu phù hợp.
+- Không dùng từ ngữ nặng, phán xét, quy chụp hoặc gây áp lực.
 
-Nếu là nhận xét học sinh:
-- nêu ưu điểm
-- nêu điểm cần cải thiện
-- đưa hướng cải thiện
+Quy tắc trình bày:
+- Ưu tiên 1 đến 3 câu ngắn.
+- Có thể dùng cách xưng hô "em/học sinh" theo ngữ cảnh lớp học.
+- Nếu là nhận xét học sinh, nên có cấu trúc: ưu điểm -> điểm cần cải thiện -> hướng phấn đấu.
+- Nếu là nhận xét năng lực/phẩm chất, viết đúng kiểu nhận xét cuối kỳ hoặc thường xuyên: rõ ý, gọn, đúng CTGDPT 2018.
+- Nếu là tư vấn dạy học, đưa giải pháp thực tế, áp dụng được ngay, phù hợp điều kiện giáo viên.
 
-Nếu là tư vấn:
-- đưa giải pháp thực tế
-- dễ áp dụng trong lớp học
+Mẫu phong cách mong muốn:
+- "Em có ý thức học tập, chăm chú trong giờ học và hoàn thành phần lớn nhiệm vụ được giao. Em cần mạnh dạn hơn khi phát biểu và rèn thói quen kiểm tra lại bài trước khi nộp."
+- "Học sinh có tinh thần hợp tác, biết lắng nghe và thực hiện nhiệm vụ tương đối tốt. Cần tiếp tục chủ động hơn trong tự học và trình bày ý kiến rõ ràng hơn."
 
-Không viết dài dòng.
+Không viết dài dòng, không kể lể, không dùng bullet nếu không cần thiết.
+
+Nguyên tắc theo cấp học:
+- Tiểu học: dùng ngôn ngữ mềm mại, khích lệ, gần gũi; ưu tiên nhận xét hành vi học tập, nề nếp, sự tiến bộ.
+- THCS: ngắn gọn hơn, nhấn mạnh thái độ học tập, mức độ hoàn thành nhiệm vụ, khả năng hợp tác và tự học.
+- THPT: rõ ràng, chín chắn, thiên về năng lực tự học, trách nhiệm, tư duy, kết quả và ý thức rèn luyện.
 """
 
 def _advisor_output_markdown(text: str) -> str:
@@ -3547,6 +3550,52 @@ def _advisor_output_markdown(text: str) -> str:
     text = re.sub(r"^\s*```(?:markdown|md)?\s*", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\s*```\s*$", "", text)
     return text.strip()
+
+def _advisor_detect_school_level(class_text: str) -> str:
+    text = (class_text or "").strip().lower()
+    if not text:
+        return "Không xác định"
+    numbers = re.findall(r"\d+", text)
+    if numbers:
+        try:
+            first = int(numbers[0])
+            if 1 <= first <= 5:
+                return "Tiểu học"
+            if 6 <= first <= 9:
+                return "THCS"
+            if 10 <= first <= 12:
+                return "THPT"
+        except Exception:
+            pass
+    if any(token in text for token in ["tiểu học", "th1", "th2", "th3", "th4", "th5"]):
+        return "Tiểu học"
+    if any(token in text for token in ["thcs", "thcs.", "lớp 6", "lớp 7", "lớp 8", "lớp 9"]):
+        return "THCS"
+    if any(token in text for token in ["thpt", "lớp 10", "lớp 11", "lớp 12"]):
+        return "THPT"
+    return "Không xác định"
+
+def _advisor_level_profile(level: str) -> str:
+    level = (level or "").strip()
+    if level == "Tiểu học":
+        return (
+            "Tiểu học: dùng câu ngắn, mềm mại, gần gũi; ưu tiên nề nếp, sự chăm chỉ, tiến bộ, "
+            "thói quen học tập và thái độ tham gia trong giờ học."
+        )
+    if level == "THCS":
+        return (
+            "THCS: dùng câu ngắn gọn, rõ ý; nhấn vào mức độ hoàn thành nhiệm vụ, thái độ học tập, "
+            "khả năng hợp tác, tự học và ý thức rèn luyện."
+        )
+    if level == "THPT":
+        return (
+            "THPT: dùng giọng chững chạc, rõ ràng; nhấn vào tính tự giác, trách nhiệm, tư duy, "
+            "khả năng tự học và kết quả học tập."
+        )
+    return (
+        "Không xác định: dùng văn phong chung theo sổ liên lạc/đánh giá thường xuyên, "
+        "ngắn gọn, tích cực, có gợi ý cải thiện."
+    )
 
 def _advisor_generate(user_prompt: str) -> str:
     result = _gemini_generate(user_prompt, system=AI_EDU_ADVISOR_SYSTEM_PROMPT)
@@ -3576,6 +3625,11 @@ def module_ai_edu_advisor():
                 school_class = st.text_input("Lớp", placeholder="Ví dụ: 3A1, 6B, 10C2...")
             with c3:
                 level = st.selectbox("Mức độ học sinh", ["yếu", "trung bình", "khá", "giỏi"], index=1)
+            school_level = st.selectbox(
+                "Cấp học",
+                ["Tự động", "Tiểu học", "THCS", "THPT"],
+                index=0,
+            )
 
             characteristics = st.multiselect(
                 "Đặc điểm",
@@ -3594,10 +3648,14 @@ def module_ai_edu_advisor():
             if not subject.strip() or not school_class.strip():
                 st.error("Vui lòng nhập Môn học và Lớp.")
             else:
+                detected_level = _advisor_detect_school_level(school_class)
+                final_level = school_level if school_level != "Tự động" else detected_level
                 user_prompt = f"""
 Hãy viết nhận xét học sinh theo thông tin sau:
 - Môn học: {subject.strip()}
 - Lớp: {school_class.strip()}
+- Cấp học áp dụng: {final_level}
+- Ghi chú văn phong theo cấp học: {_advisor_level_profile(final_level)}
 - Mức độ: {level}
 - Đặc điểm: {", ".join(characteristics) if characteristics else "không nêu"}
 - Giọng văn: {tone}
@@ -3605,9 +3663,10 @@ Hãy viết nhận xét học sinh theo thông tin sau:
 
 Yêu cầu đầu ra:
 - 1 đến 3 câu
+- văn phong sổ liên lạc / đánh giá thường xuyên
 - có ưu điểm
 - có góp ý cải thiện
-- văn phong giáo viên
+- viết gọn, tự nhiên, dùng được ngay
 """
                 with st.spinner("AI đang tạo nhận xét..."):
                     result = _advisor_generate(user_prompt)
@@ -3631,6 +3690,11 @@ Yêu cầu đầu ra:
                     ["chăm chỉ", "trung thực", "trách nhiệm"],
                     default=["chăm chỉ", "trách nhiệm"],
                 )
+            school_level_2 = st.selectbox(
+                "Cấp học",
+                ["Tự động", "Tiểu học", "THCS", "THPT"],
+                index=0,
+            )
             class_context = st.text_area(
                 "Bối cảnh lớp (tuỳ chọn)",
                 height=90,
@@ -3642,18 +3706,23 @@ Yêu cầu đầu ra:
             if not competences and not qualities:
                 st.error("Vui lòng chọn ít nhất một năng lực hoặc phẩm chất.")
             else:
+                level_hint = _advisor_detect_school_level(class_context)
+                final_level_2 = school_level_2 if school_level_2 != "Tự động" else level_hint
                 user_prompt = f"""
 Hãy viết nhận xét theo năng lực và phẩm chất đúng chuẩn CTGDPT 2018.
 
 Thông tin:
 - Năng lực: {", ".join(competences) if competences else "(không nêu)"}
 - Phẩm chất: {", ".join(qualities) if qualities else "(không nêu)"}
+- Cấp học áp dụng: {final_level_2}
+- Ghi chú văn phong theo cấp học: {_advisor_level_profile(final_level_2)}
 - Bối cảnh lớp: {class_context.strip() if class_context.strip() else "(không có)"}
 
 Yêu cầu:
 - ngắn gọn, rõ ràng
-- đúng phong cách nhận xét học sinh
+- đúng phong cách nhận xét cuối kỳ / thường xuyên
 - có thể dùng trực tiếp trong sổ nhận xét
+- không quá khen, không quá nặng
 """
                 with st.spinner("AI đang tạo nhận xét năng lực & phẩm chất..."):
                     result = _advisor_generate(user_prompt)
@@ -3664,6 +3733,11 @@ Yêu cầu:
 
     with tab3:
         with st.form("advisor_tab3_form", clear_on_submit=False):
+            advice_level = st.selectbox(
+                "Cấp học (nếu biết)",
+                ["Tự động", "Tiểu học", "THCS", "THPT"],
+                index=0,
+            )
             situation = st.text_area(
                 "Mô tả tình huống lớp học",
                 height=170,
@@ -3675,17 +3749,22 @@ Yêu cầu:
             if not situation.strip():
                 st.error("Vui lòng mô tả tình huống lớp học.")
             else:
+                final_level_3 = advice_level if advice_level != "Tự động" else _advisor_detect_school_level(situation)
                 user_prompt = f"""
 Hãy tư vấn dạy học cho giáo viên dựa trên tình huống sau:
 
 Tình huống lớp học:
 {situation.strip()}
 
+- Cấp học áp dụng: {final_level_3}
+- Ghi chú văn phong theo cấp học: {_advisor_level_profile(final_level_3)}
+
 Yêu cầu:
 - 3 đến 5 gợi ý thực tế
 - dễ áp dụng trên lớp học
 - phù hợp điều kiện giáo viên
 - không dài dòng
+- ưu tiên giải pháp có thể áp dụng ngay
 """
                 with st.spinner("AI đang tạo tư vấn dạy học..."):
                     result = _advisor_generate(user_prompt)
