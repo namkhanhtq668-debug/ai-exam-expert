@@ -61,7 +61,7 @@ _load_local_env()
 _seed_env_from_streamlit_secrets()
 
 
-from orchestrator import MultiAgentOrchestrator
+from orchestrator.orchestrator import MultiAgentOrchestrator
 from clients.base_llm_client import BaseLLMClient
 from services.chat_service import ChatService
 from services.doc_service import DocService
