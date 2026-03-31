@@ -483,6 +483,61 @@ section[data-testid="stSidebar"]{
   position: relative;
   z-index: 1;
 }
+@media (max-width: 768px){
+  .block-container{
+    padding-left: .75rem;
+    padding-right: .75rem;
+    padding-top: .75rem;
+  }
+  section[data-testid="stSidebar"]{
+    width: 260px !important;
+  }
+  .sb-brand{
+    gap: 8px;
+    padding: 8px 2px 4px 2px;
+  }
+  .sb-logo{
+    width: 56px;
+    height: 56px;
+  }
+  .sb-title{
+    font-size: 14px;
+  }
+  .sb-sub{
+    font-size: 11px;
+  }
+  section[data-testid="stSidebar"] .stRadio > div{
+    padding: 2px 4px 0 4px;
+  }
+  section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
+    padding: 8px 10px;
+    margin: 4px 0;
+    border-radius: 12px;
+    font-size: 13px;
+  }
+  .hero{
+    border-radius: 16px;
+    padding: 20px 16px;
+  }
+  .hero-titlebox{
+    padding: 12px 14px;
+    border-radius: 14px;
+  }
+  .hero h1{
+    font-size: clamp(24px, 6vw, 30px);
+  }
+  .hero p{
+    font-size: 14px;
+  }
+  .hero-badges{
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .hero-badge{
+    padding: 6px 10px;
+    font-size: 10px;
+  }
+}
 .glass{
   background: rgba(255,255,255,.75);
   border: 1px solid rgba(15,23,42,.10);
