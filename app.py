@@ -8337,10 +8337,10 @@ def render_topbar():
 
     fullname = user.get("fullname") or user.get("email") or "Khách"
 
-    c1, c2, c3 = st.columns([2.8, 5.2, 2.0], vertical_alignment="center", gap="small")
+    c1, c2, c3 = st.columns([2.4, 5.6, 2.0], vertical_alignment="center", gap="small")
 
     with c1:
-        logo_col, text_col = st.columns([1.0, 2.8], gap="small")
+        logo_col, text_col = st.columns([0.9, 2.4], gap="small")
         with logo_col:
             st.markdown("### 🎓")
         with text_col:
