@@ -330,7 +330,7 @@ except Exception:
     SUPABASE_KEY = ""
     SYSTEM_GOOGLE_KEY = ""
     SEPAY_API_TOKEN = ""
-st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="expanded")
 # =========================
 # UI THEME (Premium SaaS)
 # =========================
@@ -482,6 +482,61 @@ section[data-testid="stSidebar"]{
   font-weight: 600;
   position: relative;
   z-index: 1;
+}
+@media (max-width: 768px){
+  .block-container{
+    padding-left: .75rem;
+    padding-right: .75rem;
+    padding-top: .75rem;
+  }
+  section[data-testid="stSidebar"]{
+    width: 260px !important;
+  }
+  .sb-brand{
+    gap: 8px;
+    padding: 8px 2px 4px 2px;
+  }
+  .sb-logo{
+    width: 56px;
+    height: 56px;
+  }
+  .sb-title{
+    font-size: 14px;
+  }
+  .sb-sub{
+    font-size: 11px;
+  }
+  section[data-testid="stSidebar"] .stRadio > div{
+    padding: 2px 4px 0 4px;
+  }
+  section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
+    padding: 8px 10px;
+    margin: 4px 0;
+    border-radius: 12px;
+    font-size: 13px;
+  }
+  .hero{
+    border-radius: 16px;
+    padding: 20px 16px;
+  }
+  .hero-titlebox{
+    padding: 12px 14px;
+    border-radius: 14px;
+  }
+  .hero h1{
+    font-size: clamp(24px, 6vw, 30px);
+  }
+  .hero p{
+    font-size: 14px;
+  }
+  .hero-badges{
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .hero-badge{
+    padding: 6px 10px;
+    font-size: 10px;
+  }
 }
 .glass{
   background: rgba(255,255,255,.75);
@@ -3145,7 +3200,7 @@ def module_evidence_implementation():
     if not st.session_state.get("user"):
         require_login("evidence")
         return
-    st.markdown("## 📊 Minh chứng triển khai")
+    st.markdown("## 📊 Hoạt động hệ thống AI")
     st.caption("Trang đọc-only tổng hợp số liệu từ `users_pro`, `exam_history` và `usage_events`.")
 
     client = init_supabase()
@@ -4616,6 +4671,13 @@ def module_mindmap():
         return
     st.markdown("## 🧠 Mindmap AI")
     st.caption("Nhập chủ đề hoặc nội dung → AI tạo mindmap dạng cây (Markdown). Dùng cho soạn bài, ôn tập, trình chiếu.")
+    c1, c2, c3 = st.columns([1.2, 0.8, 0.8])
+    with c1:
+        mon_hoc = st.text_input("Môn học", value="", placeholder="Ví dụ: Toán", key="mm_mon_hoc")
+    with c2:
+        lop = st.text_input("Lớp", value="", placeholder="Ví dụ: 5", key="mm_lop")
+    with c3:
+        so_cap_do = st.selectbox("Số cấp độ", ["3", "4"], index=1, key="mm_levels")
     inp = st.text_area("Nội dung / chủ đề", height=200, key="mm_in")
     st.caption("Gợi ý: thêm từ khóa như 'soạn bài', 'ôn tập', 'trình chiếu' hoặc 'hoạt động nhóm' để AI chọn đúng style.")
 
@@ -4646,46 +4708,30 @@ def module_mindmap():
                     branch_rule = "3–4 nhánh chính, mỗi nhánh 2–3 ý phụ, ưu tiên trọng tâm."
                 else:
                     branch_rule = "4 nhánh chính, mỗi nhánh 2–4 ý phụ, đầy đủ nhưng gọn."
+                core_topic = inp.strip()
                 prompt = f"""
-Bạn là trợ lý AI chuyên tạo sơ đồ tư duy cho giáo viên.
-Hãy xuất đúng một mindmap dạng Markdown cây, KHÔNG viết dàn ý, KHÔNG giải thích thêm.
+Bạn là chuyên gia sư phạm và thiết kế học liệu giáo dục phổ thông.
+Nhiệm vụ: Từ tài liệu hoặc chủ đề được cung cấp, hãy trích xuất và hệ thống hóa kiến thức thành một sơ đồ tư duy (Mindmap) phục vụ cho việc trình chiếu và ôn tập.
 
-YÊU CẦU BẮT BUỘC:
-1. Có đúng 1 chủ đề trung tâm.
-2. Tối đa 4 nhánh chính.
-3. Mỗi nhánh chính có 2–4 nhánh phụ.
-4. Chỉ dùng từ khóa ngắn, mỗi ý 3–6 từ.
-5. Không dùng câu dài, không dùng đoạn văn.
-6. Không dùng câu hỏi kiểu "Vì sao", "Ai", "Khi nào".
-7. Nếu chủ đề phù hợp cấp học, hãy điều chỉnh ngôn ngữ:
-   - Tiểu học: đơn giản, dễ hiểu
-   - THCS: rõ khái niệm, có hệ thống
-   - THPT: khái quát, logic, có chiều sâu
-8. Mục đích hiện tại: {mindmap_style}
-9. Phong cách cần ưu tiên: {mindmap_goal}
-10. Quy tắc nhánh: {branch_rule}
+Thông tin đầu vào:
+- Môn học: {mon_hoc or "Chưa nhập"}
+- Lớp: {lop or "Chưa nhập"}
+- Chủ đề/Tài liệu cốt lõi: {core_topic[:12000]}
+- Yêu cầu cấp độ: {so_cap_do} (giới hạn đúng 3 hoặc 4 cấp độ)
 
-ĐỊNH DẠNG ĐẦU RA BẮT BUỘC:
-# [Tên chủ đề]
+Yêu cầu bắt buộc:
+- Bám sát chương trình GDPT 2018, phản ánh đúng trọng tâm và Yêu cầu cần đạt.
+- Từ khóa ở mỗi nhánh phải cực kỳ ngắn gọn, tối đa 5-7 từ/nhánh, phù hợp học sinh tiểu học.
+- Xuất kết quả dưới dạng cấu trúc Markdown (Bulleted list) để hệ thống phần mềm có thể tự động vẽ biểu đồ trực quan.
+- Tuyệt đối không sinh thêm văn bản giải thích thừa.
 
-- [Chủ đề trung tâm]
-  - [Nhánh chính 1]
-    - [Ý phụ 1]
-    - [Ý phụ 2]
-  - [Nhánh chính 2]
-    - [Ý phụ 1]
-    - [Ý phụ 2]
-  - [Nhánh chính 3]
-    - [Ý phụ 1]
-    - [Ý phụ 2]
-  - [Nhánh chính 4]
-    - [Ý phụ 1]
-    - [Ý phụ 2]
+Ràng buộc chuyên môn:
+- Giữ ngôn ngữ sư phạm, rõ nghĩa, dễ hiểu.
+- Sắp xếp nhánh theo logic học tập từ khái quát đến cụ thể.
+- Nếu nội dung quá dài, ưu tiên rút gọn nhưng không mất ý chính.
 
-Kết thúc bằng đúng 1 dòng "Gợi ý sử dụng: ..." nếu cần, ngắn gọn.
-
-Nội dung đầu vào:
-{inp[:12000]}
+Chủ đề hiện tại:
+{core_topic[:12000]}
 """
                 raw_out = _gemini_generate(prompt)
                 out = (raw_out or "").strip()
@@ -4956,7 +5002,7 @@ with st.sidebar:
     st.divider()
     page_map = {
         "🏡 Trang chủ": "dashboard",
-        "📊 Minh chứng triển khai": "evidence",
+        "📊 Hoạt động hệ thống AI": "evidence",
         "💬 Chat AI": "chat",
         "📑 Doc AI": "doc_ai",
         "🧠 Mindmap": "mindmap",
