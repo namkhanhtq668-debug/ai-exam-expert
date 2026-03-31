@@ -8339,9 +8339,9 @@ def render_topbar():
     c1, c2, c3 = st.columns([2.4, 5.6, 2.0], vertical_alignment="center", gap="small")
 
     with c1:
-        logo_col, text_col = st.columns([0.9, 2.4], gap="small")
+        logo_col, text_col = st.columns([0.7, 2.6], gap="small")
         with logo_col:
-            st.markdown("### 🎓")
+            st.markdown(logo_svg(34), unsafe_allow_html=True)
         with text_col:
             st.markdown("**AIEXAM.VN**")
             st.caption("Nền tảng AI dành cho giáo viên")
