@@ -330,7 +330,7 @@ except Exception:
     SUPABASE_KEY = ""
     SYSTEM_GOOGLE_KEY = ""
     SEPAY_API_TOKEN = ""
-st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="expanded")
 # =========================
 # UI THEME (Premium SaaS)
 # =========================
