@@ -3062,7 +3062,7 @@ YÊU CẦU CHẤT LƯỢNG:
     content_html = st.session_state.get(_lp_key("last_html"), "")
     if content_html:
         st.markdown("## 📄 Xem trước giáo án")
-        st.components.v1.html(content_html, height=760, scrolling=True)
+        components.html(content_html, height=760, scrolling=True)
         st.markdown("## ⬇️ Tải về")
         cdl1, cdl2 = st.columns([1.2, 1.2])
         title = st.session_state.get(_lp_key("last_title"), "GiaoAn")
@@ -3500,7 +3500,7 @@ def dashboard_screen():
                     st.error("❌ Chưa thấy giao dịch phù hợp. Vui lòng kiểm tra lại hoặc đợi 1–2 phút rồi thử lại.")
                 else:
                     row = get_user_row(client, username)
-                    updates = {'role': 'pro'}
+                    updates: dict[str, Any] = {'role': 'pro'}
                     if isinstance(row, dict) and 'points' in row:
                         cur = int(row.get('points') or 0)
                         updates['points'] = cur + VIP_TOPUP_POINTS
@@ -4150,7 +4150,7 @@ def module_lesson_plan():
     html = st.session_state.get(_lp2_key("html"), "")
     if html:
         st.markdown("## Xem trước (A4)")
-        st.components.v1.html(html, height=780, scrolling=True)
+        components.html(html, height=780, scrolling=True)
         st.markdown("## Tải về")
         c1, c2 = st.columns(2)
         with c1:
