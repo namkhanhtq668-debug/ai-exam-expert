@@ -12,6 +12,7 @@ import time
 from datetime import datetime, timezone, timedelta
 import requests
 import random
+from typing import Any, cast
 try:
     import bcrypt  # pyright: ignore[reportMissingImports]
 except Exception:  # pragma: no cover
@@ -21,7 +22,14 @@ import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 # ===== Brand logo (PNG) =====
 # Keep helper name `logo_svg()` for compatibility across the app.
 
-def module_help():
+genai = cast(Any, genai)
+
+def _as_dict_rows(value: Any) -> list[dict[str, Any]]:
+    if isinstance(value, list):
+        return [cast(dict[str, Any], item) for item in value if isinstance(item, dict)]
+    return []
+
+def module_help_intro():
     st.markdown("## 📘 Hướng dẫn sử dụng")
     st.caption("Tài liệu hướng dẫn nhanh dành cho thầy/cô – dễ hiểu – dùng được ngay.")
     tab1, tab2 = st.tabs(["🧠 Hướng dẫn sử dụng module", "💎 Hướng dẫn nạp VIP / PRO"])
@@ -2397,8 +2405,9 @@ def main_app():
                     try:
                         # 1. LẤY THÔNG TIN NGƯỜI DÙNG TỪ DB
                         current_user_db = client.table('users_pro').select("*").eq('username', user.get('email')).execute()
-                        if current_user_db.data:
-                            user_data = current_user_db.data[0]
+                        rows = _as_dict_rows(current_user_db.data)
+                        if rows:
+                            user_data = rows[0]
                             db_role = user_data['role']
                             usage_count = user_data.get('usage_count', 0)
                             
@@ -3166,8 +3175,9 @@ def login_screen():
                             .eq("username", u)
                             .execute()
                         )
-                        if res.data:
-                            user_data = res.data[0]
+                        rows = _as_dict_rows(res.data)
+                        if rows:
+                            user_data = rows[0]
                             if not verify_password_compat(user_data.get("password"), p):
                                 st.error("Sai tài khoản hoặc mật khẩu")
                                 return
@@ -3514,10 +3524,12 @@ def dashboard_screen():
 
             # Lấy số dư hoa hồng
             me_res = client.table('users_pro').select('commission_balance').eq('username', username).execute()
-            comm_balance = me_res.data[0].get('commission_balance', 0) if me_res.data else 0
-            if ref_res.data:
-                count_ref = len(ref_res.data)
-                count_pro = sum(1 for u in ref_res.data if u['role'] == 'pro')
+            me_rows = _as_dict_rows(me_res.data)
+            ref_rows = _as_dict_rows(ref_res.data)
+            comm_balance = me_rows[0].get('commission_balance', 0) if me_rows else 0
+            if ref_rows:
+                count_ref = len(ref_rows)
+                count_pro = sum(1 for u in ref_rows if u.get('role') == 'pro')
                 c1, c2, c3 = st.columns(3)
                 with c1: st.metric("Tổng người giới thiệu", f"{count_ref} người")
                 with c2: st.metric("Đã lên PRO", f"{count_pro} người")
