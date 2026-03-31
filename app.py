@@ -8675,41 +8675,18 @@ def _render_chat_history(messages: list[dict]) -> None:
 
     if not messages:
 
-        st.markdown(
-
-            """
-
-<div style="margin:12px 0 14px 0; padding:16px 16px 14px 16px; border:1px solid rgba(91,92,246,.12); border-radius:18px;
-
-            background: linear-gradient(135deg, rgba(255,255,255,.92), rgba(242,244,255,.92));
-
-            box-shadow: 0 12px 24px rgba(2,6,23,.06);">
-
-  <div style="font-weight:800; color:#0f172a; margin-bottom:8px;">Bắt đầu nhanh</div>
-
-  <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
-
-    <span class="hero-badge">Soạn giáo án theo CTGDPT 2018</span>
-
-    <span class="hero-badge">Tạo ma trận đề và đặc tả</span>
-
-    <span class="hero-badge">Nhận xét học sinh cuối kỳ</span>
-
-  </div>
-
-  <div class="small-muted" style="font-size:13px; line-height:1.55;">
-
-    Khung chat sẵn sàng. Hãy nhập câu hỏi để bắt đầu trao đổi.
-
-  </div>
-
-</div>
-
-""",
-
-            unsafe_allow_html=True,
-
-        )
+        with st.container(border=True):
+            st.markdown("**Bắt đầu nhanh**")
+            quick_cols = st.columns(3, gap="small")
+            quick_labels = [
+                "Soạn giáo án theo CTGDPT 2018",
+                "Tạo ma trận đề và đặc tả",
+                "Nhận xét học sinh cuối kỳ",
+            ]
+            for col, label in zip(quick_cols, quick_labels):
+                with col:
+                    st.markdown(f"• {label}")
+            st.caption("Khung chat sẵn sàng. Hãy nhập câu hỏi để bắt đầu trao đổi.")
 
         return
 
@@ -8737,29 +8714,12 @@ def module_chat():
 
     st.session_state.setdefault("chat_intent_hint", None)
 
-    st.markdown(
-
-        """
-
-<div style="margin:10px 0 14px 0; padding:12px 14px; border:1px solid rgba(91,92,246,.10); border-radius:18px;
-
-background: rgba(255,255,255,.72); box-shadow: 0 10px 22px rgba(2,6,23,.05);">
-
-  <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
-
-    <div style="font-size:13px; color:#0f172a; font-weight:700;">Khung hội thoại giáo dục</div>
-
-    <div class="small-muted" style="font-size:12px;">Soạn bài, ra đề, nhận xét, CTGDPT 2018, năng lực số</div>
-
-  </div>
-
-</div>
-
-""",
-
-        unsafe_allow_html=True,
-
-    )
+    with st.container(border=True):
+        left, right = st.columns([2, 3], gap="small")
+        with left:
+            st.markdown("**Khung hội thoại giáo dục**")
+        with right:
+            st.caption("Soạn bài, ra đề, nhận xét, CTGDPT 2018, năng lực số")
 
     _render_chat_history(st.session_state["chat_messages"])
 
