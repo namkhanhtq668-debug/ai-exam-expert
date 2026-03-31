@@ -358,12 +358,36 @@ section[data-testid="stSidebar"]{
   border: 1px solid rgba(15,23,42,.08);
   box-shadow: 0 14px 40px rgba(2,6,23,.08);
 }
+.hero-topline{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:12px;
+  padding:6px 12px;
+  border-radius:999px;
+  background: rgba(255,255,255,.72);
+  border: 1px solid rgba(15,23,42,.08);
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 22px rgba(2,6,23,.05);
+}
 .hero h1{
   margin: 0;
-  font-size: 36px;
+  font-size: clamp(30px, 3vw, 42px);
   font-weight: 900;
-  line-height: 1.06;
-  letter-spacing: -0.035em;
+  line-height: 1.03;
+  letter-spacing: -0.045em;
+  color: #0f172a;
+  max-width: 12ch;
+}
+.hero h1 .accent{
+  background: linear-gradient(90deg, #1d4ed8, #7c3aed);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 .hero p{ margin: 8px 0 0 0; color: rgba(15,23,42,.72); font-size: 15px; line-height: 1.45; }
 .hero-badges{
@@ -3213,6 +3237,7 @@ def dashboard_screen():
     # HERO (giống layout mẫu, nhưng cao cấp hơn)
     st.markdown(f"""
 <div class="hero">
+  <div class="hero-topline">AIEXAM.VN | Nền tảng dành cho giáo viên</div>
   <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:8px;">
     <div class="sb-logo" style="width:56px;height:56px;border-radius:14px;background:transparent;box-shadow:none;">{logo_svg(56)}</div>
     <div style="text-align:left">
@@ -3220,7 +3245,7 @@ def dashboard_screen():
       <div class="small-muted">Ứng dụng thực tế cho giáo viên trong soạn bài, ra đề và đánh giá học sinh</div>
     </div>
   </div>
-  <h1 style="font-size:clamp(24px, 2.2vw, 34px); line-height:1.12; text-wrap:balance; overflow-wrap:anywhere; max-width:100%;">Nền tảng AI cho giáo viên soạn bài, ra đề và đánh giá học sinh</h1>
+  <h1 style="text-wrap:balance; overflow-wrap:anywhere;">Nền tảng <span class="accent">AI</span> cho giáo viên soạn bài, ra đề và đánh giá học sinh</h1>
   <p>Hỗ trợ dạy học theo định hướng phát triển năng lực, giúp giáo viên tiết kiệm thời gian và nâng cao hiệu quả chuyên môn.</p>
   <div class="hero-badges">
     <span class="hero-badge">Ra đề nhanh</span>
