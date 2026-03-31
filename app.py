@@ -29,6 +29,21 @@ def _as_dict_rows(value: Any) -> list[dict[str, Any]]:
         return [cast(dict[str, Any], item) for item in value if isinstance(item, dict)]
     return []
 
+def _genai_configure(api_key: str) -> None:
+    getattr(genai, "configure")(api_key=api_key)
+
+def _genai_model(model_name: str, system_instruction: str | None = None) -> Any:
+    model_cls = getattr(genai, "GenerativeModel")
+    if system_instruction is None:
+        return model_cls(model_name)
+    return model_cls(model_name, system_instruction=system_instruction)
+
+def _json_generation_config() -> Any:
+    genai_types = getattr(genai, "types", None)
+    if genai_types is not None and hasattr(genai_types, "GenerationConfig"):
+        return genai_types.GenerationConfig(response_mime_type="application/json")
+    return {"response_mime_type": "application/json"}
+
 def module_help_intro():
     st.markdown("## 📘 Hướng dẫn sử dụng")
     st.caption("Tài liệu hướng dẫn nhanh dành cho thầy/cô – dễ hiểu – dùng được ngay.")
@@ -259,8 +274,8 @@ QUY TẮC KỸ THUẬT:
 """
 # 3. Hàm xử lý AI riêng cho Module này
 def generate_nls_lesson_plan_legacy(api_key, lesson_content, distribution_content, textbook, subject, grade, analyze_only):
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=SYSTEM_INSTRUCTION_NLS)
+    _genai_configure(api_key)
+    model = _genai_model('gemini-2.0-flash', system_instruction=SYSTEM_INSTRUCTION_NLS)
     
     user_prompt = f"""
     THÔNG TIN ĐẦU VÀO:
@@ -703,8 +718,8 @@ QUY TẮC KỸ THUẬT:
 - Không thay đổi nội dung chuyên môn của giáo án gốc, chỉ làm phong phú thêm bằng năng lực số.
 """
 def generate_nls_lesson_plan(api_key, lesson_content, subject, grade, textbook, ppct_content, analyze_only):
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=SYSTEM_INSTRUCTION_NLS)
+    _genai_configure(api_key)
+    model = _genai_model("gemini-2.0-flash", system_instruction=SYSTEM_INSTRUCTION_NLS)
     
     prompt = f"""
     THÔNG TIN:
@@ -1252,8 +1267,9 @@ def render_lesson_plan_html(data: dict) -> str:
 def get_knowledge_context(subject, grade, book, scope):
     try:
         data = CURRICULUM_DATA.get(subject, {}).get(grade, {}).get(book, {})
-        key = next((k for k in data.keys() if k in scope or scope in k), None)
-        if key: return f"NỘI DUNG CHƯƠNG TRÌNH ({key}): {data[key]}"
+        if isinstance(data, dict):
+            key = next((k for k in data.keys() if k in scope or scope in k), None)
+            if key: return f"NỘI DUNG CHƯƠNG TRÌNH ({key}): {data[key]}"
         week_info = SCOPE_MAPPING.get(scope, scope)
         return f"NỘI DUNG TỰ TRA CỨU: Bám sát chuẩn kiến thức kĩ năng môn {subject} {grade} - Bộ sách {book}. Thời điểm: {week_info}."
     except Exception: return "NỘI DUNG: Theo chuẩn CTGDPT 2018."
@@ -1685,9 +1701,9 @@ class YCCDManager:
         return [item for item in self.data if item['lop'] == grade and item['chu_de'] == topic]
 class QuestionGeneratorYCCD:
     def __init__(self, api_key):
-        genai.configure(api_key=api_key)
+        _genai_configure(api_key)
         # [SỬA LỖI 404] Dùng gemini-2.0-flash theo yêu cầu
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
+        self.model = _genai_model('gemini-2.0-flash')
     def generate(self, yccd_item, muc_do="Thông hiểu"):
         prompt = f"""
         VAI TRÒ: Giáo viên Toán Tiểu học (Chương trình GDPT 2018).
@@ -2040,7 +2056,7 @@ def generate_lesson_plan_locked(
     Sinh JSON data-only theo LESSON_PLAN_DATA_SCHEMA (meta + sections).
     Không render HTML ở đây. Không dùng st.spinner ở đây.
     """
-    genai.configure(api_key=api_key)
+    _genai_configure(api_key)
     # meta chuẩn (đúng schema)
     req_meta = {
         "cap_hoc": meta_ppct.get("cap_hoc", ""),
@@ -2074,7 +2090,7 @@ def generate_lesson_plan_locked(
         },
         teacher_note=teacher_note
     )
-    model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
+    model = _genai_model(model_name, system_instruction=system_prompt)
     safe_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -2088,7 +2104,7 @@ def generate_lesson_plan_locked(
         try:
             res = model.generate_content(
                 json.dumps(base_req, ensure_ascii=False),
-                generation_config={"response_mime_type": "application/json"},
+                generation_config=_json_generation_config(),
                 safety_settings=safe_settings
             )
             raw = json.loads(clean_json(res.text))
@@ -2197,7 +2213,7 @@ def generate_lesson_plan_data_only(
     Tự sửa tối đa 3 lần nếu sai schema hoặc thiếu chi tiết.
     """
     import json
-    genai.configure(api_key=api_key)
+    _genai_configure(api_key)
     req_meta = {
         "cap_hoc": meta_ppct.get("cap_hoc", ""),
         "mon": meta_ppct.get("mon", ""),
@@ -2209,7 +2225,7 @@ def generate_lesson_plan_data_only(
         "si_so": int(meta_ppct.get("si_so", 35) or 35),
     }
     system_prompt = build_lesson_system_prompt_data_only(req_meta, teacher_note)
-    model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
+    model = _genai_model(model_name, system_instruction=system_prompt)
     safe_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -2222,7 +2238,7 @@ def generate_lesson_plan_data_only(
         try:
             res = model.generate_content(
                 json.dumps(base_req, ensure_ascii=False),
-                generation_config={"response_mime_type": "application/json"},
+                generation_config=_json_generation_config(),
                 safety_settings=safe_settings
             )
             raw = json.loads(clean_json(res.text))
@@ -2528,9 +2544,9 @@ def main_app():
                                         V. QUAN TRỌNG: CHỈ TRẢ VỀ JSON. KHÔNG GIẢI THÍCH GÌ THÊM.
                                         """
                                         try:
-                                            genai.configure(api_key=api_key)
+                                            _genai_configure(api_key)
                                             # [SỬA LỖI 404] Dùng gemini-2.0-flash
-                                            model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=SYSTEM_PROMPT)
+                                            model = _genai_model('gemini-2.0-flash', system_instruction=SYSTEM_PROMPT)
                                             
                                             # [FIX LỖI] Cấu hình tắt bộ lọc an toàn để AI không chặn đề thi
                                             safe_settings = [
@@ -2736,8 +2752,9 @@ def main_app():
                 if client:
                     try:
                         history_res = client.table('exam_history').select("*").eq('username', user.get('email')).order('id', desc=True).execute()
-                        if history_res.data:
-                            saved_exams = [item['exam_data'] for item in history_res.data]
+                        history_rows = _as_dict_rows(history_res.data)
+                        if history_rows:
+                            saved_exams = [item['exam_data'] for item in history_rows]
                             st.session_state['dossier'] = saved_exams
                             st.success(f"Đã tải {len(saved_exams)} đề từ kho lưu trữ!")
                             time.sleep(1)
@@ -3995,7 +4012,7 @@ def generate_lesson_plan_html_simple(
     model_name: str = "gemini-2.0-flash",
 ) -> str:
     """Trả về HTML hoàn chỉnh (không JSON)."""
-    genai.configure(api_key=api_key)
+    _genai_configure(api_key)
     system_instruction = """Bạn là GIÁO VIÊN cốt cán, chuyên soạn KẾ HOẠCH BÀI DẠY theo CTGDPT 2018.
 YÊU CẦU BẮT BUỘC:
 - ĐẦU RA: CHỈ TRẢ VỀ 01 KHỐI HTML HOÀN CHỈNH (không markdown, không giải thích).
@@ -4030,7 +4047,7 @@ GHI CHÚ/ĐIỀU CHỈNH CỦA GV:
 {ctx_block}
 HÃY SOẠN GIÁO ÁN HTML HOÀN CHỈNH THEO ĐÚNG YÊU CẦU.
 """
-    model = genai.GenerativeModel(model_name, system_instruction=system_instruction)
+    model = _genai_model(model_name, system_instruction=system_instruction)
     safe_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -4254,11 +4271,11 @@ def _gemini_generate(prompt: str, system: str | None = None) -> str:
     if not api_key:
         return "⚠️ Chưa cấu hình GOOGLE_API_KEY trong st.secrets hoặc bạn chưa nhập API key."
     try:
-        genai.configure(api_key=api_key)
+        _genai_configure(api_key)
         if system:
-            model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=system)
+            model = _genai_model("gemini-2.0-flash", system_instruction=system)
         else:
-            model = genai.GenerativeModel("gemini-2.0-flash")
+            model = _genai_model("gemini-2.0-flash")
         safe_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
