@@ -355,6 +355,17 @@ def inject_premium_theme():
   --radius-md:16px;
 }
 .stApp{ background: var(--bg); color: var(--text); }
+/* Hide Streamlit chrome for a clean app shell */
+#MainMenu,
+footer,
+header,
+div[data-testid="stToolbar"],
+div[data-testid="stDecoration"],
+div[data-testid="stStatusWidget"],
+div[data-testid="stHeader"]{
+  display: none !important;
+  visibility: hidden !important;
+}
 .block-container{ max-width: 1280px; padding-top: .95rem; padding-bottom: 2rem; padding-left: 1.1rem; padding-right: 1.1rem; }
 section[data-testid="stSidebar"]{
   background: var(--sidebar);
@@ -375,11 +386,23 @@ section[data-testid="stSidebar"]{
 .sb-title{ font-weight: 800; line-height: 1.05; }
 .sb-sub{ color: var(--muted); font-size: 12px; margin-top: 2px; }
 .hero{
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(247,249,255,.96));
-  border-radius: 24px;
-  padding: 26px 24px;
-  border: 1px solid rgba(15,23,42,.08);
-  box-shadow: 0 18px 40px rgba(15,23,42,.08), 0 2px 8px rgba(15,23,42,.04);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  border-radius: 18px;
+  padding: 30px 28px;
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow: 0 18px 36px rgba(59,130,246,.18), 0 10px 24px rgba(139,92,246,.12);
+}
+.hero::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255,255,255,.22), transparent 28%),
+    radial-gradient(circle at 88% 12%, rgba(255,255,255,.16), transparent 24%),
+    radial-gradient(circle at 70% 82%, rgba(255,255,255,.10), transparent 26%);
+  pointer-events:none;
 }
 .hero-topline{
   display:inline-flex;
@@ -388,23 +411,27 @@ section[data-testid="stSidebar"]{
   margin-bottom:12px;
   padding:6px 12px;
   border-radius:999px;
-  background: rgba(243,246,255,.95);
-  border: 1px solid rgba(29,78,216,.12);
-  color: var(--primary);
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.20);
+  color: #fff;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: .04em;
   text-transform: uppercase;
-  box-shadow: 0 10px 22px rgba(15,23,42,.05);
+  box-shadow: 0 10px 22px rgba(15,23,42,.10);
+  position: relative;
+  z-index: 1;
 }
 .hero-titlebox{
   margin-top: 8px;
   padding: 16px 18px;
   border-radius: 18px;
-  background: rgba(255,255,255,.98);
-  border: 1px solid rgba(29,78,216,.14);
-  border-left: 6px solid var(--primary);
-  box-shadow: 0 12px 28px rgba(15,23,42,.06);
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.18);
+  border-left: 6px solid rgba(255,255,255,.35);
+  box-shadow: 0 10px 24px rgba(15,23,42,.08);
+  position: relative;
+  z-index: 1;
 }
 .hero h1{
   margin: 0;
@@ -412,38 +439,49 @@ section[data-testid="stSidebar"]{
   font-weight: 900;
   line-height: 1.03;
   letter-spacing: -0.045em;
-  color: #0f172a;
+  color: #ffffff;
   max-width: 100%;
 }
 .hero h1 .accent{
-  background: linear-gradient(90deg, var(--primary), var(--primary2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #ffffff;
 }
-.hero p{ margin: 12px 0 0 0; color: #64748b; font-size: 15px; line-height: 1.5; }
+.hero .small-muted,
+.hero p{
+  color: rgba(255,255,255,.88);
+}
+.hero p{
+  margin: 12px 0 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  position: relative;
+  z-index: 1;
+}
 .hero-badges{
   display:flex; flex-wrap:wrap; gap:10px;
   margin-top: 14px;
+  position: relative;
+  z-index: 1;
 }
 .hero-badge{
   display:inline-flex; align-items:center; gap:6px;
   padding: 7px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(29,78,216,.14);
-  background: rgba(255,255,255,.92);
-  color: rgba(15,23,42,.82);
+  border: 1px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.16);
+  color: #ffffff;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: .02em;
-  box-shadow: 0 8px 18px rgba(15,23,42,.05);
+  box-shadow: 0 8px 18px rgba(15,23,42,.08);
   backdrop-filter: blur(8px);
 }
 .hero-cta{
   margin-top: 10px;
-  color: #64748b;
+  color: rgba(255,255,255,.82);
   font-size: 13px;
   font-weight: 600;
+  position: relative;
+  z-index: 1;
 }
 .glass{
   background: rgba(255,255,255,.75);
