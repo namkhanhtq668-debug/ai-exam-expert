@@ -6473,47 +6473,21 @@ def dashboard_screen():
 
             st.session_state["user"]["points"] = points
 
-    # HERO (giống layout mẫu, nhưng cao cấp hơn)
+    # HERO (thuần Streamlit, không dùng HTML để tránh hiện thẻ thô trên UI)
 
-    st.markdown(f"""
+    with st.container():
+        st.markdown("### 🎓 AIEXAM.VN")
+        st.caption("Ứng dụng thực tế cho giáo viên trong soạn bài, ra đề và đánh giá học sinh")
+        st.markdown("## Nền tảng AI cho giáo viên soạn bài, ra đề và đánh giá học sinh")
+        st.write("Hỗ trợ dạy học theo định hướng phát triển năng lực, giúp giáo viên tiết kiệm thời gian và nâng cao hiệu quả chuyên môn.")
 
-<div class="hero">
+        badge_cols = st.columns(4, gap="small")
+        badge_labels = ["Ra đề nhanh", "Soạn giáo án", "Phân tích tài liệu", "Đánh giá học sinh"]
+        for col, label in zip(badge_cols, badge_labels):
+            with col:
+                st.markdown(f"**{label}**")
 
-  <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:8px;">
-
-    <div class="sb-logo" style="width:56px;height:56px;border-radius:14px;background:transparent;box-shadow:none;">{logo_svg(56)}</div>
-
-    <div style="text-align:left">
-
-      <div style="font-weight:800; font-size:14px; letter-spacing:.02em;">AIEXAM.VN</div>
-
-      <div class="small-muted">Ứng dụng thực tế cho giáo viên trong soạn bài, ra đề và đánh giá học sinh</div>
-
-    </div>
-
-  </div>
-
-  <h1 style="font-size:clamp(24px, 2.2vw, 34px); line-height:1.12; text-wrap:balance; overflow-wrap:anywhere; max-width:100%;">Nền tảng AI cho giáo viên soạn bài, ra đề và đánh giá học sinh</h1>
-
-  <p>Hỗ trợ dạy học theo định hướng phát triển năng lực, giúp giáo viên tiết kiệm thời gian và nâng cao hiệu quả chuyên môn.</p>
-
-  <div class="hero-badges">
-
-    <span class="hero-badge">Ra đề nhanh</span>
-
-    <span class="hero-badge">Soạn giáo án</span>
-
-    <span class="hero-badge">Phân tích tài liệu</span>
-
-    <span class="hero-badge">Đánh giá học sinh</span>
-
-  </div>
-
-  <div class="hero-cta">Bắt đầu từ khung nhập nhanh bên dưới hoặc chọn tác vụ chuyên môn ngay.</div>
-
-</div>
-
-""", unsafe_allow_html=True)
+        st.caption("Bắt đầu từ khung nhập nhanh bên dưới hoặc chọn tác vụ chuyên môn ngay.")
 
     # Ask box + pills
 
