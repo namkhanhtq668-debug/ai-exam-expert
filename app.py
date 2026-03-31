@@ -322,8 +322,10 @@ def inject_premium_theme():
   --card:#ffffff;
   --soft:#f6f7fb;
   --sidebar:#f4f2fb;
-  --primary:#5b5cf6;
-  --primary2:#2f80ff;
+  --primary:#1d4ed8;
+  --primary2:#7c3aed;
+  --primary-soft:rgba(29,78,216,.12);
+  --accent:#2563eb;
   --good:#10b981;
   --warn:#f59e0b;
   --radius-lg:22px;
@@ -367,7 +369,7 @@ section[data-testid="stSidebar"]{
   border-radius:999px;
   background: rgba(255,255,255,.72);
   border: 1px solid rgba(15,23,42,.08);
-  color: #1d4ed8;
+  color: var(--primary);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: .04em;
@@ -384,7 +386,7 @@ section[data-testid="stSidebar"]{
   max-width: 12ch;
 }
 .hero h1 .accent{
-  background: linear-gradient(90deg, #1d4ed8, #7c3aed);
+  background: linear-gradient(90deg, var(--primary), var(--primary2));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -451,7 +453,7 @@ section[data-testid="stSidebar"]{
 .card.soft:hover{
   transform: translateY(-2px);
   box-shadow: 0 18px 34px rgba(2,6,23,.10);
-  border-color: rgba(91,92,246,.18);
+  border-color: rgba(29,78,216,.18);
 }
 .stat-card{
   position: relative;
@@ -511,7 +513,8 @@ section[data-testid="stSidebar"]{
   mix-blend-mode: screen;
 }
 .stat-icon.user{ background: linear-gradient(135deg, rgba(47,128,255,.18), rgba(91,92,246,.18)); color:#2f80ff; }
-.stat-icon.state{ background: linear-gradient(135deg, rgba(91,92,246,.18), rgba(149,117,255,.18)); color:#6d5efc; }
+.stat-icon.user{ background: linear-gradient(135deg, rgba(47,128,255,.18), rgba(91,92,246,.18)); color:var(--primary); }
+.stat-icon.state{ background: linear-gradient(135deg, rgba(91,92,246,.18), rgba(149,117,255,.18)); color:var(--primary2); }
 .stat-icon.activity{ background: linear-gradient(135deg, rgba(16,185,129,.18), rgba(45,212,191,.18)); color:#0ea5a4; }
 .stat-title{
   color: #5b5cf6;
@@ -567,9 +570,9 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label p{
   margin: 0;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div{
-  background: rgba(91,92,246,.12) !important;
-  border-color: rgba(91,92,246,.38) !important;
-  box-shadow: 0 14px 28px rgba(91,92,246,.18) !important;
+  background: var(--primary-soft) !important;
+  border-color: rgba(29,78,216,.38) !important;
+  box-shadow: 0 14px 28px rgba(29,78,216,.18) !important;
   position: relative;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div::before{
@@ -578,7 +581,7 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked +
   left:-1px; top:-1px; bottom:-1px;
   width: 6px;
   border-radius: 14px 0 0 14px;
-  background: linear-gradient(180deg, rgba(91,92,246,.95), rgba(47,128,255,.95));
+  background: linear-gradient(180deg, var(--primary2), var(--primary));
 }
 /* Make Streamlit buttons look premium */
 .stButton > button{
