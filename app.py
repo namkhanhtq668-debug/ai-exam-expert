@@ -687,15 +687,15 @@ section[data-testid="stSidebar"]{
 
 .sb-brand{
 
-  display:flex; align-items:center; gap:10px;
+  display:flex; align-items:center; gap:8px;
 
-  padding: 10px 4px 6px 4px;
+  padding: 8px 2px 4px 2px;
 
 }
 
 .sb-logo{
 
-  width: 72px; height: 72px; border-radius: 0px;
+  width: 58px; height: 58px; border-radius: 0px;
 
   background: transparent;
 
@@ -709,9 +709,9 @@ section[data-testid="stSidebar"]{
 
 .sb-logo svg{display:block;}
 
-.sb-title{ font-weight: 800; line-height: 1.05; }
+.sb-title{ font-weight: 800; line-height: 1.0; font-size: 14px; }
 
-.sb-sub{ color: var(--muted); font-size: 12px; margin-top: 2px; }
+.sb-sub{ color: var(--muted); font-size: 11px; margin-top: 1px; }
 
 .hero{
 
@@ -1061,7 +1061,7 @@ section[data-testid="stSidebar"]{
 
 section[data-testid="stSidebar"] .stRadio > div{
 
-  padding: 4px 6px 2px 6px;
+  padding: 2px 4px 0 4px;
 
 }
 
@@ -1073,9 +1073,9 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
 
   border-radius: 14px;
 
-  padding: 10px 12px;
+  padding: 8px 10px;
 
-  margin: 6px 0;
+  margin: 4px 0;
 
   transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
 
@@ -1096,6 +1096,8 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label p{
   font-weight: 650;
 
   margin: 0;
+  line-height: 1.15;
+  font-size: 13px;
 
 }
 
@@ -6493,7 +6495,7 @@ def dashboard_screen():
 
     st.write("")
 
-    c1, c2, c3 = st.columns([1, 2.2, 1], gap="small")
+    c1, c2, c3 = st.columns([0.9, 2.4, 0.9], gap="small")
 
 
 
@@ -9663,7 +9665,7 @@ with st.sidebar:
 
     )
 
-    st.markdown("<div class='small-muted'>Điều hướng nhanh • Dễ sử dụng</div>", unsafe_allow_html=True)
+    st.markdown("<div class='small-muted'>Điều hướng nhanh • Gọn nhẹ</div>", unsafe_allow_html=True)
 
     st.divider()
 
@@ -9671,25 +9673,25 @@ with st.sidebar:
 
         "🏡 Trang chủ": "dashboard",
 
-        "📊 Minh chứng triển khai": "evidence",
+        "📊 Minh chứng": "evidence",
 
-        "💬 Chat AI": "chat",
+        "💬 Chat": "chat",
 
-        "📑 Doc AI": "doc_ai",
+        "📑 Doc": "doc_ai",
 
         "🧠 Mindmap": "mindmap",
 
-        "🧾 Ra đề – KTĐG": "exam",
+        "🧾 Ra đề": "exam",
 
-        "📚 Trợ lý Soạn bài": "lesson_plan",
+        "📚 Soạn bài": "lesson_plan",
 
         "🖥️ Năng lực số": "digital",
 
-        "🧭 Nhận xét – Tư vấn": "advisor",
+        "🧭 Tư vấn": "advisor",
 
         "📘 Hướng dẫn": "help",
 
-        "🔐 Đăng nhập / Đăng ký": "login",
+        "🔐 Đăng nhập": "login",
 
     }
 
@@ -9743,7 +9745,7 @@ with st.sidebar:
 
 <b>⭐ Gói hiện tại: {role_badge}</b>
 
-<div class="small-muted" style="margin-top:6px;">Nâng cấp để mở giới hạn & nhận thêm điểm.</div>
+<div class="small-muted" style="margin-top:6px;">Dùng gói phù hợp để mở thêm giới hạn.</div>
 
 </div>""", unsafe_allow_html=True)
 
@@ -9761,7 +9763,7 @@ with st.sidebar:
 
 <b>👋 Chào mừng!</b>
 
-<div class="small-muted" style="margin-top:6px;">Bạn có thể xem Trang chủ và dùng thử 1 câu Chat AI. Khi dùng tiếp, hệ thống sẽ yêu cầu đăng nhập.</div>
+<div class="small-muted" style="margin-top:6px;">Xem Trang chủ hoặc thử 1 câu Chat AI.</div>
 
 </div>""", unsafe_allow_html=True)
 
