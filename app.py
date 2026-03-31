@@ -1266,10 +1266,12 @@ def render_lesson_plan_html(data: dict) -> str:
     return html
 def get_knowledge_context(subject, grade, book, scope):
     try:
-        data = CURRICULUM_DATA.get(subject, {}).get(grade, {}).get(book, {})
-        if isinstance(data, dict):
+        raw = CURRICULUM_DATA.get(subject, {}).get(grade, {}).get(book, {})
+        if isinstance(raw, dict):
+            data = raw
             key = next((k for k in data.keys() if k in scope or scope in k), None)
-            if key: return f"NỘI DUNG CHƯƠNG TRÌNH ({key}): {data[key]}"
+            if key:
+                return f"NỘI DUNG CHƯƠNG TRÌNH ({key}): {data[key]}"
         week_info = SCOPE_MAPPING.get(scope, scope)
         return f"NỘI DUNG TỰ TRA CỨU: Bám sát chuẩn kiến thức kĩ năng môn {subject} {grade} - Bộ sách {book}. Thời điểm: {week_info}."
     except Exception: return "NỘI DUNG: Theo chuẩn CTGDPT 2018."
@@ -1734,7 +1736,7 @@ class QuestionGeneratorYCCD:
             
             res = self.model.generate_content(
                 prompt, 
-                generation_config={"response_mime_type": "application/json"},
+                generation_config=_json_generation_config(),
                 safety_settings=safe_settings
             )
             # Dùng clean_json để tránh lỗi định dạng
@@ -2564,7 +2566,7 @@ def main_app():
                                                 # Thêm safety_settings vào đây
                                                 res = model.generate_content(
                                                     req, 
-                                                    generation_config={"response_mime_type": "application/json"},
+                                                    generation_config=_json_generation_config(),
                                                     safety_settings=safe_settings
                                                 )
                                                 
