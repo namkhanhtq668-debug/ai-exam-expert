@@ -375,13 +375,11 @@ section[data-testid="stSidebar"]{
 .sb-title{ font-weight: 800; line-height: 1.05; }
 .sb-sub{ color: var(--muted); font-size: 12px; margin-top: 2px; }
 .hero{
-  background: radial-gradient(900px 450px at 15% 15%, rgba(47,128,255,.22), transparent 60%),
-              radial-gradient(800px 450px at 85% 20%, rgba(91,92,246,.18), transparent 60%),
-              linear-gradient(135deg, #cfe8ff, #dad4ff);
-  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(247,249,255,.96));
+  border-radius: 24px;
   padding: 26px 24px;
   border: 1px solid rgba(15,23,42,.08);
-  box-shadow: 0 14px 40px rgba(2,6,23,.08);
+  box-shadow: 0 18px 40px rgba(15,23,42,.08), 0 2px 8px rgba(15,23,42,.04);
 }
 .hero-topline{
   display:inline-flex;
@@ -390,23 +388,23 @@ section[data-testid="stSidebar"]{
   margin-bottom:12px;
   padding:6px 12px;
   border-radius:999px;
-  background: rgba(255,255,255,.72);
-  border: 1px solid rgba(15,23,42,.08);
+  background: rgba(243,246,255,.95);
+  border: 1px solid rgba(29,78,216,.12);
   color: var(--primary);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: .04em;
   text-transform: uppercase;
-  box-shadow: 0 10px 22px rgba(2,6,23,.05);
+  box-shadow: 0 10px 22px rgba(15,23,42,.05);
 }
 .hero-titlebox{
   margin-top: 8px;
   padding: 16px 18px;
   border-radius: 18px;
-  background: rgba(255,255,255,.82);
+  background: rgba(255,255,255,.98);
   border: 1px solid rgba(29,78,216,.14);
   border-left: 6px solid var(--primary);
-  box-shadow: 0 12px 28px rgba(2,6,23,.06);
+  box-shadow: 0 12px 28px rgba(15,23,42,.06);
 }
 .hero h1{
   margin: 0;
@@ -414,7 +412,7 @@ section[data-testid="stSidebar"]{
   font-weight: 900;
   line-height: 1.03;
   letter-spacing: -0.045em;
-  color: var(--text);
+  color: #0f172a;
   max-width: 100%;
 }
 .hero h1 .accent{
@@ -423,7 +421,7 @@ section[data-testid="stSidebar"]{
   background-clip: text;
   color: transparent;
 }
-.hero p{ margin: 12px 0 0 0; color: rgba(15,23,42,.72); font-size: 15px; line-height: 1.45; }
+.hero p{ margin: 12px 0 0 0; color: #64748b; font-size: 15px; line-height: 1.5; }
 .hero-badges{
   display:flex; flex-wrap:wrap; gap:10px;
   margin-top: 14px;
@@ -433,17 +431,17 @@ section[data-testid="stSidebar"]{
   padding: 7px 12px;
   border-radius: 999px;
   border: 1px solid rgba(29,78,216,.14);
-  background: rgba(255,255,255,.58);
+  background: rgba(255,255,255,.92);
   color: rgba(15,23,42,.82);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: .02em;
-  box-shadow: 0 10px 18px rgba(2,6,23,.05);
+  box-shadow: 0 8px 18px rgba(15,23,42,.05);
   backdrop-filter: blur(8px);
 }
 .hero-cta{
   margin-top: 10px;
-  color: rgba(15,23,42,.70);
+  color: #64748b;
   font-size: 13px;
   font-weight: 600;
 }
