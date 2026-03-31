@@ -5358,11 +5358,8 @@ def main_app():
 
                 st.markdown(f"""<div class="paper-view">{preview_html}</div>""", unsafe_allow_html=True)
 
-                footer = f"<br/><center><p>{APP_CONFIG['name']}</p></center>"
-
                 if is_admin or user.get('role') == 'pro': 
-
-                    st.download_button("⬇️ Tải Đề (.doc)", create_word_doc(preview_html + footer, curr['title']), f"De_{curr['id']}.doc", type="primary")
+                    st.download_button("⬇️ Tải Đề (.doc)", create_word_doc(preview_html, curr['title']), f"De_{curr['id']}.doc", type="primary")
 
                 else: st.warning("🔒 Nâng cấp PRO để tải file Word")
 
