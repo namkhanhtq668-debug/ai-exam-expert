@@ -9865,27 +9865,11 @@ else:
 
 
 
-st.markdown(
-
-    """
-
-<div style="margin-top:36px; padding-top:14px; border-top:1px solid rgba(107,114,128,.22); text-align:center;">
-
-  <div style="font-size:12.5px; line-height:1.55; color:#4b5563; max-width:920px; margin:0 auto;">
-
-    <div style="font-weight:500; margin-bottom:6px;">© 2026 Trần Thanh Tuấn – Ứng dụng AI hỗ trợ giáo viên trong dạy học và kiểm tra đánh giá.</div>
-
-    <div>Hệ thống được phát triển phục vụ mục đích giáo dục. AI chỉ hỗ trợ gợi ý nội dung, giáo viên là người kiểm tra và quyết định sử dụng.</div>
-
-  </div>
-
-</div>
-
-""",
-
-    unsafe_allow_html=True,
-
-)
+with st.container():
+    st.divider()
+    st.caption("© 2026 Trần Thanh Tuấn")
+    st.caption("Ứng dụng AI hỗ trợ giáo viên trong dạy học và kiểm tra đánh giá.")
+    st.caption("Hệ thống được phát triển phục vụ mục đích giáo dục. AI chỉ hỗ trợ gợi ý nội dung, giáo viên là người kiểm tra và quyết định sử dụng.")
 
 
 
