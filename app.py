@@ -4307,6 +4307,7 @@ def _ensure_nav_state():
     st.session_state.setdefault("requested_page", None)
     st.session_state.setdefault("demo_used", False)
     st.session_state.setdefault("demo_history", [])  # lưu demo Q/A để hiện lại
+    st.session_state.setdefault("show_quick_nav", False)
 def render_topbar():
     """Topbar gọn (không trùng điều hướng sidebar) + dropdown tài khoản."""
     _ensure_nav_state()
@@ -4329,6 +4330,14 @@ def render_topbar():
 """,
             unsafe_allow_html=True,
         )
+        c1a, c1b = st.columns([1, 1], gap="small")
+        with c1a:
+            if st.button("🏠 Trang chủ", use_container_width=True, key="tb_home"):
+                st.session_state["show_quick_nav"] = False
+                go("dashboard")
+        with c1b:
+            if st.button("☰ Menu", use_container_width=True, key="tb_menu"):
+                st.session_state["show_quick_nav"] = not st.session_state.get("show_quick_nav", False)
     with c2:
         # Topbar chỉ để truy cập nhanh "Hướng dẫn" + tìm kiếm (không trùng menu sidebar)
         cc1, cc2 = st.columns([1, 1], vertical_alignment="center")
@@ -4359,6 +4368,34 @@ def render_topbar():
             if st.button("🔐 Đăng nhập", type="primary", use_container_width=True, key="tb_login"):
                 st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
                 go("login")
+    if st.session_state.get("show_quick_nav", False):
+        st.markdown(
+            """
+<div class="card soft" style="margin-top:10px;">
+  <b>☰ Menu nhanh</b>
+  <div class="small-muted" style="margin-top:6px;">Dùng khi màn hình nhỏ hoặc khi sidebar đang thu gọn.</div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+        q1, q2, q3 = st.columns(3, gap="small")
+        quick_items = [
+            ("🏡 Trang chủ", "dashboard"),
+            ("📊 Hoạt động hệ thống AI", "evidence"),
+            ("🧠 Mindmap", "mindmap"),
+        ]
+        with q1:
+            if st.button(quick_items[0][0], use_container_width=True, key="qn_home"):
+                st.session_state["show_quick_nav"] = False
+                go(quick_items[0][1])
+        with q2:
+            if st.button(quick_items[1][0], use_container_width=True, key="qn_evidence"):
+                st.session_state["show_quick_nav"] = False
+                go(quick_items[1][1])
+        with q3:
+            if st.button(quick_items[2][0], use_container_width=True, key="qn_mindmap"):
+                st.session_state["show_quick_nav"] = False
+                go(quick_items[2][1])
 def _gemini_generate(prompt: str, system: str | None = None) -> str:
     api_key = _get_api_key_effective()
     if not api_key:
