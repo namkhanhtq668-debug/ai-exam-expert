@@ -1,2 +1,29 @@
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment / secrets
+.env
+.env.*
+.streamlit/
+
+# Logs
+*.log
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+
+# Test / coverage artifacts
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
