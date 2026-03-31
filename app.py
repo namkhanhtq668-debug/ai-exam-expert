@@ -400,7 +400,7 @@ section[data-testid="stSidebar"]{
   display:inline-flex; align-items:center; gap:6px;
   padding: 7px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(91,92,246,.14);
+  border: 1px solid rgba(29,78,216,.14);
   background: rgba(255,255,255,.58);
   color: rgba(15,23,42,.82);
   font-size: 11px;
@@ -459,14 +459,14 @@ section[data-testid="stSidebar"]{
   position: relative;
   overflow: hidden;
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,247,255,.97));
-  border: 1px solid rgba(91,92,246,.12);
+  border: 1px solid rgba(29,78,216,.12);
   box-shadow: 0 12px 22px rgba(2,6,23,.06);
   transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
 .stat-card:hover{
   transform: translateY(-2px);
   box-shadow: 0 20px 38px rgba(2,6,23,.12);
-  border-color: rgba(91,92,246,.24);
+  border-color: rgba(29,78,216,.24);
 }
 .stat-head{
   display:flex;
@@ -485,10 +485,10 @@ section[data-testid="stSidebar"]{
   flex: 0 0 auto;
   overflow: hidden;
   box-shadow:
-    0 14px 28px rgba(91,92,246,.18),
+    0 14px 28px rgba(29,78,216,.18),
     0 4px 10px rgba(2,6,23,.08),
     inset 0 1px 0 rgba(255,255,255,.55);
-  border: 1px solid rgba(91,92,246,.16);
+  border: 1px solid rgba(29,78,216,.16);
 }
 .stat-icon svg{
   position: relative;
@@ -512,12 +512,11 @@ section[data-testid="stSidebar"]{
   background: linear-gradient(135deg, rgba(255,255,255,.18), transparent 46%, rgba(255,255,255,.08));
   mix-blend-mode: screen;
 }
-.stat-icon.user{ background: linear-gradient(135deg, rgba(47,128,255,.18), rgba(91,92,246,.18)); color:#2f80ff; }
 .stat-icon.user{ background: linear-gradient(135deg, rgba(47,128,255,.18), rgba(91,92,246,.18)); color:var(--primary); }
 .stat-icon.state{ background: linear-gradient(135deg, rgba(91,92,246,.18), rgba(149,117,255,.18)); color:var(--primary2); }
 .stat-icon.activity{ background: linear-gradient(135deg, rgba(16,185,129,.18), rgba(45,212,191,.18)); color:#0ea5a4; }
 .stat-title{
-  color: #5b5cf6;
+  color: var(--primary2);
   font-weight: 900;
   font-size: 15px;
   line-height: 1.15;
