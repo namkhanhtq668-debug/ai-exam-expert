@@ -3145,7 +3145,7 @@ def module_evidence_implementation():
     if not st.session_state.get("user"):
         require_login("evidence")
         return
-    st.markdown("## 📊 Minh chứng triển khai")
+    st.markdown("## 📊 Hoạt động hệ thống AI")
     st.caption("Trang đọc-only tổng hợp số liệu từ `users_pro`, `exam_history` và `usage_events`.")
 
     client = init_supabase()
@@ -4956,7 +4956,7 @@ with st.sidebar:
     st.divider()
     page_map = {
         "🏡 Trang chủ": "dashboard",
-        "📊 Minh chứng triển khai": "evidence",
+        "📊 Hoạt động hệ thống AI": "evidence",
         "💬 Chat AI": "chat",
         "📑 Doc AI": "doc_ai",
         "🧠 Mindmap": "mindmap",
