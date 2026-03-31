@@ -959,6 +959,20 @@ section[data-testid="stSidebar"]{
 
 }
 
+.stat-icon .icon-glyph{
+
+  position: relative;
+
+  z-index: 1;
+
+  font-size: 22px;
+
+  line-height: 1;
+
+  filter: drop-shadow(0 2px 4px rgba(15,23,42,.16));
+
+}
+
 .stat-icon::before{
 
   content:"";
@@ -6622,13 +6636,28 @@ def dashboard_screen():
 
         </svg>"""
 
+    def _stat_icon_glyph(kind: str) -> str:
+
+        # Inline SVG trong Streamlit markdown đôi khi bị sanitize sai,
+        # nên dùng glyph an toàn để tránh hiện chữ thô trên giao diện.
+
+        return {
+
+            "user": "👤",
+
+            "state": "🛡️",
+
+            "activity": "📊",
+
+        }.get(kind, "•")
+
     with s1:
 
         st.markdown(f"""<div class="card stat-card">
 
 <div class="stat-head">
 
-  <div class="stat-icon user">{_stat_icon_svg("user")}</div>
+  <div class="stat-icon user"><span class="icon-glyph">{_stat_icon_glyph("user")}</span></div>
 
   <div class="stat-title">Người dùng</div>
 
@@ -6648,7 +6677,7 @@ def dashboard_screen():
 
 <div class="stat-head">
 
-  <div class="stat-icon state">{_stat_icon_svg("state")}</div>
+  <div class="stat-icon state"><span class="icon-glyph">{_stat_icon_glyph("state")}</span></div>
 
   <div class="stat-title">Trạng thái sử dụng</div>
 
@@ -6666,7 +6695,7 @@ def dashboard_screen():
 
 <div class="stat-head">
 
-  <div class="stat-icon activity">{_stat_icon_svg("activity")}</div>
+  <div class="stat-icon activity"><span class="icon-glyph">{_stat_icon_glyph("activity")}</span></div>
 
   <div class="stat-title">Mức độ hoạt động</div>
 
