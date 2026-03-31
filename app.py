@@ -376,14 +376,23 @@ section[data-testid="stSidebar"]{
   text-transform: uppercase;
   box-shadow: 0 10px 22px rgba(2,6,23,.05);
 }
+.hero-titlebox{
+  margin-top: 8px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.82);
+  border: 1px solid rgba(29,78,216,.14);
+  border-left: 6px solid var(--primary);
+  box-shadow: 0 12px 28px rgba(2,6,23,.06);
+}
 .hero h1{
   margin: 0;
   font-size: clamp(30px, 3vw, 42px);
   font-weight: 900;
   line-height: 1.03;
   letter-spacing: -0.045em;
-  color: #0f172a;
-  max-width: 12ch;
+  color: var(--text);
+  max-width: 100%;
 }
 .hero h1 .accent{
   background: linear-gradient(90deg, var(--primary), var(--primary2));
@@ -391,7 +400,7 @@ section[data-testid="stSidebar"]{
   background-clip: text;
   color: transparent;
 }
-.hero p{ margin: 8px 0 0 0; color: rgba(15,23,42,.72); font-size: 15px; line-height: 1.45; }
+.hero p{ margin: 12px 0 0 0; color: rgba(15,23,42,.72); font-size: 15px; line-height: 1.45; }
 .hero-badges{
   display:flex; flex-wrap:wrap; gap:10px;
   margin-top: 14px;
@@ -3247,7 +3256,9 @@ def dashboard_screen():
       <div class="small-muted">Ứng dụng thực tế cho giáo viên trong soạn bài, ra đề và đánh giá học sinh</div>
     </div>
   </div>
-  <h1 style="text-wrap:balance; overflow-wrap:anywhere;">Nền tảng <span class="accent">AI</span> cho giáo viên soạn bài, ra đề và đánh giá học sinh</h1>
+  <div class="hero-titlebox">
+    <h1 style="text-wrap:balance; overflow-wrap:anywhere;">Nền tảng <span class="accent">AI</span> cho giáo viên soạn bài, ra đề và đánh giá học sinh</h1>
+  </div>
   <p>Hỗ trợ dạy học theo định hướng phát triển năng lực, giúp giáo viên tiết kiệm thời gian và nâng cao hiệu quả chuyên môn.</p>
   <div class="hero-badges">
     <span class="hero-badge">Ra đề nhanh</span>
