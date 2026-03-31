@@ -6475,8 +6475,12 @@ def dashboard_screen():
     # HERO (thuần Streamlit, không dùng HTML để tránh hiện thẻ thô trên UI)
 
     with st.container():
-        st.markdown("### 🎓 AIEXAM.VN")
-        st.caption("Ứng dụng thực tế cho giáo viên trong soạn bài, ra đề và đánh giá học sinh")
+        hero_logo_col, hero_text_col = st.columns([0.55, 3.45], gap="small", vertical_alignment="center")
+        with hero_logo_col:
+            st.markdown(logo_svg(40), unsafe_allow_html=True)
+        with hero_text_col:
+            st.markdown("**AIEXAM.VN**")
+            st.caption("Ứng dụng thực tế cho giáo viên trong soạn bài, ra đề và đánh giá học sinh")
         st.markdown("## Nền tảng AI cho giáo viên soạn bài, ra đề và đánh giá học sinh")
         st.write("Hỗ trợ dạy học theo định hướng phát triển năng lực, giúp giáo viên tiết kiệm thời gian và nâng cao hiệu quả chuyên môn.")
 
