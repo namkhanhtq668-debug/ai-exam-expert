@@ -4308,9 +4308,35 @@ def _ensure_nav_state():
     st.session_state.setdefault("demo_used", False)
     st.session_state.setdefault("demo_history", [])  # lưu demo Q/A để hiện lại
     st.session_state.setdefault("show_quick_nav", False)
+    st.session_state.setdefault("sidebar_open", True)
+def _render_sidebar_visibility_css():
+    sidebar_open = bool(st.session_state.get("sidebar_open", True))
+    if sidebar_open:
+        st.markdown(
+            """
+<style>
+section[data-testid="stSidebar"]{
+  display: block !important;
+}
+</style>
+""",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            """
+<style>
+section[data-testid="stSidebar"]{
+  display: none !important;
+}
+</style>
+""",
+            unsafe_allow_html=True,
+        )
 def render_topbar():
     """Topbar gọn (không trùng điều hướng sidebar) + dropdown tài khoản."""
     _ensure_nav_state()
+    _render_sidebar_visibility_css()
     user = st.session_state.get("user") or {}
     is_authed = bool(user)
     fullname = user.get("fullname") or user.get("email") or "Khách"
@@ -4334,10 +4360,13 @@ def render_topbar():
         with c1a:
             if st.button("🏠 Trang chủ", use_container_width=True, key="tb_home"):
                 st.session_state["show_quick_nav"] = False
+                st.session_state["sidebar_open"] = True
                 go("dashboard")
         with c1b:
-            if st.button("☰ Menu", use_container_width=True, key="tb_menu"):
-                st.session_state["show_quick_nav"] = not st.session_state.get("show_quick_nav", False)
+            sidebar_label = "☰ Ẩn sidebar" if st.session_state.get("sidebar_open", True) else "☰ Mở sidebar"
+            if st.button(sidebar_label, use_container_width=True, key="tb_menu"):
+                st.session_state["sidebar_open"] = not st.session_state.get("sidebar_open", True)
+                st.session_state["show_quick_nav"] = not st.session_state.get("sidebar_open", True)
     with c2:
         # Topbar chỉ để truy cập nhanh "Hướng dẫn" + tìm kiếm (không trùng menu sidebar)
         cc1, cc2 = st.columns([1, 1], vertical_alignment="center")
@@ -4387,14 +4416,17 @@ def render_topbar():
         with q1:
             if st.button(quick_items[0][0], use_container_width=True, key="qn_home"):
                 st.session_state["show_quick_nav"] = False
+                st.session_state["sidebar_open"] = True
                 go(quick_items[0][1])
         with q2:
             if st.button(quick_items[1][0], use_container_width=True, key="qn_evidence"):
                 st.session_state["show_quick_nav"] = False
+                st.session_state["sidebar_open"] = True
                 go(quick_items[1][1])
         with q3:
             if st.button(quick_items[2][0], use_container_width=True, key="qn_mindmap"):
                 st.session_state["show_quick_nav"] = False
+                st.session_state["sidebar_open"] = True
                 go(quick_items[2][1])
 def _gemini_generate(prompt: str, system: str | None = None) -> str:
     api_key = _get_api_key_effective()
