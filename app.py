@@ -2,13 +2,16 @@ import streamlit as st
 import streamlit.components.v1 as components
 import google.generativeai as genai
 from supabase import create_client, Client
+import base64
 import pandas as pd
 import docx
 import json
 import re
+import hashlib
 import textwrap
 import io
 import time
+import secrets
 from datetime import datetime, timezone, timedelta
 import requests
 import random
@@ -23,6 +26,26 @@ import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 # Keep helper name `logo_svg()` for compatibility across the app.
 
 genai = cast(Any, genai)
+
+def _decode_jwt_claims(token: str) -> dict[str, Any]:
+    try:
+        parts = (token or "").split(".")
+        if len(parts) < 2:
+            return {}
+        payload = parts[1]
+        pad = "=" * (-len(payload) % 4)
+        raw = base64.urlsafe_b64decode((payload + pad).encode("ascii"))
+        claims = json.loads(raw.decode("utf-8"))
+        return claims if isinstance(claims, dict) else {}
+    except Exception:
+        return {}
+
+def _supabase_key_role(key: str) -> str:
+    claims = _decode_jwt_claims(key)
+    return str(claims.get("role") or "").strip().lower()
+
+def _is_service_role_key(key: str) -> bool:
+    return _supabase_key_role(key) == "service_role"
 
 def _as_dict_rows(value: Any) -> list[dict[str, Any]]:
     if isinstance(value, list):
@@ -330,6 +353,10 @@ except Exception:
     SUPABASE_KEY = ""
     SYSTEM_GOOGLE_KEY = ""
     SEPAY_API_TOKEN = ""
+if SUPABASE_KEY and _is_service_role_key(SUPABASE_KEY):
+    raise RuntimeError(
+        "SUPABASE_KEY is service_role. Replace it with the anon key and enforce RLS in Supabase."
+    )
 st.set_page_config(page_title="AI EXAM EXPERT v10 – 2026", page_icon="🎓", layout="wide", initial_sidebar_state="expanded")
 # =========================
 # UI THEME (Premium SaaS)
@@ -1025,8 +1052,16 @@ st.markdown(textwrap.dedent('''
 # 4. HÀM XỬ LÝ LOGIC
 # ==============================================================================
 def init_supabase():
-    try: return create_client(SUPABASE_URL, SUPABASE_KEY)
-    except Exception: return None
+    try:
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            return None
+        if _is_service_role_key(SUPABASE_KEY):
+            raise RuntimeError(
+                "SUPABASE_KEY is service_role. Replace it with the anon key and enforce RLS in Supabase."
+            )
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception:
+        return None
 def read_file_content(uploaded_file, file_type):
     if not uploaded_file: return ""
     try:
@@ -1590,7 +1625,9 @@ def verify_password_compat(stored_password: str | None, raw_password: str | None
     except Exception:
         return False
 def generate_otp():
-    return str(random.randint(100000, 999999))
+    return f"{secrets.randbelow(900000) + 100000:06d}"
+def _hash_reset_token(token: str) -> str:
+    return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
 def create_reset_token(supabase, username):
     try:
         if not supabase or not username:
@@ -1599,7 +1636,7 @@ def create_reset_token(supabase, username):
         expired_at = datetime.now(timezone.utc) + timedelta(minutes=10)
         supabase.table("reset_tokens").insert({
             "username": username,
-            "token": token,
+            "token_hash": _hash_reset_token(token),
             "expired_at": expired_at.isoformat(),
             "used": False,
         }).execute()
@@ -1614,7 +1651,7 @@ def verify_reset_token(supabase, username, token):
             supabase.table("reset_tokens")
             .select("*")
             .eq("username", username)
-            .eq("token", token)
+            .eq("token_hash", _hash_reset_token(token))
             .eq("used", False)
             .execute()
         )
@@ -1645,17 +1682,17 @@ def mark_token_used(supabase, username, token):
     try:
         if not supabase or not username or not token:
             return
-        supabase.table("reset_tokens").update({"used": True}).eq("username", username).eq("token", token).execute()
+        supabase.table("reset_tokens").update({"used": True}).eq("username", username).eq("token_hash", _hash_reset_token(token)).execute()
     except Exception:
         pass
 def forgot_password_ui(supabase):
     st.markdown("### 🔑 Quên mật khẩu")
-    st.caption("OTP hiện ngay trên màn hình chỉ để test nội bộ. Sau này có thể đổi sang email/SMS mà không phải sửa lại luồng.")
+    st.caption("OTP không hiển thị trên UI. Trong production, hãy gửi qua email/SMS hoặc dùng flow Supabase Auth password recovery.")
     username = st.text_input("Tên đăng nhập", key="forgot_username")
     if st.button("Gửi mã xác nhận", key="forgot_send_otp"):
         token = create_reset_token(supabase, username)
         if token:
-            st.success(f"Mã xác nhận của bạn: {token}")
+            st.success("Mã xác nhận đã được tạo và được lưu theo dạng hash.")
         else:
             st.error("Không thể tạo mã")
     otp = st.text_input("Nhập mã OTP", key="forgot_otp")
@@ -3200,6 +3237,9 @@ def module_evidence_implementation():
     if not st.session_state.get("user"):
         require_login("evidence")
         return
+    if not is_admin_user():
+        st.error("Chỉ admin/pro mới được xem báo cáo toàn hệ thống.")
+        return
     st.markdown("## 📊 Hoạt động hệ thống AI")
     st.caption("Trang đọc-only tổng hợp số liệu từ `users_pro`, `exam_history` và `usage_events`.")
 
@@ -4309,6 +4349,10 @@ def _ensure_nav_state():
     st.session_state.setdefault("demo_history", [])  # lưu demo Q/A để hiện lại
     st.session_state.setdefault("show_quick_nav", False)
     st.session_state.setdefault("sidebar_open", True)
+def is_admin_user() -> bool:
+    user = st.session_state.get("user") or {}
+    role = str(user.get("role") or "").strip().lower()
+    return role == "admin"
 def _render_sidebar_visibility_css():
     sidebar_open = bool(st.session_state.get("sidebar_open", True))
     if sidebar_open:
@@ -5071,7 +5115,6 @@ with st.sidebar:
     st.divider()
     page_map = {
         "🏡 Trang chủ": "dashboard",
-        "📊 Hoạt động hệ thống AI": "evidence",
         "💬 Chat AI": "chat",
         "📑 Doc AI": "doc_ai",
         "🧠 Mindmap": "mindmap",
@@ -5082,6 +5125,8 @@ with st.sidebar:
         "📘 Hướng dẫn": "help",
         "🔐 Đăng nhập / Đăng ký": "login",
     }
+    if is_admin_user():
+        page_map = {"📊 Hoạt động hệ thống AI": "evidence", **page_map}
     # ---- Sidebar navigation (stable, no input reset)
     reverse_map = {v: k for k, v in page_map.items()}
     current_page = st.session_state.get("current_page", "dashboard")
@@ -5140,7 +5185,11 @@ elif page == "chat":
 elif page == "doc_ai":
     module_doc_ai()
 elif page == "evidence":
-    module_evidence_implementation()
+    if is_admin_user():
+        module_evidence_implementation()
+    else:
+        st.error("Chỉ admin/pro mới được xem báo cáo toàn hệ thống.")
+        go("dashboard")
 elif page == "mindmap":
     module_mindmap()
 elif page == "help":
