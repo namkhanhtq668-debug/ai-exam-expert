@@ -380,7 +380,7 @@ def inject_premium_theme():
   --warn:#f59e0b;
   --radius-lg:22px;
   --radius-md:16px;
-}
+}}
 .stApp{ background: var(--bg); color: var(--text); }
 /* Hide Streamlit chrome for a clean app shell */
 #MainMenu,
@@ -4400,9 +4400,58 @@ def render_topbar():
     """Topbar gá»n (khÃ´ng trÃ¹ng Ä‘iá»u hÆ°á»›ng sidebar) + dropdown tÃ i khoáº£n."""
     _ensure_nav_state()
     _render_sidebar_visibility_css()
+    _apply_sidebar_query_param()
     user = st.session_state.get("user") or {}
     is_authed = bool(user)
     fullname = user.get("fullname") or user.get("email") or "KhÃ¡ch"
+    sidebar_open = bool(st.session_state.get("sidebar_open", True))
+    sidebar_target = "0" if sidebar_open else "1"
+    sidebar_label = "☰ Ẩn sidebar" if sidebar_open else "☰ Mở sidebar"
+    st.markdown(
+        f"""
+<style>
+.floating-sidebar-toggle{{
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 10005;
+}}
+.floating-sidebar-toggle a{{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.62rem 0.9rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: #ffffff !important;
+  text-decoration: none !important;
+  font-weight: 800;
+  font-size: 0.92rem;
+  box-shadow: 0 14px 28px rgba(59, 130, 246, 0.22), 0 10px 18px rgba(139, 92, 246, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}}
+.floating-sidebar-toggle a:hover{{
+  transform: translateY(-1px);
+  filter: brightness(1.02);
+}}
+@media (max-width: 768px){{
+  .floating-sidebar-toggle{{
+    top: 0.5rem;
+    left: 0.5rem;
+  }}
+  .floating-sidebar-toggle a{{
+    padding: 0.5rem 0.75rem;
+    font-size: 0.82rem;
+  }}
+}}
+</style>
+<div class="floating-sidebar-toggle">
+  <a href="?sidebar={sidebar_target}">{sidebar_label}</a>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
     c1, c2, c3 = st.columns([2.8, 5.2, 2.0], vertical_alignment="center", gap="small")
     with c1:
         st.markdown(
