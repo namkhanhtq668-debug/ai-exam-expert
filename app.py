@@ -4432,6 +4432,30 @@ section[data-testid="stSidebar"] > div{
 </style>
 """
     st.markdown(css, unsafe_allow_html=True)
+def _handle_global_search(search_text: str | None = None):
+    if search_text is None:
+        search_text = st.session_state.get("global_search", "")
+    q = (search_text or "").strip().lower()
+    if not q:
+        return
+    route_map = [
+        (("trang chủ", "trang chu", "home", "dashboard"), "dashboard"),
+        (("chat", "chat ai"), "chat"),
+        (("doc", "doc ai", "tài liệu", "tai lieu"), "doc_ai"),
+        (("mindmap",), "mindmap"),
+        (("ra đề", "ra de", "ktdg", "đề", "de"), "exam"),
+        (("soạn bài", "soan bai", "lesson"), "lesson_plan"),
+        (("năng lực số", "nang luc so", "digital"), "digital"),
+        (("nhận xét", "nhan xet", "tư vấn", "tu van", "advisor"), "advisor"),
+        (("hướng dẫn", "huong dan", "help"), "help"),
+        (("đăng nhập", "dang nhap", "login"), "login"),
+        (("hoạt động hệ thống ai", "hoat dong he thong ai", "evidence"), "evidence"),
+    ]
+    for keywords, page_key in route_map:
+        if any(k in q for k in keywords):
+            st.session_state["current_page"] = page_key
+            st.session_state["global_search"] = ""
+            st.rerun()
 def render_topbar():
     """Topbar gọn (không trùng điều hướng sidebar) + dropdown tài khoản."""
     _ensure_nav_state()
@@ -4459,11 +4483,11 @@ def render_topbar():
             unsafe_allow_html=True,
         )
     with c2:
-        st.text_input(
-            "Tìm kiếm nhanh",
-            placeholder="Tìm nhanh: 'ra đề', 'soạn bài', 'năng lực số'…",
+        search_text = st.text_input(
+            "Tìm nhanh...",
             key="global_search",
-            label_visibility="collapsed",
+            placeholder="ra đề, soạn bài...",
+            on_change=_handle_global_search,
         )
     with c3:
         if is_authed:
