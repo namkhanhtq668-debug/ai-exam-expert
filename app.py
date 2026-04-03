@@ -4388,11 +4388,21 @@ section[data-testid="stSidebar"]{
   width: 18rem !important;
   min-width: 18rem !important;
   max-width: 18rem !important;
-  overflow: visible !important;
+  overflow: hidden !important;
+  transform: translateX(0);
+  opacity: 1;
+  transition:
+    width .28s ease,
+    min-width .28s ease,
+    max-width .28s ease,
+    transform .28s ease,
+    opacity .18s ease;
+  will-change: width, transform, opacity;
 }
 
 section[data-testid="stMain"]{
   margin-left: 18rem !important;
+  transition: margin-left .28s ease;
 }
 </style>
 """
@@ -4404,6 +4414,16 @@ section[data-testid="stSidebar"]{
   min-width: 0 !important;
   max-width: 0 !important;
   overflow: hidden !important;
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    width .28s ease,
+    min-width .28s ease,
+    max-width .28s ease,
+    transform .28s ease,
+    opacity .18s ease;
+  will-change: width, transform, opacity;
 }
 
 section[data-testid="stSidebar"] > div{
@@ -4415,6 +4435,7 @@ section[data-testid="stSidebar"] > div{
 
 section[data-testid="stMain"]{
   margin-left: 0 !important;
+  transition: margin-left .28s ease;
 }
 </style>
 """
