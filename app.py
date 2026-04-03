@@ -270,60 +270,60 @@ def exam_edit_text_to_preview_html(exam_edit_text: str) -> str:
     safe_text = html_escape(exam_edit_text)
     return f'<div style="white-space:pre-wrap; line-height:1.65;">{safe_text}</div>'
 # ==============================================================================
-# [MODULE NLS] Dá»® LIá»†U & Cáº¤U HÃŒNH CHO SOáº N GIÃO ÃN NÄ‚NG Lá»°C Sá»
-# ==============================================================================
-# 1. Khung năng lực số (Chuyển từ constants.ts)
+# [MODULE NLS] D? LI?U & C?U H?NH CHO SO?N GI?O ?N N?NG L?C S?
+# ======================================================================
+# 1. Khung n?ng l?c s? (Chuy?n t? constants.ts)
 NLS_FRAMEWORK_DATA = """
-KHUNG NÄ‚NG Lá»°C Sá» (DIGITAL COMPETENCE FRAMEWORK) - Cáº¬P NHáº¬T Má»šI NHáº¤T
-MÃ” Táº¢ CÃC MIá»€N NÄ‚NG Lá»°C VÃ€ YÃŠU Cáº¦U Cáº¦N Äáº T (YCCÄ):
-1. MIá»€N 1: KHAI THÃC Dá»® LIá»†U VÃ€ THÃ”NG TIN
-   1.1. Duyá»‡t, tÃ¬m kiáº¿m vÃ  lá»c dá»¯ liá»‡u (CB1, CB2, TC1, NC1).
-   1.2. ÄÃ¡nh giÃ¡ dá»¯ liá»‡u (CB1, TC1, NC1).
-   1.3. Quản lý dữ liệu (CB1, TC1).
-2. MIá»€N 2: GIAO TIáº¾P VÃ€ Há»¢P TÃC
-   2.1. Tương tác qua công nghệ.
-   2.4. Hợp tác qua công nghệ.
-   2.5. Văn hóa mạng (Netiquette).
-3. MIá»€N 3: SÃNG Táº O Ná»˜I DUNG Sá»
-   3.1. Phát triển nội dung.
-   3.3. Bản quyền và giấy phép.
-4. MIá»€N 4: AN TOÃ€N Sá»
-   4.2. Bảo vệ dữ liệu cá nhân.
-   4.3. Báº£o vá»‡ sá»©c khá»e.
-5. MIá»€N 5: GIáº¢I QUYáº¾T Váº¤N Äá»€
-   5.2. Xác định nhu cầu và giải pháp.
-   5.3. Sử dụng sáng tạo.
-6. MIỀN 6: ỨNG DỤNG AI
-   6.1. Hiá»ƒu biáº¿t vá» AI.
-   6.2. Sử dụng công cụ AI.
-   6.3. Äáº¡o Ä‘á»©c AI.
+KHUNG N?NG L?C S? (DIGITAL COMPETENCE FRAMEWORK) - C?P NH?T M?I NH?T
+M? T? C?C MI?N N?NG L?C V? Y?U C?U C?N ??T (YCC?):
+1. MI?N 1: KHAI TH?C D? LI?U V? TH?NG TIN
+   1.1. Duy?t, t?m ki?m v? l?c d? li?u (CB1, CB2, TC1, NC1).
+   1.2. ??nh gi? d? li?u (CB1, TC1, NC1).
+   1.3. Qu?n l? d? li?u (CB1, TC1).
+2. MI?N 2: GIAO TI?P V? H?P T?C
+   2.1. T??ng t?c qua c?ng ngh?.
+   2.4. H?p t?c qua c?ng ngh?.
+   2.5. V?n h?a m?ng (Netiquette).
+3. MI?N 3: S?NG T?O N?I DUNG S?
+   3.1. Ph?t tri?n n?i dung.
+   3.3. B?n quy?n v? gi?y ph?p.
+4. MI?N 4: AN TO?N S?
+   4.2. B?o v? d? li?u c? nh?n.
+   4.3. B?o v? s?c kh?e.
+5. MI?N 5: GI?I QUY?T V?N ??
+   5.2. X?c ??nh nhu c?u v? gi?i ph?p.
+   5.3. S? d?ng s?ng t?o.
+6. MI?N 6: ?NG D?NG AI
+   6.1. Hi?u bi?t v? AI.
+   6.2. S? d?ng c?ng c? AI.
+   6.3. ??o ??c AI.
 """
-# 2. Câu lệnh hệ thống cho AI (System Prompt)
+# 2. C?u l?nh h? th?ng cho AI (System Prompt)
 SYSTEM_INSTRUCTION_NLS = f"""
-Báº¡n lÃ  chuyÃªn gia tÆ° váº¥n giÃ¡o dá»¥c cao cáº¥p, chuyÃªn vá» chuyá»ƒn Ä‘á»•i sá»‘ vÃ  Khung NÄƒng lá»±c sá»‘ (NLS) táº¡i Viá»‡t Nam.
-Dá»® LIá»†U KHUNG NÄ‚NG Lá»°C Sá»:
+B?n l? chuy?n gia t? v?n gi?o d?c cao c?p, chuy?n v? chuy?n ??i s? v? Khung N?ng l?c s? (NLS) t?i Vi?t Nam.
+D? LI?U KHUNG N?NG L?C S?:
 {NLS_FRAMEWORK_DATA}
-NHIá»†M Vá»¤ Cá»T LÃ•I:
-1. PhÃ¢n tÃ­ch sÃ¢u sáº¯c ná»™i dung giÃ¡o Ã¡n ngÆ°á»i dÃ¹ng cung cáº¥p Ä‘á»ƒ tÃ¬m ra cÃ¡c "Ä‘iá»ƒm cháº¡m" cÃ³ thá»ƒ tÃ­ch há»£p NLS má»™t cÃ¡ch tá»± nhiÃªn nháº¥t.
-2. Lá»±a chá»n cÃ¡c YCCÄ (YÃªu cáº§u cáº§n Ä‘áº¡t) tá»« Khung NLS phÃ¹ há»£p vá»›i trÃ¬nh Ä‘á»™ há»c sinh vÃ  Ä‘áº·c thÃ¹ mÃ´n há»c.
-3. Nếu có file PPCT, bạn phải ưu tiên 100% nội dung NLS trong PPCT đó.
-Cáº¤U TRÃšC Äáº¦U RA (MARKDOWN):
-I. THÔNG TIN CHUNG (Giữ nguyên từ giáo án gốc)
-II. MỤC TIÊU
-   1. Kiến thức, kĩ năng... (Giữ nguyên)
-   2. Năng lực chung... (Giữ nguyên)
-   3. Năng lực đặc thù... (Giữ nguyên)
-   4. Năng lực số (Bổ sung mới): 
-      - [MÃ£ YCCÄ]: MÃ´ táº£ biá»ƒu hiá»‡n cá»¥ thá»ƒ há»c sinh sáº½ Ä‘áº¡t Ä‘Æ°á»£c.
-III. THIáº¾T Bá»Š Dáº Y Há»ŒC VÃ€ Há»ŒC LIá»†U Sá» (Bá»• sung cÃ¡c cÃ´ng cá»¥ cáº§n thiáº¿t cho NLS)
-IV. TIẾN TRÌNH DẠY HỌC
-   - Tích hợp nội dung NLS vào các hoạt động bằng thẻ <u>...</u> hoặc in đậm. 
-   - Ví dụ: "HS sử dụng máy tính *thực hiện tra cứu thông tin trên trang web chính thống [1.1.CB2]*".
-QUY TẮC KỸ THUẬT:
-- Giữ nguyên các định dạng **Bold**, *Italic* của bản gốc.
-- Không thay đổi nội dung chuyên môn gốc, chỉ làm phong phú thêm.
+NHI?M V? C?T L?I:
+1. Ph?n t?ch s?u s?c n?i dung gi?o ?n ng??i d?ng cung c?p ?? t?m ra c?c "?i?m ch?m" c? th? t?ch h?p NLS m?t c?ch t? nhi?n nh?t.
+2. L?a ch?n c?c YCC? (Y?u c?u c?n ??t) t? Khung NLS ph? h?p v?i tr?nh ?? h?c sinh v? ??c th? m?n h?c.
+3. N?u c? file PPCT, b?n ph?i ?u ti?n 100% n?i dung NLS trong PPCT ??.
+C?U TR?C ??U RA (MARKDOWN):
+I. TH?NG TIN CHUNG (Gi? nguy?n t? gi?o ?n g?c)
+II. M?C TI?U
+   1. Ki?n th?c, k? n?ng... (Gi? nguy?n)
+   2. N?ng l?c chung... (Gi? nguy?n)
+   3. N?ng l?c ??c th?... (Gi? nguy?n)
+   4. N?ng l?c s? (B? sung m?i):
+      - [M? YCC?]: M? t? bi?u hi?n c? th? h?c sinh s? ??t ???c.
+III. THI?T B? D?Y H?C V? H?C LI?U S? (B? sung c?c c?ng c? c?n thi?t cho NLS)
+IV. TI?N TR?NH D?Y H?C
+   - T?ch h?p n?i dung NLS v?o c?c ho?t ??ng b?ng th? <u>...</u> ho?c in ??m.
+   - V? d?: "HS s? d?ng m?y t?nh *th?c hi?n tra c?u th?ng tin tr?n trang web ch?nh th?ng [1.1.CB2]*".
+QUY T?C K? THU?T:
+- Gi? nguy?n c?c ??nh d?ng **Bold**, *Italic* c?a b?n g?c.
+- Kh?ng thay ??i n?i dung chuy?n m?n g?c, ch? l?m phong ph? th?m.
 """
-# 3. Hàm xử lý AI riêng cho Module này
+# 3. H?m x? l? AI ri?ng cho Module n?y
 def generate_nls_lesson_plan_legacy(api_key, lesson_content, distribution_content, textbook, subject, grade, analyze_only):
     _genai_configure(api_key)
     model = _genai_model('gemini-2.0-flash', system_instruction=SYSTEM_INSTRUCTION_NLS)
