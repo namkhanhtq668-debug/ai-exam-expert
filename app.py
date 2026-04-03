@@ -521,6 +521,19 @@ section[data-testid="stSidebar"]{
     padding-right: .75rem;
     padding-top: .75rem;
   }
+  div[data-testid="stHorizontalBlock"]{
+    flex-direction: column !important;
+    gap: .55rem !important;
+  }
+  div[data-testid="stHorizontalBlock"] > div{
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+  .stButton > button,
+  .stTextInput input{
+    min-height: 48px;
+    font-size: 14px;
+  }
   section[data-testid="stSidebar"]{
     width: 260px !important;
   }
@@ -742,6 +755,7 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked +
   border-radius: 14px;
   border: 1px solid rgba(15,23,42,.10);
   box-shadow: 0 10px 18px rgba(2,6,23,.06);
+  min-height: 44px;
 }
 .stButton > button:hover{
   transform: translateY(-1px);
@@ -4382,6 +4396,68 @@ section[data-testid="stSidebar"]{
 """,
             unsafe_allow_html=True,
         )
+def _consume_sidebar_toggle_query():
+    params = dict(st.query_params)
+    if params.get("sidebar_action") != "toggle":
+        return
+    st.session_state["sidebar_open"] = not st.session_state.get("sidebar_open", True)
+    st.session_state["show_quick_nav"] = not st.session_state.get("sidebar_open", True)
+    params.pop("sidebar_action", None)
+    try:
+        st.query_params.clear()
+        for key, value in params.items():
+            st.query_params[key] = value
+    except Exception:
+        pass
+def render_floating_sidebar_toggle():
+    """Fixed floating pill button for quick sidebar open/close."""
+    _ensure_nav_state()
+    sidebar_open = bool(st.session_state.get("sidebar_open", True))
+    label = "☰ Ẩn sidebar" if sidebar_open else "☰ Mở sidebar"
+    st.markdown(
+        f"""
+<style>
+.floating-sidebar-toggle {{
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 99999;
+}}
+.floating-sidebar-toggle a {{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.22);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary2) 100%);
+  color: #fff !important;
+  text-decoration: none !important;
+  font-weight: 800;
+  letter-spacing: .01em;
+  box-shadow: 0 18px 36px rgba(29,78,216,.28), 0 10px 18px rgba(2,6,23,.10);
+  backdrop-filter: blur(8px);
+}}
+.floating-sidebar-toggle a:hover {{
+  transform: translateY(-1px);
+}}
+@media (max-width: 768px){{
+  .floating-sidebar-toggle {{
+    right: .75rem;
+    bottom: .75rem;
+  }}
+  .floating-sidebar-toggle a {{
+    padding: 13px 14px;
+    font-size: 13px;
+  }}
+}}
+</style>
+<div class="floating-sidebar-toggle">
+  <a href="?sidebar_action=toggle" aria-label="Toggle sidebar">{label}</a>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
 def render_topbar():
     """Topbar gọn (không trùng điều hướng sidebar) + dropdown tài khoản."""
     _ensure_nav_state()
@@ -4389,8 +4465,12 @@ def render_topbar():
     user = st.session_state.get("user") or {}
     is_authed = bool(user)
     fullname = user.get("fullname") or user.get("email") or "Khách"
-    c1, c2, c3 = st.columns([2.8, 5.2, 2.0], vertical_alignment="center", gap="small")
+    c1, c2, c3 = st.columns([3.1, 5.0, 2.1], vertical_alignment="center", gap="small")
     with c1:
+        sidebar_label = "☰ Ẩn sidebar" if st.session_state.get("sidebar_open", True) else "☰ Mở sidebar"
+        if st.button(sidebar_label, use_container_width=True, type="primary", key="tb_menu"):
+            st.session_state["sidebar_open"] = not st.session_state.get("sidebar_open", True)
+            st.session_state["show_quick_nav"] = not st.session_state.get("sidebar_open", True)
         st.markdown(
             f"""
 <div style="display:flex;gap:10px;align-items:center;">
@@ -4405,17 +4485,12 @@ def render_topbar():
 """,
             unsafe_allow_html=True,
         )
-        c1a, c1b = st.columns([1, 1], gap="small")
+        c1a, _ = st.columns([1, 1], gap="small")
         with c1a:
             if st.button("🏠 Trang chủ", use_container_width=True, key="tb_home"):
                 st.session_state["show_quick_nav"] = False
                 st.session_state["sidebar_open"] = True
                 go("dashboard")
-        with c1b:
-            sidebar_label = "☰ Ẩn sidebar" if st.session_state.get("sidebar_open", True) else "☰ Mở sidebar"
-            if st.button(sidebar_label, use_container_width=True, key="tb_menu"):
-                st.session_state["sidebar_open"] = not st.session_state.get("sidebar_open", True)
-                st.session_state["show_quick_nav"] = not st.session_state.get("sidebar_open", True)
     with c2:
         # Topbar chỉ để truy cập nhanh "Hướng dẫn" + tìm kiếm (không trùng menu sidebar)
         cc1, cc2 = st.columns([1, 1], vertical_alignment="center")
@@ -5102,8 +5177,10 @@ def module_profile():
 # ENTRY POINT (PUBLIC HOME + LOGIN-ON-DEMAND + TOPBAR + SIDEBAR)
 # ==============================================================================
 _ensure_nav_state()
+_consume_sidebar_toggle_query()
 # Topbar luôn hiển thị
 render_topbar()
+render_floating_sidebar_toggle()
 st.write("")  # spacing
 # Sidebar (hiển thị cả với khách)
 with st.sidebar:
