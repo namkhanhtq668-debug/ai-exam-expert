@@ -4396,68 +4396,6 @@ section[data-testid="stSidebar"]{
 """,
             unsafe_allow_html=True,
         )
-def _consume_sidebar_toggle_query():
-    params = dict(st.query_params)
-    if params.get("sidebar_action") != "toggle":
-        return
-    st.session_state["sidebar_open"] = not st.session_state.get("sidebar_open", True)
-    st.session_state["show_quick_nav"] = not st.session_state.get("sidebar_open", True)
-    params.pop("sidebar_action", None)
-    try:
-        st.query_params.clear()
-        for key, value in params.items():
-            st.query_params[key] = value
-    except Exception:
-        pass
-def render_floating_sidebar_toggle():
-    """Fixed floating pill button for quick sidebar open/close."""
-    _ensure_nav_state()
-    sidebar_open = bool(st.session_state.get("sidebar_open", True))
-    label = "☰ Ẩn sidebar" if sidebar_open else "☰ Mở sidebar"
-    st.markdown(
-        f"""
-<style>
-.floating-sidebar-toggle {{
-  position: fixed;
-  right: 1rem;
-  bottom: 1rem;
-  z-index: 99999;
-}}
-.floating-sidebar-toggle a {{
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.22);
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary2) 100%);
-  color: #fff !important;
-  text-decoration: none !important;
-  font-weight: 800;
-  letter-spacing: .01em;
-  box-shadow: 0 18px 36px rgba(29,78,216,.28), 0 10px 18px rgba(2,6,23,.10);
-  backdrop-filter: blur(8px);
-}}
-.floating-sidebar-toggle a:hover {{
-  transform: translateY(-1px);
-}}
-@media (max-width: 768px){{
-  .floating-sidebar-toggle {{
-    right: .75rem;
-    bottom: .75rem;
-  }}
-  .floating-sidebar-toggle a {{
-    padding: 13px 14px;
-    font-size: 13px;
-  }}
-}}
-</style>
-<div class="floating-sidebar-toggle">
-  <a href="?sidebar_action=toggle" aria-label="Toggle sidebar">{label}</a>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
 def render_topbar():
     """Topbar gọn (không trùng điều hướng sidebar) + dropdown tài khoản."""
     _ensure_nav_state()
@@ -4465,12 +4403,8 @@ def render_topbar():
     user = st.session_state.get("user") or {}
     is_authed = bool(user)
     fullname = user.get("fullname") or user.get("email") or "Khách"
-    c1, c2, c3 = st.columns([3.1, 5.0, 2.1], vertical_alignment="center", gap="small")
+    c1, c2, c3 = st.columns([2.8, 5.2, 2.0], vertical_alignment="center", gap="small")
     with c1:
-        sidebar_label = "☰ Ẩn sidebar" if st.session_state.get("sidebar_open", True) else "☰ Mở sidebar"
-        if st.button(sidebar_label, use_container_width=True, type="primary", key="tb_menu"):
-            st.session_state["sidebar_open"] = not st.session_state.get("sidebar_open", True)
-            st.session_state["show_quick_nav"] = not st.session_state.get("sidebar_open", True)
         st.markdown(
             f"""
 <div style="display:flex;gap:10px;align-items:center;">
@@ -5177,10 +5111,8 @@ def module_profile():
 # ENTRY POINT (PUBLIC HOME + LOGIN-ON-DEMAND + TOPBAR + SIDEBAR)
 # ==============================================================================
 _ensure_nav_state()
-_consume_sidebar_toggle_query()
 # Topbar luôn hiển thị
 render_topbar()
-render_floating_sidebar_toggle()
 st.write("")  # spacing
 # Sidebar (hiển thị cả với khách)
 with st.sidebar:
