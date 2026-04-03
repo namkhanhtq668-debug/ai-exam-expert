@@ -399,6 +399,13 @@ header{
   background: transparent !important;
 }
 .block-container{ max-width: 1280px; padding-top: .95rem; padding-bottom: 2rem; padding-left: 1.1rem; padding-right: 1.1rem; }
+div.block-container > div:first-child{
+  position: sticky;
+  top: .5rem;
+  z-index: 999;
+  background: var(--bg);
+  padding-top: .25rem;
+}
 section[data-testid="stSidebar"]{
   background: var(--sidebar);
   border-right: 1px solid rgba(15,23,42,.08);
@@ -4373,17 +4380,23 @@ def is_admin_user() -> bool:
     role = str(user.get("role") or "").strip().lower()
     return role == "admin"
 def _render_sidebar_visibility_css():
-    st.session_state["sidebar_open"] = True
-    st.markdown(
-        """
+    sidebar_open = bool(st.session_state.get("sidebar_open", True))
+    css = """
 <style>
 section[data-testid="stSidebar"]{
   display: block !important;
 }
 </style>
-""",
-        unsafe_allow_html=True,
-    )
+"""
+    if not sidebar_open:
+        css = """
+<style>
+section[data-testid="stSidebar"]{
+  display: none !important;
+}
+</style>
+"""
+    st.markdown(css, unsafe_allow_html=True)
 def render_topbar():
     """Topbar gọn (không trùng điều hướng sidebar) + dropdown tài khoản."""
     _ensure_nav_state()
@@ -4393,6 +4406,8 @@ def render_topbar():
     fullname = user.get("fullname") or user.get("email") or "Khách"
     c1, c2, c3 = st.columns([2.8, 5.2, 2.0], vertical_alignment="center", gap="small")
     with c1:
+        if st.button("☰", key="tb_sidebar_toggle", use_container_width=False, help="Ẩn/hiện sidebar"):
+            st.session_state["sidebar_open"] = not bool(st.session_state.get("sidebar_open", True))
         st.markdown(
             f"""
 <div style="display:flex;gap:10px;align-items:center;">
