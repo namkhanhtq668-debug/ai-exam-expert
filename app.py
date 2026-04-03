@@ -4413,7 +4413,7 @@ def render_sidebar_toggle_floating():
 <style>
 .sidebar-toggle-float {{
   position: fixed;
-  right: 1rem;
+  left: 1rem;
   bottom: 1rem;
   z-index: 99999;
 }}
@@ -4435,7 +4435,7 @@ def render_sidebar_toggle_floating():
 }}
 @media (max-width: 768px){{
   .sidebar-toggle-float {{
-    right: .75rem;
+    left: .75rem;
     bottom: .75rem;
   }}
   .sidebar-toggle-float a {{
