@@ -4400,10 +4400,6 @@ section[data-testid="stSidebar"]{
   will-change: width, transform, opacity;
 }
 
-section[data-testid="stMain"]{
-  margin-left: 18rem !important;
-  transition: margin-left .28s ease;
-}
 </style>
 """
     else:
@@ -4433,10 +4429,6 @@ section[data-testid="stSidebar"] > div{
   overflow: hidden !important;
 }
 
-section[data-testid="stMain"]{
-  margin-left: 0 !important;
-  transition: margin-left .28s ease;
-}
 </style>
 """
     st.markdown(css, unsafe_allow_html=True)
