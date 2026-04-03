@@ -4353,6 +4353,25 @@ def is_admin_user() -> bool:
     user = st.session_state.get("user") or {}
     role = str(user.get("role") or "").strip().lower()
     return role == "admin"
+
+def _apply_sidebar_query_param() -> None:
+    try:
+        query_params = getattr(st, "query_params", None)
+        if query_params is None:
+            return
+        raw_value = query_params.get("sidebar")
+        if isinstance(raw_value, list):
+            raw_value = raw_value[0] if raw_value else None
+        if raw_value is None:
+            return
+        value = str(raw_value).strip().lower()
+        if value in {"0", "false", "hide", "closed"}:
+            st.session_state["sidebar_open"] = False
+            st.session_state["show_quick_nav"] = False
+        elif value in {"1", "true", "show", "open"}:
+            st.session_state["sidebar_open"] = True
+    except Exception:
+        return
 def _render_sidebar_visibility_css():
     sidebar_open = bool(st.session_state.get("sidebar_open", True))
     if sidebar_open:
