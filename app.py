@@ -4381,18 +4381,31 @@ def is_admin_user() -> bool:
     return role == "admin"
 def _render_sidebar_visibility_css():
     sidebar_open = bool(st.session_state.get("sidebar_open", True))
-    css = """
-<style>
-section[data-testid="stSidebar"]{
-  display: block !important;
-}
-</style>
-"""
-    if not sidebar_open:
+    if sidebar_open:
         css = """
 <style>
 section[data-testid="stSidebar"]{
-  display: none !important;
+  width: 18rem !important;
+  min-width: 18rem !important;
+  max-width: 18rem !important;
+  overflow: visible !important;
+}
+</style>
+"""
+    else:
+        css = """
+<style>
+section[data-testid="stSidebar"]{
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden !important;
+}
+section[data-testid="stSidebar"] > div{
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden !important;
 }
 </style>
 """
@@ -4408,6 +4421,7 @@ def render_topbar():
     with c1:
         if st.button("☰", key="tb_sidebar_toggle", use_container_width=False, help="Ẩn/hiện sidebar"):
             st.session_state["sidebar_open"] = not bool(st.session_state.get("sidebar_open", True))
+            st.rerun()
         st.markdown(
             f"""
 <div style="display:flex;gap:10px;align-items:center;">
