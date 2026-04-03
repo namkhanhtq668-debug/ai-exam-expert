@@ -20,7 +20,7 @@ try:
     import bcrypt  # pyright: ignore[reportMissingImports]
 except Exception:  # pragma: no cover
     bcrypt = None
-import urllib.parse # [Báº®T BUá»˜C] ThÆ° viá»‡n xá»­ lÃ½ QR Code trÃ¡nh lá»—i
+   import urllib.parse # [Báº®T BUá»˜C] ThÆ° viá»‡n xá»­ lÃ½ QR Code trÃ¡nh lá»—i
 # === Brand logo (SVG, transparent) ===
 # ===== Brand logo (PNG) =====
 # Keep helper name `logo_svg()` for compatibility across the app.
@@ -202,23 +202,23 @@ DASHBOARD_HTML = """
   <div class="wrap">
     <div class="grid">
       <div class="card">
-        <p class="title">ðŸ“˜ Trá»£ lÃ½ Soáº¡n bÃ i</p>
-        <p class="sub">Táº¡o giÃ¡o Ã¡n chuáº©n CTGDPT 2018 theo mÃ´n/lá»›p/bá»™ sÃ¡ch.</p>
-        <span class="badge">Soáº¡n giÃ¡o Ã¡n</span>
+        <p class="title">📘 Trợ lý Soạn bài</p>
+        <p class="sub">Tạo giáo án chuẩn CTGDPT 2018 theo môn/lớp/bộ sách.</p>
+        <span class="badge">Soạn giáo án</span>
       </div>
       <div class="card">
-        <p class="title">ðŸ§© Soáº¡n bÃ i NÄƒng lá»±c sá»‘</p>
-        <p class="sub">TÃ­ch há»£p NÄƒng lá»±c sá»‘ (NLS) vÃ o giÃ¡o Ã¡n.</p>
+        <p class="title">🧩 Soạn bài Năng lực số</p>
+        <p class="sub">Tích hợp Năng lực số (NLS) vào giáo án.</p>
         <span class="badge">Digital Competency</span>
       </div>
       <div class="card">
-        <p class="title">ðŸ“ Ra Ä‘á» â€“ KTÄG</p>
-        <p class="sub">Ma tráº­n â€“ Äáº·c táº£ â€“ Äá» â€“ ÄÃ¡p Ã¡n theo Ä‘Ãºng phÃ¡p lÃ½.</p>
+        <p class="title">📝 Ra đề – KTĐG</p>
+        <p class="sub">Ma trận – Đặc tả – Đề – Đáp án theo đúng pháp lý.</p>
         <span class="badge">Exam Engine</span>
       </div>
       <div class="card">
-        <p class="title">ðŸ’¬ Nháº­n xÃ©t â€“ TÆ° váº¥n</p>
-        <p class="sub">Nháº­n xÃ©t, tÆ° váº¥n chuyÃªn mÃ´n (má»Ÿ rá»™ng).</p>
+        <p class="title">💬 Nhận xét – Tư vấn</p>
+        <p class="sub">Nhận xét, tư vấn chuyên môn (mở rộng).</p>
         <span class="badge">Advisor</span>
       </div>
     </div>
@@ -385,7 +385,7 @@ if SUPABASE_KEY and _is_service_role_key(SUPABASE_KEY):
     raise RuntimeError(
         "SUPABASE_KEY is service_role. Replace it with the anon key and enforce RLS in Supabase."
     )
-st.set_page_config(page_title="AI EXAM EXPERT v10 - 2026", page_icon="ðŸŽ“", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="AI EXAM EXPERT v10 - 2026", page_icon="🎓", layout="wide", initial_sidebar_state="expanded")
 # =========================
 # UI THEME (Premium SaaS)
 # =========================
@@ -3435,28 +3435,28 @@ def dashboard_screen():
         st.session_state["user"]["role"] = role
         if points != -1:
             st.session_state["user"]["points"] = points
-    # HERO (giá»‘ng layout máº«u, nhÆ°ng cao cáº¥p hÆ¡n)
+    # HERO
     st.markdown(f"""
 <div class="hero">
-  <div class="hero-topline">AIEXAM.VN | Ná»n táº£ng dÃ nh cho giÃ¡o viÃªn</div>
+  <div class="hero-topline">AIEXAM.VN | Nền tảng dành cho giáo viên</div>
   <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:8px;">
     <div class="sb-logo" style="width:56px;height:56px;border-radius:14px;background:transparent;box-shadow:none;">{logo_svg(56)}</div>
     <div style="text-align:left">
       <div style="font-weight:800; font-size:14px; letter-spacing:.02em;">AIEXAM.VN</div>
-      <div class="small-muted">á»¨ng dá»¥ng thá»±c táº¿ cho giÃ¡o viÃªn trong soáº¡n bÃ i, ra Ä‘á» vÃ  Ä‘Ã¡nh giÃ¡ há»c sinh</div>
+      <div class="small-muted">Ứng dụng thực tế cho giáo viên trong soạn bài, ra đề và đánh giá học sinh</div>
     </div>
   </div>
   <div class="hero-titlebox">
-    <h1 style="text-wrap:balance; overflow-wrap:anywhere;">Ná»n táº£ng <span class="accent">AI</span> cho giÃ¡o viÃªn soáº¡n bÃ i, ra Ä‘á» vÃ  Ä‘Ã¡nh giÃ¡ há»c sinh</h1>
+    <h1 style="text-wrap:balance; overflow-wrap:anywhere;">Nền tảng <span class="accent">AI</span> cho giáo viên soạn bài, ra đề và đánh giá học sinh</h1>
   </div>
-  <p>Há»— trá»£ dáº¡y há»c theo Ä‘á»‹nh hÆ°á»›ng phÃ¡t triá»ƒn nÄƒng lá»±c, giÃºp giÃ¡o viÃªn tiáº¿t kiá»‡m thá»i gian vÃ  nÃ¢ng cao hiá»‡u quáº£ chuyÃªn mÃ´n.</p>
+  <p>Hỗ trợ dạy học theo định hướng phát triển năng lực, giúp giáo viên tiết kiệm thời gian và nâng cao hiệu quả chuyên môn.</p>
   <div class="hero-badges">
-    <span class="hero-badge">Ra Ä‘á» nhanh</span>
-    <span class="hero-badge">Soáº¡n giÃ¡o Ã¡n</span>
-    <span class="hero-badge">PhÃ¢n tÃ­ch tÃ i liá»‡u</span>
-    <span class="hero-badge">ÄÃ¡nh giÃ¡ há»c sinh</span>
+    <span class="hero-badge">Ra đề nhanh</span>
+    <span class="hero-badge">Soạn giáo án</span>
+    <span class="hero-badge">Phân tích tài liệu</span>
+    <span class="hero-badge">Đánh giá học sinh</span>
   </div>
-  <div class="hero-cta">Báº¯t Ä‘áº§u tá»« khung nháº­p nhanh bÃªn dÆ°á»›i hoáº·c chá»n tÃ¡c vá»¥ chuyÃªn mÃ´n ngay.</div>
+  <div class="hero-cta">Bắt đầu từ khung nhập nhanh bên dưới hoặc chọn tác vụ chuyên môn ngay.</div>
 </div>
 """, unsafe_allow_html=True)
     # Ask box + pills
@@ -3464,42 +3464,40 @@ def dashboard_screen():
     c1, c2, c3 = st.columns([1, 2.2, 1], gap="small")
 
     def dien_text_mau():
-        st.session_state["dash_quick_ask"] = "HÃ£y táº¡o ma tráº­n Ä‘á» theo yÃªu cáº§u: [mÃ´n/lá»›p/chá»§ Ä‘á»/sá»‘ cÃ¢u/má»©c Ä‘á»™], sau Ä‘Ã³ sinh Ä‘á» vÃ  Ä‘Ã¡p Ã¡n."
+        st.session_state["dash_quick_ask"] = "Hãy tạo ma trận đề theo yêu cầu: [môn/lớp/chủ đề/số câu/mức độ], sau đó sinh đề và đáp án."
     with c2:
         st.markdown('<div class="glass">', unsafe_allow_html=True)
         q = st.text_input(
-            "CÃ¢u há»i nhanh",
-            placeholder="Nháº­p yÃªu cáº§u: ra Ä‘á», soáº¡n giÃ¡o Ã¡n, nháº­n xÃ©t há»c sinh, tÃ­ch há»£p nÄƒng lá»±c sá»‘â€¦",
+            "Câu hỏi nhanh",
+            placeholder="Nhập yêu cầu: ra đề, soạn giáo án, nhận xét học sinh, tích hợp năng lực số...",
             key="dash_quick_ask",
             label_visibility="collapsed"
         )
         colA, colB, colC = st.columns([1.2, 1.2, 0.9])
         with colA:
-            # Sá»¬A: DÃ¹ng on_click gá»i hÃ m á»Ÿ trÃªn, bá» st.rerun() Ä‘i (nÃ³ tá»± rerun)
-            st.button("ðŸ§  Gá»£i Ã½ prompt", use_container_width=True, key="dash_hint", on_click=dien_text_mau)
+            st.button("🧠 Gợi ý prompt", use_container_width=True, key="dash_hint", on_click=dien_text_mau)
                 
         with colB:
-            if st.button("ðŸš€ Äi tá»›i táº¡o Ä‘á»", use_container_width=True, key="dash_go_exam"):
+            if st.button("🚀 Đi tới tạo đề", use_container_width=True, key="dash_go_exam"):
                 go("exam")
         with colC:
-            if st.button("âž¤", use_container_width=True, key="dash_send"):
-                # Äiá»u hÆ°á»›ng thÃ´ng minh theo tá»« khoÃ¡ (khÃ´ng phÃ¡ module)
+            if st.button("➤", use_container_width=True, key="dash_send"):
                 txt = (q or "").lower()
-                if any(k in txt for k in ["Ä‘á»", "ma tráº­n", "ktÄ‘g", "tráº¯c nghiá»‡m", "tá»± luáº­n"]):
+                if any(k in txt for k in ["đề", "ma trận", "ktđg", "trắc nghiệm", "tự luận"]):
                     go("exam")
-                elif any(k in txt for k in ["giÃ¡o Ã¡n", "bÃ i dáº¡y", "káº¿ hoáº¡ch bÃ i dáº¡y", "ppct"]):
+                elif any(k in txt for k in ["giáo án", "bài dạy", "kế hoạch bài dạy", "ppct"]):
                     go("lesson_plan")
-                elif any(k in txt for k in ["nÄƒng lá»±c sá»‘", "digital", "nls"]):
+                elif any(k in txt for k in ["năng lực số", "digital", "nls"]):
                     go("digital")
                 else:
                     go("advisor")
         st.markdown('</div>', unsafe_allow_html=True)
         st.markdown(f"""
 <div class="pills">
-  <span class="pill">ðŸ’¬ Chat/TÆ° váº¥n</span>
-  <span class="pill">ðŸ“ Ra Ä‘á» â€“ KTÄG</span>
-  <span class="pill">ðŸ“˜ Soáº¡n giÃ¡o Ã¡n</span>
-  <span class="pill">ðŸ’» NÄƒng lá»±c sá»‘</span>
+  <span class="pill">💬 Chat/Tư vấn</span>
+  <span class="pill">📝 Ra đề – KTĐG</span>
+  <span class="pill">📘 Soạn giáo án</span>
+  <span class="pill">💻 Năng lực số</span>
 </div>
 """, unsafe_allow_html=True)
     st.write("")
@@ -3528,32 +3526,32 @@ def dashboard_screen():
         st.markdown(f"""<div class="card stat-card">
 <div class="stat-head">
   <div class="stat-icon user">{_stat_icon_svg("user")}</div>
-  <div class="stat-title">NgÆ°á»i dÃ¹ng</div>
+  <div class="stat-title">Người dùng</div>
 </div>
-<div class="stat-value">{username or "ChÆ°a Ä‘Äƒng nháº­p"}</div>
-<div class="stat-sub">Äang Ä‘á»“ng bá»™ dá»¯ liá»‡u tÃ i khoáº£n</div>
+<div class="stat-value">{username or "Chưa đăng nhập"}</div>
+<div class="stat-sub">Đang đồng bộ dữ liệu tài khoản</div>
 </div>""", unsafe_allow_html=True)
     with s2:
         badge = "PRO" if role == "pro" else "FREE"
         st.markdown(f"""<div class="card stat-card">
 <div class="stat-head">
   <div class="stat-icon state">{_stat_icon_svg("state")}</div>
-  <div class="stat-title">Tráº¡ng thÃ¡i sá»­ dá»¥ng</div>
+  <div class="stat-title">Trạng thái sử dụng</div>
 </div>
 <div class="stat-value">{badge}</div>
-<div class="stat-sub">Quyá»n truy cáº­p vÃ  giá»›i háº¡n hiá»‡n táº¡i</div>
+<div class="stat-sub">Quyền truy cập và giới hạn hiện tại</div>
 </div>""", unsafe_allow_html=True)
     with s3:
         st.markdown(f"""<div class="card stat-card">
 <div class="stat-head">
   <div class="stat-icon activity">{_stat_icon_svg("activity")}</div>
-  <div class="stat-title">Má»©c Ä‘á»™ hoáº¡t Ä‘á»™ng</div>
+  <div class="stat-title">Mức độ hoạt động</div>
 </div>
-<div class="stat-value">{points if points != -1 else "â€”"}</div>
-<div class="stat-sub">Dá»±a trÃªn Ä‘iá»ƒm vÃ  lá»‹ch sá»­ sá»­ dá»¥ng</div>
+<div class="stat-value">{points if points != -1 else "—"}</div>
+<div class="stat-sub">Dựa trên điểm và lịch sử sử dụng</div>
 </div>""", unsafe_allow_html=True)
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-    st.markdown("### Truy cáº­p nhanh")
+    st.markdown("### Truy cập nhanh")
     qa = st.columns(6, gap="small")
     def _quick_icon_svg(kind: str) -> str:
         icon_styles = {
@@ -3617,46 +3615,45 @@ def dashboard_screen():
         style = icon_styles.get(kind, icon_styles["exam"])
         return icons.get(kind, icons["exam"]).format(style=style)
     quick = [
-        ("exam", "Ra Ä‘á» â€“ KTÄG", "exam", "ic1"),
-        ("lesson", "Soáº¡n giÃ¡o Ã¡n", "lesson_plan", "ic2"),
-        ("digital", "NÄƒng lá»±c sá»‘", "digital", "ic3"),
-        ("advisor", "Nháº­n xÃ©t/TÆ° váº¥n", "advisor", "ic4"),
-        ("library", "Kho há»c liá»‡u", "dashboard", "ic5"),
-        ("help", "HÆ°á»›ng dáº«n", "help", "ic6"),
+        ("exam", "Ra đề – KTĐG", "exam", "ic1"),
+        ("lesson", "Soạn giáo án", "lesson_plan", "ic2"),
+        ("digital", "Năng lực số", "digital", "ic3"),
+        ("advisor", "Nhận xét/Tư vấn", "advisor", "ic4"),
+        ("library", "Kho học liệu", "dashboard", "ic5"),
+        ("help", "Hướng dẫn", "help", "ic6"),
     ]
     for i, (emo, label, page_key, klass) in enumerate(quick):
         with qa[i]:
             st.markdown(f"""<div class="card soft" style="text-align:center;padding:12px 12px 14px 12px;">
   <div class="icon-circle {klass}">{_quick_icon_svg(emo)}</div>
   <div style="font-weight:800; font-size:15px; line-height:1.2;">{label}</div>
-  <div class="small-muted" style="margin-top:4px; font-size:12px;">Má»Ÿ ngay</div>
+  <div class="small-muted" style="margin-top:4px; font-size:12px;">Mở ngay</div>
 </div>""", unsafe_allow_html=True)
-            if st.button("Má»Ÿ", use_container_width=True, key=f"qa_open_{page_key}_{i}"):
+            if st.button("Mở", use_container_width=True, key=f"qa_open_{page_key}_{i}"):
                 go(page_key)
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     left, right = st.columns([1.2, 1], gap="small")
     with left:
         st.markdown(f"""<div class="card">
-<b>ðŸ“Œ Quy trÃ¬nh sá»­ dá»¥ng</b>
+<b>📌 Quy trình sử dụng</b>
 <ul style="margin:10px 0 0 18px; color: rgba(15,23,42,.78); line-height:1.55;">
-  <li>Báº¯t Ä‘áº§u tá»« <b>Ra Ä‘á» â€“ KTÄG</b> Ä‘á»ƒ táº¡o ma tráº­n, Ä‘á» vÃ  Ä‘Ã¡p Ã¡n theo chuáº©n.</li>
-  <li>Chuyá»ƒn sang <b>Soáº¡n giÃ¡o Ã¡n</b> khi cáº§n bÃ¡m PPCT hoáº·c máº«u nhÃ  trÆ°á»ng.</li>
-  <li>DÃ¹ng <b>NÄƒng lá»±c sá»‘</b> cho cÃ¡c bÃ i dáº¡y tÃ­ch há»£p vÃ  hoáº¡t Ä‘á»™ng sá»‘ hÃ³a.</li>
+  <li>Bắt đầu từ <b>Ra đề – KTĐG</b> để tạo ma trận, đề và đáp án theo chuẩn.</li>
+  <li>Chuyển sang <b>Soạn giáo án</b> khi cần bám PPCT hoặc mẫu nhà trường.</li>
+  <li>Dùng <b>Năng lực số</b> cho các bài dạy tích hợp và hoạt động số hóa.</li>
 </ul>
 </div>""", unsafe_allow_html=True)
     with right:
         st.markdown(f"""<div class="card">
-<b>ðŸš€ Minh chá»©ng thá»±c táº¿</b>
-<div class="small-muted" style="margin-top:6px; line-height:1.55;">Há»‡ thá»‘ng Ä‘ang ghi nháº­n lá»‹ch sá»­ táº¡o Ä‘á», soáº¡n giÃ¡o Ã¡n vÃ  xá»­ lÃ½ tÃ i liá»‡u tá»« giÃ¡o viÃªn sá»­ dá»¥ng tháº­t.</div>
-<div class="small-muted" style="margin-top:10px; line-height:1.55;">Má»¥c tiÃªu lÃ  há»— trá»£ thao tÃ¡c nhanh, giá»¯ cháº¥t lÆ°á»£ng chuyÃªn mÃ´n vÃ  cÃ³ dá»¯ liá»‡u minh báº¡ch Ä‘á»ƒ Ä‘á»‘i chiáº¿u.</div>
+<b>🚀 Minh chứng thực tế</b>
+<div class="small-muted" style="margin-top:6px; line-height:1.55;">Hệ thống đang ghi nhận lịch sử tạo đề, soạn giáo án và xử lý tài liệu từ giáo viên sử dụng thật.</div>
+<div class="small-muted" style="margin-top:10px; line-height:1.55;">Mục tiêu là hỗ trợ thao tác nhanh, giữ chất lượng chuyên môn và có dữ liệu minh bạch để đối chiếu.</div>
 </div>""", unsafe_allow_html=True)
     # VIP Topup (giá»¯ Ä‘Ãºng logic gá»‘c, chá»‰ bá»c UI)
-    with st.expander("â­ Náº¡p VIP / KÃ­ch hoáº¡t PRO (SePay tá»± xÃ¡c minh)", expanded=False):
+    with st.expander("⭐ Nạp VIP / Kích hoạt PRO (SePay tự xác minh)", expanded=False):
         if not client or not username:
-            st.warning("Báº¡n cáº§n Ä‘Äƒng nháº­p Ä‘á»ƒ náº¡p VIP.")
+            st.warning("Bạn cần đăng nhập để nạp VIP.")
             return
-        ref_code_input = st.text_input("MÃ£ giá»›i thiá»‡u (tuá»³ chá»n):", key="dash_ref_code")
-        # Ná»™i dung CK báº¯t buá»™c cÃ³ tiá»n tá»‘ Ä‘á»ƒ SePay nháº­n diá»‡n
+        ref_code_input = st.text_input("Mã giới thiệu (tuỳ chọn):", key="dash_ref_code")
         final_content_ck = f"SEVQR NAP VIP {username}"
         if ref_code_input and ref_code_input != username:
             final_content_ck = f"SEVQR NAP VIP {username} REF {ref_code_input}"
@@ -3664,15 +3661,15 @@ def dashboard_screen():
         qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{BANK_ACC}-compact2.png?amount={VIP_TOPUP_AMOUNT_VND}&addInfo={encoded_content}&accountName={BANK_NAME}"
         q1, q2 = st.columns([1, 1.4])
         with q1:
-            st.image(qr_url, caption=f"VietQR {VIP_TOPUP_AMOUNT_VND:,.0f}Ä‘", width=280)
+            st.image(qr_url, caption=f"VietQR {VIP_TOPUP_AMOUNT_VND:,.0f}đ", width=280)
         with q2:
             st.markdown(f"""<div class="card soft">
-<div style="font-weight:800; font-size:16px; margin-bottom:6px;">ThÃ´ng tin chuyá»ƒn khoáº£n</div>
-<div><b>NgÃ¢n hÃ ng:</b> {BANK_NAME}</div>
-<div><b>Sá»‘ TK:</b> {BANK_NO}</div>
-<div><b>Sá»‘ tiá»n:</b> {VIP_TOPUP_AMOUNT_VND:,.0f} Ä‘</div>
-<div><b>Ná»™i dung:</b> <code>{final_content_ck}</code></div>
-<div class="small-muted" style="margin-top:8px;">LÆ°u Ã½: Ná»™i dung cáº§n Ä‘Ãºng Ä‘á»ƒ há»‡ thá»‘ng SePay nháº­n diá»‡n.</div>
+<div style="font-weight:800; font-size:16px; margin-bottom:6px;">Thông tin chuyển khoản</div>
+<div><b>Ngân hàng:</b> {BANK_NAME}</div>
+<div><b>Số TK:</b> {BANK_NO}</div>
+<div><b>Số tiền:</b> {VIP_TOPUP_AMOUNT_VND:,.0f} đ</div>
+<div><b>Nội dung:</b> <code>{final_content_ck}</code></div>
+<div class="small-muted" style="margin-top:8px;">Lưu ý: Nội dung cần đúng để hệ thống SePay nhận diện.</div>
 </div>""", unsafe_allow_html=True)
             if st.button("ðŸš€ KÃCH HOáº T NGAY (SePay tá»± xÃ¡c minh)", type="primary", use_container_width=True, key="dash_activate_vip"):
                 ok = check_sepay_transaction(VIP_TOPUP_AMOUNT_VND, final_content_ck)
@@ -4729,10 +4726,9 @@ def _render_chat_history(messages: list[dict]) -> None:
 def module_chat():
     _ensure_nav_state()
     user = st.session_state.get("user")
-    # Guest: cho demo 1 cÃ¢u á»Ÿ Chat; láº§n 2 yÃªu cáº§u login
-    st.markdown("## ðŸ’¬ Chat AI")
-    st.caption("Há»i AI nhÆ° ChatGPT. KhÃ¡ch Ä‘Æ°á»£c dÃ¹ng thá»­ 1 cÃ¢u. ÄÄƒng nháº­p Ä‘á»ƒ dÃ¹ng Ä‘áº§y Ä‘á»§.")
-    st.caption("AI chá»‰ há»— trá»£ gá»£i Ã½ ná»™i dung giÃ¡o dá»¥c; giÃ¡o viÃªn lÃ  ngÆ°á»i kiá»ƒm tra vÃ  quyáº¿t Ä‘á»‹nh ná»™i dung sá»­ dá»¥ng.")
+    st.markdown("## 💬 Chat AI")
+    st.caption("Hỏi AI như ChatGPT. Khách được dùng thử 1 câu. Đăng nhập để dùng đầy đủ.")
+    st.caption("AI chỉ hỗ trợ gợi ý nội dung giáo dục; giáo viên là người kiểm tra và quyết định nội dung sử dụng.")
     st.session_state.setdefault("chat_messages", [])
     st.session_state.setdefault("chat_intent_hint", None)
     st.markdown(
@@ -4740,15 +4736,15 @@ def module_chat():
 <div style="margin:10px 0 14px 0; padding:12px 14px; border:1px solid rgba(91,92,246,.10); border-radius:18px;
 background: rgba(255,255,255,.72); box-shadow: 0 10px 22px rgba(2,6,23,.05);">
   <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
-    <div style="font-size:13px; color:#0f172a; font-weight:700;">Khung há»™i thoáº¡i giÃ¡o dá»¥c</div>
-    <div class="small-muted" style="font-size:12px;">Soáº¡n bÃ i, ra Ä‘á», nháº­n xÃ©t, CTGDPT 2018, nÄƒng lá»±c sá»‘</div>
+    <div style="font-size:13px; color:#0f172a; font-weight:700;">Khung hội thoại giáo dục</div>
+    <div class="small-muted" style="font-size:12px;">Soạn bài, ra đề, nhận xét, CTGDPT 2018, năng lực số</div>
   </div>
 </div>
 """,
         unsafe_allow_html=True,
     )
     _render_chat_history(st.session_state["chat_messages"])
-    prompt = st.chat_input("Nháº­p cÃ¢u há»i cá»§a báº¡nâ€¦")
+    prompt = st.chat_input("Nhập câu hỏi của bạn...")
     if prompt:
         # kiá»ƒm demo
         if (not user) and st.session_state.get("demo_used"):
@@ -4768,40 +4764,40 @@ background: rgba(255,255,255,.72); box-shadow: 0 10px 22px rgba(2,6,23,.05);">
                 )
                 reply = _gemini_generate(limited_context, system=CHAT_EDUCATION_SYSTEM_PROMPT)
                 if intent and reply:
-                    reply = f"{reply}\n\nGá»£i Ã½: CÃ³ sáºµn **{intent['module_label']}** trÃªn website."
-                st.markdown(reply if reply else "â€¦")
+                    reply = f"{reply}\n\nGợi ý: Có sẵn **{intent['module_label']}** trên website."
+                st.markdown(reply if reply else "...")
         st.session_state["chat_messages"].append({"role": "assistant", "content": reply})
         if not user:
             st.session_state["demo_used"] = True
-            st.info("Báº¡n vá»«a dÃ¹ng thá»­ 1 cÃ¢u. ÄÄƒng nháº­p Ä‘á»ƒ tiáº¿p tá»¥c sá»­ dá»¥ng Ä‘áº§y Ä‘á»§.")
+            st.info("Bạn vừa dùng thử 1 câu. Đăng nhập để tiếp tục sử dụng đầy đủ.")
     cols = st.columns([1,1,2])
     with cols[0]:
-        if st.button("ðŸ§¹ XÃ³a chat", key="chat_clear"):
+        if st.button("🧹 Xóa chat", key="chat_clear"):
             st.session_state["chat_messages"] = []
             st.rerun()
     with cols[1]:
-        if st.button("â¬…ï¸ Vá» Home", key="chat_home"):
+        if st.button("⬅️ Về Home", key="chat_home"):
             go("dashboard")
 def module_doc_ai():
     _ensure_nav_state()
     if not st.session_state.get("user"):
         require_login("doc_ai")
         return
-    st.markdown("## ðŸ“„ Doc AI â€¢ TÃ³m táº¯t & Chat theo tÃ i liá»‡u")
-    st.caption("Táº£i tÃ i liá»‡u (PDF/DOCX/áº£nh) â†’ tÃ³m táº¯t â†’ há»i theo ná»™i dung tÃ i liá»‡u. (RAG nháº¹, á»•n Ä‘á»‹nh Cloud)")
-    doc_file = st.file_uploader("Táº£i tÃ i liá»‡u", type=["pdf","docx","txt","png","jpg","jpeg"], key="docai_upload")
-    max_pages = st.slider("Giá»›i háº¡n sá»‘ trang xá»­ lÃ½ (PDF)", 1, 20, 6, key="docai_pages")
-    try_ocr = st.checkbox("Thá»­ OCR náº¿u PDF scan/áº£nh", value=True, key="docai_ocr")
+    st.markdown("## 📄 Doc AI • Tóm tắt & Chat theo tài liệu")
+    st.caption("Tải tài liệu (PDF/DOCX/ảnh) → tóm tắt → hỏi theo nội dung tài liệu. (RAG nhẹ, ổn định Cloud)")
+    doc_file = st.file_uploader("Tải tài liệu", type=["pdf","docx","txt","png","jpg","jpeg"], key="docai_upload")
+    max_pages = st.slider("Giới hạn số trang xử lý (PDF)", 1, 20, 6, key="docai_pages")
+    try_ocr = st.checkbox("Thử OCR nếu PDF scan/ảnh", value=True, key="docai_ocr")
     if doc_file:
-        with st.spinner("Äang Ä‘á»c tÃ i liá»‡uâ€¦"):
+        with st.spinner("Đang đọc tài liệu..."):
             raw = extract_text_from_upload(doc_file, max_pages=max_pages, ocr_if_needed=try_ocr)
             raw = (raw or "").strip()
             if not raw:
-                st.error("KhÃ´ng Ä‘á»c Ä‘Æ°á»£c ná»™i dung. Thá»­ báº­t OCR hoáº·c dÃ¹ng báº£n PDF cÃ³ text.")
+                st.error("Không đọc được nội dung. Thử bật OCR hoặc dùng bản PDF có text.")
             else:
                 st.session_state["docai_text"] = raw[:20000]
                 st.session_state["docai_chunks"] = _chunk_text(st.session_state["docai_text"])
-                st.success(f"ÄÃ£ náº¡p tÃ i liá»‡u: {getattr(doc_file,'name','file')}")
+                st.success(f"Đã nạp tài liệu: {getattr(doc_file,'name','file')}")
                 docai_ready = bool((st.session_state.get("docai_text") or "").strip()) or len(st.session_state.get("docai_chunks") or []) > 0
                 if docai_ready:
                     try:
@@ -4833,14 +4829,14 @@ def module_doc_ai():
                                     st.session_state["docai_last_logged_sig"] = doc_sig
                     except Exception:
                         pass
-    tabs = st.tabs(["ðŸ§¾ TÃ³m táº¯t", "ðŸ’¬ Chat theo tÃ i liá»‡u", "ðŸ‘ï¸ Xem ná»™i dung"])
+    tabs = st.tabs(["🧾 Tóm tắt", "💬 Chat theo tài liệu", "👁️ Xem nội dung"])
     with tabs[0]:
-        if st.button("âœ¨ Táº¡o tÃ³m táº¯t", type="primary", key="docai_sum"):
+        if st.button("✨ Tạo tóm tắt", type="primary", key="docai_sum"):
             txt = (st.session_state.get("docai_text") or "").strip()
             if not txt:
-                st.warning("HÃ£y táº£i tÃ i liá»‡u trÆ°á»›c.")
+                st.warning("Hãy tải tài liệu trước.")
             else:
-                with st.spinner("AI Ä‘ang tÃ³m táº¯tâ€¦"):
+                with st.spinner("AI đang tóm tắt..."):
                     out = _gemini_generate(
                         """Báº¡n lÃ  trá»£ lÃ½ há»c thuáº­t. TÃ³m táº¯t tÃ i liá»‡u ngáº¯n gá»n theo má»¥c:
 - Ná»™i dung chÃ­nh (5-7 gáº¡ch Ä‘áº§u dÃ²ng)
@@ -4853,28 +4849,28 @@ def module_doc_ai():
     with tabs[1]:
         txt = (st.session_state.get("docai_text") or "").strip()
         if not txt:
-            st.info("Táº£i tÃ i liá»‡u trÆ°á»›c Ä‘á»ƒ chat theo tÃ i liá»‡u.")
-        q = st.text_input("Nháº­p cÃ¢u há»i vá» tÃ i liá»‡uâ€¦", key="docai_q")
-        if st.button("Há»i tÃ i liá»‡u", key="docai_ask", type="primary"):
+            st.info("Tải tài liệu trước để chat theo tài liệu.")
+        q = st.text_input("Nhập câu hỏi về tài liệu...", key="docai_q")
+        if st.button("Hỏi tài liệu", key="docai_ask", type="primary"):
             if not txt:
-                st.warning("ChÆ°a cÃ³ tÃ i liá»‡u.")
+                st.warning("Chưa có tài liệu.")
             else:
                 ctx_chunks = _simple_retrieve(q, st.session_state.get("docai_chunks") or [], k=4)
                 ctx = "\n\n---\n\n".join(ctx_chunks)
-                with st.spinner("AI Ä‘ang tráº£ lá»i theo tÃ i liá»‡uâ€¦"):
+                with st.spinner("AI đang trả lời theo tài liệu..."):
                     out = _gemini_generate(
-                        f"""Báº¡n lÃ  trá»£ lÃ½ AI. CHá»ˆ tráº£ lá»i dá»±a trÃªn pháº§n trÃ­ch dáº«n tÃ i liá»‡u dÆ°á»›i Ä‘Ã¢y.
-Náº¿u trong tÃ i liá»‡u khÃ´ng cÃ³, hÃ£y nÃ³i rÃµ 'TÃ i liá»‡u khÃ´ng Ä‘á» cáº­p'. KhÃ´ng bá»‹a thÃªm.
-[TRÃCH DáºªN TÃ€I LIá»†U]
+                        f"""Bạn là trợ lý AI. CHỈ trả lời dựa trên phần trích dẫn tài liệu dưới đây.
+Nếu trong tài liệu không có, hãy nói rõ 'Tài liệu không đề cập'. Không bịa thêm.
+[TRÍCH DẪN TÀI LIỆU]
 {ctx}
-[CÃ‚U Há»ŽI]
+[CÂU HỎI]
 {q}
 """
                     )
                 st.markdown(out)
     with tabs[2]:
         txt = (st.session_state.get("docai_text") or "").strip()
-        st.text_area("Ná»™i dung trÃ­ch xuáº¥t (Ä‘Ã£ rÃºt gá»n)", value=txt[:16000], height=320, key="docai_preview")
+        st.text_area("Nội dung trích xuất (đã rút gọn)", value=txt[:16000], height=320, key="docai_preview")
 def module_mindmap():
     _ensure_nav_state()
     if not st.session_state.get("user"):
@@ -4889,36 +4885,36 @@ def module_mindmap():
         lop = st.text_input("Lá»›p", value="", placeholder="VÃ­ dá»¥: 5", key="mm_lop")
     with c3:
         so_cap_do = st.selectbox("Sá»‘ cáº¥p Ä‘á»™", ["3", "4"], index=1, key="mm_levels")
-    inp = st.text_area("Ná»™i dung / chá»§ Ä‘á»", height=200, key="mm_in")
-    st.caption("Gá»£i Ã½: thÃªm tá»« khÃ³a nhÆ° 'soáº¡n bÃ i', 'Ã´n táº­p', 'trÃ¬nh chiáº¿u' hoáº·c 'hoáº¡t Ä‘á»™ng nhÃ³m' Ä‘á»ƒ AI chá»n Ä‘Ãºng style.")
+    inp = st.text_area("Nội dung / chủ đề", height=200, key="mm_in")
+    st.caption("Gợi ý: thêm từ khóa như 'soạn bài', 'ôn tập', 'trình chiếu' hoặc 'hoạt động nhóm' để AI chọn đúng style.")
 
     def _detect_mindmap_style(text: str) -> tuple[str, str]:
         q = (text or "").strip().lower()
-        if any(k in q for k in ("trÃ¬nh chiáº¿u", "slide", "thuyáº¿t trÃ¬nh", "powerpoint", "ppt")):
-            return ("trÃ¬nh chiáº¿u", "cá»±c ngáº¯n, dá»… nhÃ¬n")
-        if any(k in q for k in ("hoáº¡t Ä‘á»™ng nhÃ³m", "nhÃ³m", "tháº£o luáº­n", "giao nhiá»‡m vá»¥", "tráº¡m")):
-            return ("hoáº¡t Ä‘á»™ng nhÃ³m", "chia Ã½ rÃµ, giao nhiá»‡m vá»¥")
-        if any(k in q for k in ("Ã´n táº­p", "cá»§ng cá»‘", "nháº¯c láº¡i", "review", "revision")):
-            return ("Ã´n táº­p", "ngáº¯n gá»n, trá»ng tÃ¢m")
-        if any(k in q for k in ("soáº¡n bÃ i", "giÃ¡o Ã¡n", "káº¿ hoáº¡ch bÃ i dáº¡y", "bÃ i dáº¡y", "chuáº©n bá»‹ bÃ i")):
-            return ("soáº¡n bÃ i", "Ä‘áº§y Ä‘á»§ cáº¥u trÃºc ná»™i dung")
-        return ("soáº¡n bÃ i", "Ä‘áº§y Ä‘á»§ cáº¥u trÃºc ná»™i dung")
+        if any(k in q for k in ("trình chiếu", "slide", "thuyết trình", "powerpoint", "ppt")):
+            return ("trình chiếu", "cực ngắn, dễ nhìn")
+        if any(k in q for k in ("hoạt động nhóm", "nhóm", "thảo luận", "giao nhiệm vụ", "trạm")):
+            return ("hoạt động nhóm", "chia ý rõ, giao nhiệm vụ")
+        if any(k in q for k in ("ôn tập", "củng cố", "nhắc lại", "review", "revision")):
+            return ("ôn tập", "ngắn gọn, trọng tâm")
+        if any(k in q for k in ("soạn bài", "giáo án", "kế hoạch bài dạy", "bài dạy", "chuẩn bị bài")):
+            return ("soạn bài", "đầy đủ cấu trúc nội dung")
+        return ("soạn bài", "đầy đủ cấu trúc nội dung")
 
-    if st.button("âœ¨ Táº¡o Mindmap", type="primary", key="mm_go"):
+    if st.button("✨ Tạo Mindmap", type="primary", key="mm_go"):
         if not inp.strip():
-            st.warning("Nháº­p ná»™i dung trÆ°á»›c.")
+            st.warning("Nhập nội dung trước.")
         else:
-            with st.spinner("AI Ä‘ang táº¡o mindmapâ€¦"):
+            with st.spinner("AI đang tạo mindmap..."):
                 topic = inp.strip().splitlines()[0][:80]
                 mindmap_style, mindmap_goal = _detect_mindmap_style(inp)
-                if mindmap_style == "trÃ¬nh chiáº¿u":
-                    branch_rule = "3 nhÃ¡nh chÃ­nh, má»—i nhÃ¡nh 1â€“2 Ã½ phá»¥ ráº¥t ngáº¯n."
-                elif mindmap_style == "hoáº¡t Ä‘á»™ng nhÃ³m":
-                    branch_rule = "4 nhÃ¡nh chÃ­nh, má»—i nhÃ¡nh 2 Ã½ phá»¥, Æ°u tiÃªn nhiá»‡m vá»¥ rÃµ rÃ ng."
-                elif mindmap_style == "Ã´n táº­p":
-                    branch_rule = "3â€“4 nhÃ¡nh chÃ­nh, má»—i nhÃ¡nh 2â€“3 Ã½ phá»¥, Æ°u tiÃªn trá»ng tÃ¢m."
+                if mindmap_style == "trình chiếu":
+                    branch_rule = "3 nhánh chính, mỗi nhánh 1-2 ý phụ rất ngắn."
+                elif mindmap_style == "hoạt động nhóm":
+                    branch_rule = "4 nhánh chính, mỗi nhánh 2 ý phụ, ưu tiên nhiệm vụ rõ ràng."
+                elif mindmap_style == "ôn tập":
+                    branch_rule = "3-4 nhánh chính, mỗi nhánh 2-3 ý phụ, ưu tiên trọng tâm."
                 else:
-                    branch_rule = "4 nhÃ¡nh chÃ­nh, má»—i nhÃ¡nh 2â€“4 Ã½ phá»¥, Ä‘áº§y Ä‘á»§ nhÆ°ng gá»n."
+                    branch_rule = "4 nhánh chính, mỗi nhánh 2-4 ý phụ, đầy đủ nhưng gọn."
                 core_topic = inp.strip()
                 prompt = f"""
 Báº¡n lÃ  chuyÃªn gia sÆ° pháº¡m vÃ  thiáº¿t káº¿ há»c liá»‡u giÃ¡o dá»¥c phá»• thÃ´ng.
