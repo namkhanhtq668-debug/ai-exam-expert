@@ -4375,27 +4375,81 @@ def is_admin_user() -> bool:
 def _render_sidebar_visibility_css():
     sidebar_open = bool(st.session_state.get("sidebar_open", True))
     if sidebar_open:
-        st.markdown(
-            """
+        css = """
 <style>
 section[data-testid="stSidebar"]{
   display: block !important;
 }
 </style>
-""",
-            unsafe_allow_html=True,
-        )
+"""
     else:
-        st.markdown(
-            """
+        css = """
 <style>
 section[data-testid="stSidebar"]{
   display: none !important;
 }
 </style>
+"""
+    st.markdown(css, unsafe_allow_html=True)
+def _consume_sidebar_toggle_query():
+    params = dict(st.query_params)
+    if params.get("sidebar_action") != "toggle":
+        return
+    st.session_state["sidebar_open"] = not bool(st.session_state.get("sidebar_open", True))
+    params.pop("sidebar_action", None)
+    try:
+        st.query_params.clear()
+        for key, value in params.items():
+            st.query_params[key] = value
+    except Exception:
+        pass
+def render_sidebar_toggle_floating():
+    """Floating sidebar toggle kept outside the topbar."""
+    _ensure_nav_state()
+    sidebar_open = bool(st.session_state.get("sidebar_open", True))
+    label = "☰ Ẩn sidebar" if sidebar_open else "☰ Mở sidebar"
+    st.markdown(
+        f"""
+<style>
+.sidebar-toggle-float {{
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 99999;
+}}
+.sidebar-toggle-float a {{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.22);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary2) 100%);
+  color: #fff !important;
+  text-decoration: none !important;
+  font-weight: 800;
+  box-shadow: 0 18px 36px rgba(29,78,216,.28), 0 10px 18px rgba(2,6,23,.10);
+}}
+.sidebar-toggle-float a:hover {{
+  transform: translateY(-1px);
+}}
+@media (max-width: 768px){{
+  .sidebar-toggle-float {{
+    right: .75rem;
+    bottom: .75rem;
+  }}
+  .sidebar-toggle-float a {{
+    padding: 13px 14px;
+    font-size: 13px;
+  }}
+}}
+</style>
+<div class="sidebar-toggle-float">
+  <a href="?sidebar_action=toggle" aria-label="Toggle sidebar">{label}</a>
+</div>
 """,
-            unsafe_allow_html=True,
-        )
+        unsafe_allow_html=True,
+    )
 def render_topbar():
     """Topbar gọn (không trùng điều hướng sidebar) + dropdown tài khoản."""
     _ensure_nav_state()
@@ -4419,29 +4473,13 @@ def render_topbar():
 """,
             unsafe_allow_html=True,
         )
-        c1a, c1b = st.columns([1, 1], gap="small")
-        with c1a:
-            if st.button("🏠 Trang chủ", use_container_width=True, key="tb_home"):
-                st.session_state["show_quick_nav"] = False
-                st.session_state["sidebar_open"] = True
-                go("dashboard")
-        with c1b:
-            quick_label = "⚡ Ẩn nhanh" if st.session_state.get("show_quick_nav", False) else "⚡ Mở nhanh"
-            if st.button(quick_label, use_container_width=True, key="tb_quick"):
-                st.session_state["show_quick_nav"] = not st.session_state.get("show_quick_nav", False)
     with c2:
-        # Topbar chỉ để truy cập nhanh "Hướng dẫn" + tìm kiếm (không trùng menu sidebar)
-        cc1, cc2 = st.columns([1, 1], vertical_alignment="center")
-        with cc1:
-            st.text_input(
-                "Tìm kiếm nhanh",
-                placeholder="Tìm nhanh: 'ra đề', 'soạn bài', 'năng lực số'…",
-                key="global_search",
-                label_visibility="collapsed",
-            )
-        with cc2:
-            if st.button("📘 Hướng dẫn", use_container_width=True, key="tb_help"):
-                go("help")
+        st.text_input(
+            "Tìm kiếm nhanh",
+            placeholder="Tìm nhanh: 'ra đề', 'soạn bài', 'năng lực số'…",
+            key="global_search",
+            label_visibility="collapsed",
+        )
     with c3:
         if is_authed:
             with st.popover(f"👤 {fullname}", use_container_width=True):
@@ -5112,8 +5150,11 @@ def module_profile():
 # ENTRY POINT (PUBLIC HOME + LOGIN-ON-DEMAND + TOPBAR + SIDEBAR)
 # ==============================================================================
 _ensure_nav_state()
+st.session_state["show_quick_nav"] = False
+_consume_sidebar_toggle_query()
 # Topbar luôn hiển thị
 render_topbar()
+render_sidebar_toggle_floating()
 st.write("")  # spacing
 # Sidebar (hiển thị cả với khách)
 with st.sidebar:
