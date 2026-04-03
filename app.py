@@ -4419,12 +4419,16 @@ def render_topbar():
 """,
             unsafe_allow_html=True,
         )
-        c1a, _ = st.columns([1, 1], gap="small")
+        c1a, c1b = st.columns([1, 1], gap="small")
         with c1a:
             if st.button("🏠 Trang chủ", use_container_width=True, key="tb_home"):
                 st.session_state["show_quick_nav"] = False
                 st.session_state["sidebar_open"] = True
                 go("dashboard")
+        with c1b:
+            quick_label = "⚡ Ẩn nhanh" if st.session_state.get("show_quick_nav", False) else "⚡ Mở nhanh"
+            if st.button(quick_label, use_container_width=True, key="tb_quick"):
+                st.session_state["show_quick_nav"] = not st.session_state.get("show_quick_nav", False)
     with c2:
         # Topbar chỉ để truy cập nhanh "Hướng dẫn" + tìm kiếm (không trùng menu sidebar)
         cc1, cc2 = st.columns([1, 1], vertical_alignment="center")
@@ -4460,7 +4464,7 @@ def render_topbar():
             """
 <div class="card soft" style="margin-top:10px;">
   <b>☰ Menu nhanh</b>
-  <div class="small-muted" style="margin-top:6px;">Dùng khi màn hình nhỏ hoặc khi sidebar đang thu gọn.</div>
+  <div class="small-muted" style="margin-top:6px;">Dùng để mở nhanh các chức năng phổ biến, độc lập với sidebar.</div>
 </div>
 """,
             unsafe_allow_html=True,
@@ -4474,17 +4478,14 @@ def render_topbar():
         with q1:
             if st.button(quick_items[0][0], use_container_width=True, key="qn_home"):
                 st.session_state["show_quick_nav"] = False
-                st.session_state["sidebar_open"] = True
                 go(quick_items[0][1])
         with q2:
             if st.button(quick_items[1][0], use_container_width=True, key="qn_evidence"):
                 st.session_state["show_quick_nav"] = False
-                st.session_state["sidebar_open"] = True
                 go(quick_items[1][1])
         with q3:
             if st.button(quick_items[2][0], use_container_width=True, key="qn_mindmap"):
                 st.session_state["show_quick_nav"] = False
-                st.session_state["sidebar_open"] = True
                 go(quick_items[2][1])
 def _gemini_generate(prompt: str, system: str | None = None) -> str:
     api_key = _get_api_key_effective()
