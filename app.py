@@ -4381,18 +4381,61 @@ def is_admin_user() -> bool:
     return role == "admin"
 def _render_sidebar_visibility_css():
     sidebar_open = bool(st.session_state.get("sidebar_open", True))
-    css = """
-<style>
-section[data-testid="stSidebar"]{
-  display: block !important;
-}
-</style>
-"""
-    if not sidebar_open:
+    if sidebar_open:
         css = """
 <style>
 section[data-testid="stSidebar"]{
-  display: none !important;
+  width: 18rem !important;
+  min-width: 18rem !important;
+  max-width: 18rem !important;
+  overflow: hidden !important;
+  transform: translateX(0);
+  opacity: 1;
+  transition:
+    width .28s ease,
+    min-width .28s ease,
+    max-width .28s ease,
+    transform .28s ease,
+    opacity .18s ease;
+  will-change: width, transform, opacity;
+}
+
+section[data-testid="stMain"]{
+  margin-left: 18rem !important;
+  transition: margin-left .28s ease;
+}
+</style>
+"""
+    else:
+        css = """
+<style>
+section[data-testid="stSidebar"]{
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden !important;
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    width .28s ease,
+    min-width .28s ease,
+    max-width .28s ease,
+    transform .28s ease,
+    opacity .18s ease;
+  will-change: width, transform, opacity;
+}
+
+section[data-testid="stSidebar"] > div{
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden !important;
+}
+
+section[data-testid="stMain"]{
+  margin-left: 0 !important;
+  transition: margin-left .28s ease;
 }
 </style>
 """
@@ -4408,6 +4451,7 @@ def render_topbar():
     with c1:
         if st.button("☰", key="tb_sidebar_toggle", use_container_width=False, help="Ẩn/hiện sidebar"):
             st.session_state["sidebar_open"] = not bool(st.session_state.get("sidebar_open", True))
+            st.rerun()
         st.markdown(
             f"""
 <div style="display:flex;gap:10px;align-items:center;">
