@@ -4390,6 +4390,10 @@ section[data-testid="stSidebar"]{
   max-width: 18rem !important;
   overflow: visible !important;
 }
+
+section[data-testid="stMain"]{
+  margin-left: 18rem !important;
+}
 </style>
 """
     else:
@@ -4401,11 +4405,16 @@ section[data-testid="stSidebar"]{
   max-width: 0 !important;
   overflow: hidden !important;
 }
+
 section[data-testid="stSidebar"] > div{
   width: 0 !important;
   min-width: 0 !important;
   max-width: 0 !important;
   overflow: hidden !important;
+}
+
+section[data-testid="stMain"]{
+  margin-left: 0 !important;
 }
 </style>
 """
