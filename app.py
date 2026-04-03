@@ -385,13 +385,18 @@ def inject_premium_theme():
 /* Hide Streamlit chrome for a clean app shell */
 #MainMenu,
 footer,
-header,
 div[data-testid="stToolbar"],
 div[data-testid="stDecoration"],
-div[data-testid="stStatusWidget"],
-div[data-testid="stHeader"]{
+div[data-testid="stStatusWidget"]{
   display: none !important;
   visibility: hidden !important;
+}
+div[data-testid="stHeader"]{
+  display: block !important;
+  visibility: visible !important;
+}
+header{
+  background: transparent !important;
 }
 .block-container{ max-width: 1280px; padding-top: .95rem; padding-bottom: 2rem; padding-left: 1.1rem; padding-right: 1.1rem; }
 section[data-testid="stSidebar"]{
