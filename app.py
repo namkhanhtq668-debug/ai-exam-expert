@@ -413,21 +413,22 @@ div.block-container > div:first-child{
 section[data-testid="stSidebar"]{
   background: #F8FAFC;
   border-right: 1px solid #E2E8F0;
+  color: #334155;
 }
 .sb-brand{
-  display:flex; align-items:center; gap:10px;
-  padding: 10px 4px 6px 4px;
+  display:flex; align-items:center; gap:8px;
+  padding: 8px 2px 4px 2px;
 }
 .sb-logo{
-  width: 72px; height: 72px; border-radius: 0px;
+  width: 60px; height: 60px; border-radius: 0px;
   background: transparent;
   display:flex; align-items:center; justify-content:center;
   color: inherit; font-weight:800;
   box-shadow: none;
 }
 .sb-logo svg{display:block;}
-.sb-title{ font-weight: 800; line-height: 1.05; }
-.sb-sub{ color: var(--muted); font-size: 12px; margin-top: 2px; }
+.sb-title{ font-weight: 800; line-height: 1.05; font-size: 14px; color:#0f172a; }
+.sb-sub{ color: var(--muted); font-size: 11px; margin-top: 2px; }
 .hero{
   position: relative;
   overflow: hidden;
@@ -547,30 +548,30 @@ section[data-testid="stSidebar"]{
     font-size: 14px;
   }
   section[data-testid="stSidebar"]{
-    width: 260px !important;
+    width: 220px !important;
   }
   .sb-brand{
-    gap: 8px;
-    padding: 8px 2px 4px 2px;
+    gap: 6px;
+    padding: 6px 2px 3px 2px;
   }
   .sb-logo{
-    width: 56px;
-    height: 56px;
+    width: 50px;
+    height: 50px;
   }
   .sb-title{
-    font-size: 14px;
+    font-size: 13px;
   }
   .sb-sub{
-    font-size: 11px;
+    font-size: 10px;
   }
   section[data-testid="stSidebar"] .stRadio > div{
-    padding: 2px 4px 0 4px;
+    padding: 1px 3px 0 3px;
   }
   section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
-    padding: 8px 10px;
-    margin: 4px 0;
-    border-radius: 12px;
-    font-size: 13px;
+    padding: 6px 8px;
+    margin: 3px 0;
+    border-radius: 10px;
+    font-size: 12px;
   }
   .hero{
     border-radius: 16px;
@@ -736,14 +737,14 @@ section[data-testid="stSidebar"]{
 .ic6{ background: linear-gradient(135deg, #6366f1, #0ea5e9); }
 /* Sidebar radio -> nav list */
 section[data-testid="stSidebar"] .stRadio > div{
-  padding: 4px 6px 2px 6px;
+  padding: 2px 4px 1px 4px;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 14px;
-  padding: 10px 12px;
-  margin: 6px 0;
+  border-radius: 11px;
+  padding: 7px 9px;
+  margin: 3px 0;
   transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover{
@@ -752,21 +753,23 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover{
   background: #F1F5F9;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label p{
-  font-weight: 650;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.2;
   color: #334155;
   margin: 0;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div{
   background: #DBEAFE !important;
   border-color: #BFDBFE !important;
-  box-shadow: 0 14px 28px rgba(37,99,235,.14) !important;
+  box-shadow: 0 10px 20px rgba(37,99,235,.12) !important;
   position: relative;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div::before{
   content:"";
   position:absolute;
   left:-1px; top:-1px; bottom:-1px;
-  width: 6px;
+  width: 5px;
   border-radius: 14px 0 0 14px;
   background: #2563EB;
 }
@@ -4629,9 +4632,9 @@ def _render_sidebar_visibility_css():
         css = """
 <style>
 section[data-testid="stSidebar"]{
-  width: 18rem !important;
-  min-width: 18rem !important;
-  max-width: 18rem !important;
+  width: 15.5rem !important;
+  min-width: 15.5rem !important;
+  max-width: 15.5rem !important;
   overflow: hidden !important;
   transform: translateX(0);
   opacity: 1;
