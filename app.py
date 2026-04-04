@@ -5097,28 +5097,262 @@ def _render_chat_history(messages: list[dict]) -> None:
 def module_chat():
     _ensure_nav_state()
     user = st.session_state.get("user")
-    # Guest: cho demo 1 câu ở Chat; lần 2 yêu cầu login
-    st.markdown("## 💬 Chat AI")
-    st.caption("Hỏi AI như ChatGPT. Khách được dùng thử 1 câu. Đăng nhập để dùng đầy đủ.")
-    st.caption("AI chỉ hỗ trợ gợi ý nội dung giáo dục; giáo viên là người kiểm tra và quyết định nội dung sử dụng.")
+    # Guest: cho demo 1 c?u ? Chat; l?n 2 y?u c?u login
     st.session_state.setdefault("chat_messages", [])
     st.session_state.setdefault("chat_intent_hint", None)
+    st.session_state.setdefault("chat_quick_prompt", None)
     st.markdown(
         """
-<div style="margin:10px 0 14px 0; padding:12px 14px; border:1px solid rgba(91,92,246,.10); border-radius:18px;
-background: rgba(255,255,255,.72); box-shadow: 0 10px 22px rgba(2,6,23,.05);">
-  <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
-    <div style="font-size:13px; color:#0f172a; font-weight:700;">Khung hội thoại giáo dục</div>
-    <div class="small-muted" style="font-size:12px;">Soạn bài, ra đề, nhận xét, CTGDPT 2018, năng lực số</div>
+<style>
+  .chat-ui-shell .chat-hero {
+    margin: 10px 0 12px 0;
+    padding: 20px 20px 18px 20px;
+    border-radius: 22px;
+    border: 1px solid rgba(37,99,235,.12);
+    background:
+      radial-gradient(circle at top right, rgba(59,130,246,.10), transparent 32%),
+      linear-gradient(135deg, rgba(255,255,255,.99), rgba(244,247,255,.95));
+    box-shadow: 0 12px 28px rgba(15,23,42,.06);
+  }
+  .chat-ui-shell .chat-hero__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .chat-ui-shell .chat-ready-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(16,185,129,.10);
+    color: #047857;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .02em;
+  }
+  .chat-ui-shell .chat-ready-pill__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 4px rgba(16,185,129,.12);
+    display: inline-block;
+  }
+  .chat-ui-shell .chat-hero__title {
+    margin-top: 10px;
+    font-size: 28px;
+    line-height: 1.05;
+    font-weight: 950;
+    letter-spacing: -0.03em;
+    color: #0f172a;
+  }
+  .chat-ui-shell .chat-hero__sub {
+    margin-top: 8px;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.55;
+    max-width: 900px;
+  }
+  .chat-ui-shell .chat-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0 12px 0;
+  }
+  .chat-ui-shell .chat-strip__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(37,99,235,.10);
+    background: rgba(255,255,255,.92);
+    color: #334155;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .chat-ui-shell .chat-actions {
+    margin: 8px 0 12px 0;
+    padding: 14px 14px 12px 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(37,99,235,.08);
+    background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,255,.96));
+    box-shadow: 0 8px 18px rgba(15,23,42,.04);
+  }
+  .chat-ui-shell .chat-actions__label {
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: .02em;
+  }
+  .chat-ui-shell .chat-action-btn button {
+    border-radius: 14px !important;
+    border: 1px solid rgba(37,99,235,.12) !important;
+    background: rgba(255,255,255,.94) !important;
+    box-shadow: 0 4px 10px rgba(15,23,42,.04) !important;
+    min-height: 52px !important;
+    font-weight: 800 !important;
+  }
+  .chat-ui-shell .chat-action-btn button:hover {
+    border-color: rgba(37,99,235,.22) !important;
+    transform: translateY(-1px);
+  }
+  .chat-ui-shell .chat-helper-note {
+    margin-top: 10px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .chat-ui-shell .chat-empty-state {
+    margin: 12px 0 14px 0;
+    padding: 18px 18px 16px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(91,92,246,.12);
+    background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(242,244,255,.94));
+    box-shadow: 0 12px 24px rgba(2,6,23,.06);
+  }
+  .chat-ui-shell .chat-empty-state__icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(37,99,235,.12), rgba(14,165,233,.08));
+    color: #1d4ed8;
+    font-size: 18px;
+    font-weight: 900;
+    margin-bottom: 10px;
+  }
+  .chat-ui-shell .chat-empty-state__title {
+    font-size: 15px;
+    font-weight: 900;
+    color: #0f172a;
+  }
+  .chat-ui-shell .chat-empty-state__sub {
+    margin-top: 6px;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .chat-ui-shell .chat-empty-state__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .chat-ui-shell .chat-empty-state__item {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.92);
+    border: 1px solid rgba(37,99,235,.08);
+    color: #1e293b;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 700;
+  }
+  .chat-ui-shell .chat-empty-state__note {
+    margin-top: 10px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+  @media (max-width: 768px) {
+    .chat-ui-shell .chat-hero__title {
+      font-size: 22px;
+    }
+    .chat-ui-shell .chat-empty-state__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+<div class="chat-ui-shell">
+  <div class="chat-hero">
+    <div class="chat-hero__top">
+      <div style="min-width:0;">
+        <div class="chat-ready-pill">
+          <span class="chat-ready-pill__dot"></span>
+          AI READY
+        </div>
+        <div class="chat-hero__title">H?i nhanh, so?n nhanh, ra ?? nhanh</div>
+        <div class="chat-hero__sub">AIEXAM Chat h? tr? gi?o vi?n t?o gi?o ?n, ?? ki?m tra, nh?n x?t h?c sinh v? h?i theo t?i li?u v?i c?ch l?m g?n, r? v? chuy?n m?n.</div>
+      </div>
+    </div>
   </div>
 </div>
 """,
         unsafe_allow_html=True,
     )
-    _render_chat_history(st.session_state["chat_messages"])
-    prompt = st.chat_input("Nhập câu hỏi của bạn…")
+    st.markdown(
+        """
+<div class="chat-strip">
+  <span class="chat-strip__item">G?i ? s?n</span>
+  <span class="chat-strip__item">B?m CTGDPT 2018</span>
+  <span class="chat-strip__item">H? tr? gi?o vi?n</span>
+  <span class="chat-strip__item">B?o to?n ng? c?nh</span>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+<div class="chat-actions">
+  <div class="chat-actions__label">Ch?n m?t g?i ? nhanh</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+    quick_prompts = [
+        ("?? So?n gi?o ?n", "H?y so?n m?t gi?o ?n theo CTGDPT 2018 cho m?n To?n l?p 6, th?i l??ng 45 ph?t."),
+        ("?? Ra ?? ? KT?G", "T?o m?t ?? ki?m tra 15 ph?t m?n Ng? v?n l?p 8 k?m ??p ?n v? thang ?i?m."),
+        ("?? Nh?n x?t HS", "Vi?t nh?n x?t cu?i k? cho h?c sinh kh?, ch?m ch?, c?n c?i thi?n k? n?ng tr?nh b?y."),
+        ("?? N?ng l?c s?", "T?ch h?p m?t ho?t ??ng N?ng l?c s? v?o b?i d?y Ti?ng Anh THCS."),
+        ("?? H?i theo t?i li?u", "T?m t?t n?i dung t?i li?u n?y v? r?t ra 5 ? ch?nh cho gi?o vi?n."),
+    ]
+    qp_cols = st.columns(len(quick_prompts), gap="small")
+    for col, (label, value) in zip(qp_cols, quick_prompts):
+        with col:
+            st.markdown('<div class="chat-action-btn">', unsafe_allow_html=True)
+            if st.button(label, key=f"chat_qp_{label}", use_container_width=True):
+                st.session_state["chat_quick_prompt"] = value
+            st.markdown('</div>', unsafe_allow_html=True)
+    quick_prompt = st.session_state.get("chat_quick_prompt")
+    if quick_prompt:
+        prompt = quick_prompt
+        st.session_state["chat_quick_prompt"] = None
+    else:
+        prompt = st.chat_input("Nh?p y?u c?u: so?n gi?o ?n, t?o ??, nh?n x?t h?c sinh?")
+    if not st.session_state["chat_messages"]:
+        st.markdown(
+            """
+<div class="chat-empty-state">
+  <div class="chat-empty-state__icon">?</div>
+  <div class="chat-empty-state__title">AIEXAM Chat ?ang s?n s?ng</div>
+  <div class="chat-empty-state__sub">Ch?n m?t g?i ? b?n d??i ho?c nh?p y?u c?u c?a b?n ?? so?n b?i, ra ??, nh?n x?t, ho?c h?i theo t?i li?u.</div>
+  <div class="chat-empty-state__grid">
+    <div class="chat-empty-state__item">So?n gi?o ?n theo CTGDPT 2018</div>
+    <div class="chat-empty-state__item">T?o ma tr?n ?? v? ??c t?</div>
+    <div class="chat-empty-state__item">Nh?n x?t h?c sinh cu?i k?</div>
+  </div>
+  <div class="chat-empty-state__note">AI h? tr? g?i ?. Gi?o vi?n l? ng??i ki?m tra v? quy?t ??nh n?i dung s? d?ng.</div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+    else:
+        _render_chat_history(st.session_state["chat_messages"])
+    st.markdown(
+        """
+<div class="chat-helper-note">AI ch? h? tr? g?i ?. Gi?o vi?n l? ng??i ki?m tra, hi?u ch?nh v? quy?t ??nh s? d?ng n?i dung.</div>
+""",
+        unsafe_allow_html=True,
+    )
     if prompt:
-        # kiểm demo
+        # ki?m demo
         if (not user) and st.session_state.get("demo_used"):
             require_login("chat")
             return
@@ -5128,7 +5362,7 @@ background: rgba(255,255,255,.72); box-shadow: 0 10px 22px rgba(2,6,23,.05);">
         with st.chat_message("user"):
             st.markdown(prompt)
         with st.chat_message("assistant"):
-            with st.spinner("AI đang trả lời…"):
+            with st.spinner("AI ?ang tr? l?i?"):
                 limited_context = _build_limited_chat_context(
                     st.session_state["chat_messages"][:-1],
                     prompt,
@@ -5141,13 +5375,13 @@ background: rgba(255,255,255,.72); box-shadow: 0 10px 22px rgba(2,6,23,.05);">
         st.session_state["chat_messages"].append({"role": "assistant", "content": reply})
         if not user:
             st.session_state["demo_used"] = True
-            st.info("Bạn vừa dùng thử 1 câu. Đăng nhập để tiếp tục sử dụng đầy đủ.")
+            st.info("B?n v?a d?ng th? 1 c?u. ??ng nh?p ?? ti?p t?c s? d?ng ??y ??.")
     cols = st.columns([1,1,2])
     with cols[0]:
-        if st.button("🧹 Xóa chat", key="chat_clear"):
+        if st.button("?? X?a chat", key="chat_clear"):
             st.session_state["chat_messages"] = []
     with cols[1]:
-        if st.button("⬅️ Về Home", key="chat_home"):
+        if st.button("?? V? Home", key="chat_home"):
             go("dashboard")
 def module_doc_ai():
     _ensure_nav_state()
