@@ -5074,18 +5074,18 @@ def _render_chat_history(messages: list[dict]) -> None:
     if not messages:
         st.markdown(
             """
-<div style="margin:12px 0 14px 0; padding:16px 16px 14px 16px; border:1px solid rgba(91,92,246,.12); border-radius:18px;
-            background: linear-gradient(135deg, rgba(255,255,255,.92), rgba(242,244,255,.92));
-            box-shadow: 0 12px 24px rgba(2,6,23,.06);">
-  <div style="font-weight:800; color:#0f172a; margin-bottom:8px;">Bắt đầu nhanh</div>
-  <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
-    <span class="hero-badge">Soạn giáo án theo CTGDPT 2018</span>
-    <span class="hero-badge">Tạo ma trận đề và đặc tả</span>
-    <span class="hero-badge">Nhận xét học sinh cuối kỳ</span>
+<div class="chat-empty-state">
+  <div class="chat-empty-state__icon">✦</div>
+  <div class="chat-empty-state__title">AIEXAM Chat đang sẵn sàng</div>
+  <div class="chat-empty-state__sub">
+    Chọn một gợi ý bên dưới hoặc nhập yêu cầu của bạn để soạn bài, ra đề, nhận xét, hoặc hỏi theo tài liệu.
   </div>
-  <div class="small-muted" style="font-size:13px; line-height:1.55;">
-    Khung chat sẵn sàng. Hãy nhập câu hỏi để bắt đầu trao đổi.
+  <div class="chat-empty-state__grid">
+    <div class="chat-empty-state__item">Soạn giáo án theo CTGDPT 2018</div>
+    <div class="chat-empty-state__item">Tạo ma trận đề và đặc tả</div>
+    <div class="chat-empty-state__item">Nhận xét học sinh cuối kỳ</div>
   </div>
+  <div class="chat-empty-state__note">AI hỗ trợ gợi ý. Giáo viên là người kiểm tra và quyết định nội dung sử dụng.</div>
 </div>
 """,
             unsafe_allow_html=True,
@@ -5097,7 +5097,7 @@ def _render_chat_history(messages: list[dict]) -> None:
 def module_chat():
     _ensure_nav_state()
     user = st.session_state.get("user")
-    # Guest: cho demo 1 c?u ? Chat; l?n 2 y?u c?u login
+    # Guest: cho demo 1 câu ở Chat; lần 2 yêu cầu login
     st.session_state.setdefault("chat_messages", [])
     st.session_state.setdefault("chat_intent_hint", None)
     st.session_state.setdefault("chat_quick_prompt", None)
@@ -5278,8 +5278,8 @@ def module_chat():
           <span class="chat-ready-pill__dot"></span>
           AI READY
         </div>
-        <div class="chat-hero__title">H?i nhanh, so?n nhanh, ra ?? nhanh</div>
-        <div class="chat-hero__sub">AIEXAM Chat h? tr? gi?o vi?n t?o gi?o ?n, ?? ki?m tra, nh?n x?t h?c sinh v? h?i theo t?i li?u v?i c?ch l?m g?n, r? v? chuy?n m?n.</div>
+        <div class="chat-hero__title">Hỏi nhanh, soạn nhanh, ra đề nhanh</div>
+        <div class="chat-hero__sub">AIEXAM Chat hỗ trợ giáo viên tạo giáo án, đề kiểm tra, nhận xét học sinh và hỏi theo tài liệu với cách làm gọn, rõ và chuyên môn.</div>
       </div>
     </div>
   </div>
@@ -5290,10 +5290,10 @@ def module_chat():
     st.markdown(
         """
 <div class="chat-strip">
-  <span class="chat-strip__item">G?i ? s?n</span>
-  <span class="chat-strip__item">B?m CTGDPT 2018</span>
-  <span class="chat-strip__item">H? tr? gi?o vi?n</span>
-  <span class="chat-strip__item">B?o to?n ng? c?nh</span>
+  <span class="chat-strip__item">Gợi ý sẵn</span>
+  <span class="chat-strip__item">Bám CTGDPT 2018</span>
+  <span class="chat-strip__item">Hỗ trợ giáo viên</span>
+  <span class="chat-strip__item">Bảo toàn ngữ cảnh</span>
 </div>
 """,
         unsafe_allow_html=True,
@@ -5301,17 +5301,17 @@ def module_chat():
     st.markdown(
         """
 <div class="chat-actions">
-  <div class="chat-actions__label">Ch?n m?t g?i ? nhanh</div>
+  <div class="chat-actions__label">Chọn một gợi ý nhanh</div>
 </div>
 """,
         unsafe_allow_html=True,
     )
     quick_prompts = [
-        ("?? So?n gi?o ?n", "H?y so?n m?t gi?o ?n theo CTGDPT 2018 cho m?n To?n l?p 6, th?i l??ng 45 ph?t."),
-        ("?? Ra ?? ? KT?G", "T?o m?t ?? ki?m tra 15 ph?t m?n Ng? v?n l?p 8 k?m ??p ?n v? thang ?i?m."),
-        ("?? Nh?n x?t HS", "Vi?t nh?n x?t cu?i k? cho h?c sinh kh?, ch?m ch?, c?n c?i thi?n k? n?ng tr?nh b?y."),
-        ("?? N?ng l?c s?", "T?ch h?p m?t ho?t ??ng N?ng l?c s? v?o b?i d?y Ti?ng Anh THCS."),
-        ("?? H?i theo t?i li?u", "T?m t?t n?i dung t?i li?u n?y v? r?t ra 5 ? ch?nh cho gi?o vi?n."),
+        ("📘 Soạn giáo án", "Hãy soạn một giáo án theo CTGDPT 2018 cho môn Toán lớp 6, thời lượng 45 phút."),
+        ("🧾 Ra đề – KTĐG", "Tạo một đề kiểm tra 15 phút môn Ngữ văn lớp 8 kèm đáp án và thang điểm."),
+        ("🧠 Nhận xét HS", "Viết nhận xét cuối kỳ cho học sinh khá, chăm chỉ, cần cải thiện kỹ năng trình bày."),
+        ("💻 Năng lực số", "Tích hợp một hoạt động Năng lực số vào bài dạy Tiếng Anh THCS."),
+        ("📄 Hỏi theo tài liệu", "Tóm tắt nội dung tài liệu này và rút ra 5 ý chính cho giáo viên."),
     ]
     qp_cols = st.columns(len(quick_prompts), gap="small")
     for col, (label, value) in zip(qp_cols, quick_prompts):
@@ -5320,39 +5320,21 @@ def module_chat():
             if st.button(label, key=f"chat_qp_{label}", use_container_width=True):
                 st.session_state["chat_quick_prompt"] = value
             st.markdown('</div>', unsafe_allow_html=True)
+    _render_chat_history(st.session_state["chat_messages"])
     quick_prompt = st.session_state.get("chat_quick_prompt")
     if quick_prompt:
         prompt = quick_prompt
         st.session_state["chat_quick_prompt"] = None
     else:
-        prompt = st.chat_input("Nh?p y?u c?u: so?n gi?o ?n, t?o ??, nh?n x?t h?c sinh?")
-    if not st.session_state["chat_messages"]:
-        st.markdown(
-            """
-<div class="chat-empty-state">
-  <div class="chat-empty-state__icon">?</div>
-  <div class="chat-empty-state__title">AIEXAM Chat ?ang s?n s?ng</div>
-  <div class="chat-empty-state__sub">Ch?n m?t g?i ? b?n d??i ho?c nh?p y?u c?u c?a b?n ?? so?n b?i, ra ??, nh?n x?t, ho?c h?i theo t?i li?u.</div>
-  <div class="chat-empty-state__grid">
-    <div class="chat-empty-state__item">So?n gi?o ?n theo CTGDPT 2018</div>
-    <div class="chat-empty-state__item">T?o ma tr?n ?? v? ??c t?</div>
-    <div class="chat-empty-state__item">Nh?n x?t h?c sinh cu?i k?</div>
-  </div>
-  <div class="chat-empty-state__note">AI h? tr? g?i ?. Gi?o vi?n l? ng??i ki?m tra v? quy?t ??nh n?i dung s? d?ng.</div>
-</div>
-""",
-            unsafe_allow_html=True,
-        )
-    else:
-        _render_chat_history(st.session_state["chat_messages"])
+        prompt = st.chat_input("Nhập yêu cầu: soạn giáo án, tạo đề, nhận xét học sinh…")
     st.markdown(
         """
-<div class="chat-helper-note">AI ch? h? tr? g?i ?. Gi?o vi?n l? ng??i ki?m tra, hi?u ch?nh v? quy?t ??nh s? d?ng n?i dung.</div>
+    <div class="chat-helper-note">AI chỉ hỗ trợ gợi ý. Giáo viên là người kiểm tra, hiệu chỉnh và quyết định sử dụng nội dung.</div>
 """,
         unsafe_allow_html=True,
     )
     if prompt:
-        # ki?m demo
+        # kiểm demo
         if (not user) and st.session_state.get("demo_used"):
             require_login("chat")
             return
@@ -5362,7 +5344,7 @@ def module_chat():
         with st.chat_message("user"):
             st.markdown(prompt)
         with st.chat_message("assistant"):
-            with st.spinner("AI ?ang tr? l?i?"):
+            with st.spinner("AI đang trả lời…"):
                 limited_context = _build_limited_chat_context(
                     st.session_state["chat_messages"][:-1],
                     prompt,
@@ -5375,13 +5357,13 @@ def module_chat():
         st.session_state["chat_messages"].append({"role": "assistant", "content": reply})
         if not user:
             st.session_state["demo_used"] = True
-            st.info("B?n v?a d?ng th? 1 c?u. ??ng nh?p ?? ti?p t?c s? d?ng ??y ??.")
+            st.info("Bạn vừa dùng thử 1 câu. Đăng nhập để tiếp tục sử dụng đầy đủ.")
     cols = st.columns([1,1,2])
     with cols[0]:
-        if st.button("?? X?a chat", key="chat_clear"):
+        if st.button("🧹 Xóa chat", key="chat_clear"):
             st.session_state["chat_messages"] = []
     with cols[1]:
-        if st.button("?? V? Home", key="chat_home"):
+        if st.button("⬅️ Về Home", key="chat_home"):
             go("dashboard")
 def module_doc_ai():
     _ensure_nav_state()
