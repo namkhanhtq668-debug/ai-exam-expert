@@ -5098,25 +5098,63 @@ def module_chat():
     _ensure_nav_state()
     user = st.session_state.get("user")
     # Guest: cho demo 1 câu ở Chat; lần 2 yêu cầu login
-    st.markdown("## 💬 Chat AI")
-    st.caption("Hỏi AI như ChatGPT. Khách được dùng thử 1 câu. Đăng nhập để dùng đầy đủ.")
-    st.caption("AI chỉ hỗ trợ gợi ý nội dung giáo dục; giáo viên là người kiểm tra và quyết định nội dung sử dụng.")
     st.session_state.setdefault("chat_messages", [])
     st.session_state.setdefault("chat_intent_hint", None)
+    st.session_state.setdefault("chat_quick_prompt", None)
     st.markdown(
         """
-<div style="margin:10px 0 14px 0; padding:12px 14px; border:1px solid rgba(91,92,246,.10); border-radius:18px;
-background: rgba(255,255,255,.72); box-shadow: 0 10px 22px rgba(2,6,23,.05);">
-  <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
-    <div style="font-size:13px; color:#0f172a; font-weight:700;">Khung hội thoại giáo dục</div>
-    <div class="small-muted" style="font-size:12px;">Soạn bài, ra đề, nhận xét, CTGDPT 2018, năng lực số</div>
+<div class="card" style="margin:10px 0 14px 0; padding:18px 18px 16px 18px; border-radius:18px; border:1px solid rgba(37,99,235,.10); background:linear-gradient(135deg, rgba(255,255,255,.98), rgba(244,247,255,.96)); box-shadow:0 10px 24px rgba(15,23,42,.06);">
+  <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+    <div style="min-width:0;">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+        <span style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:rgba(16,185,129,.10); color:#047857; font-size:11px; font-weight:800; letter-spacing:.02em;">
+          <span style="width:8px; height:8px; border-radius:50%; background:#10b981; box-shadow:0 0 0 4px rgba(16,185,129,.12); display:inline-block;"></span>
+          AI READY
+        </span>
+        <span class="small-muted" style="font-size:12px;">Trợ lý AI giáo dục cho giáo viên Việt Nam</span>
+      </div>
+      <div style="font-size:25px; line-height:1.08; font-weight:900; letter-spacing:-0.02em; color:#0f172a;">
+        Hỏi nhanh, soạn nhanh, ra đề nhanh
+      </div>
+      <div style="margin-top:8px; color:#475569; font-size:14px; line-height:1.5; max-width:860px;">
+        Tạo giáo án, đề kiểm tra, nhận xét học sinh hoặc hỏi theo tài liệu. Chọn một gợi ý bên dưới hoặc nhập câu hỏi của bạn.
+      </div>
+    </div>
   </div>
 </div>
 """,
         unsafe_allow_html=True,
     )
+    st.session_state.setdefault("chat_messages", [])
+    st.markdown(
+        """
+<div style="display:flex; flex-wrap:wrap; gap:8px; margin: 2px 0 10px 0;">
+  <span class="hero-badge" style="background:rgba(37,99,235,.10); color:#1d4ed8;">Gợi ý sẵn</span>
+  <span class="hero-badge" style="background:rgba(14,165,233,.10); color:#0369a1;">Bám CTGDPT 2018</span>
+  <span class="hero-badge" style="background:rgba(16,185,129,.10); color:#047857;">Hỗ trợ giáo viên</span>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+    quick_prompts = [
+        ("📘 Soạn giáo án", "Hãy soạn một giáo án theo CTGDPT 2018 cho môn Toán lớp 6, thời lượng 45 phút."),
+        ("🧾 Ra đề – KTĐG", "Tạo một đề kiểm tra 15 phút môn Ngữ văn lớp 8 kèm đáp án và thang điểm."),
+        ("🧠 Nhận xét HS", "Viết nhận xét cuối kỳ cho học sinh khá, chăm chỉ, cần cải thiện kỹ năng trình bày."),
+        ("💻 Năng lực số", "Tích hợp một hoạt động Năng lực số vào bài dạy Tiếng Anh THCS."),
+        ("📄 Hỏi theo tài liệu", "Tóm tắt nội dung tài liệu này và rút ra 5 ý chính cho giáo viên."),
+    ]
+    qp_cols = st.columns(len(quick_prompts), gap="small")
+    for col, (label, value) in zip(qp_cols, quick_prompts):
+        with col:
+            if st.button(label, key=f"chat_qp_{label}", use_container_width=True):
+                st.session_state["chat_quick_prompt"] = value
     _render_chat_history(st.session_state["chat_messages"])
-    prompt = st.chat_input("Nhập câu hỏi của bạn…")
+    quick_prompt = st.session_state.get("chat_quick_prompt")
+    if quick_prompt:
+        prompt = quick_prompt
+        st.session_state["chat_quick_prompt"] = None
+    else:
+        prompt = st.chat_input("Nhập câu hỏi của bạn…")
     if prompt:
         # kiểm demo
         if (not user) and st.session_state.get("demo_used"):
