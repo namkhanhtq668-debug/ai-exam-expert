@@ -4701,9 +4701,28 @@ def render_topbar():
             st.rerun()
         st.markdown(
             f"""
+<style>
+  .avatar-container {{
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: none;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }}
+
+  .avatar-container:hover {{
+    transform: scale(1.05);
+  }}
+</style>
 <div style="display:flex;gap:10px;align-items:center;">
-  <div style="width:52px;height:52px;border-radius:14px;background:transparent;box-shadow:none;overflow:visible;">
-    {logo_svg(52)}
+  <div class="avatar-container">
+    {logo_svg(40)}
   </div>
   <div>
     <div style="font-weight:900;line-height:1.05;">AIEXAM.VN</div>
