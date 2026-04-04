@@ -4732,20 +4732,20 @@ def render_topbar():
         """
 <style>
   section[data-testid="stHeader"] div[data-testid="stTextInput"]{
-    max-width: 46%;
+    max-width: 42%;
     margin: 0 auto;
   }
   section[data-testid="stHeader"] div[data-testid="stTextInput"] input{
-    min-height: 38px;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    font-size: 13px;
+    min-height: 36px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    font-size: 12.5px;
   }
   section[data-testid="stHeader"] .stButton > button[key="tb_login"],
   section[data-testid="stHeader"] .stButton > button[data-testid="baseButton-primary"]{
-    padding: 0.38rem 0.8rem;
-    min-height: 38px;
-    font-size: 13px;
+    padding: 0.32rem 0.72rem;
+    min-height: 36px;
+    font-size: 12.5px;
   }
 </style>
 """,
