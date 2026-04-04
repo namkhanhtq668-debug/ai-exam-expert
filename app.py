@@ -4936,9 +4936,29 @@ def render_topbar():
     if st.session_state.get("show_quick_nav", False):
         st.markdown(
             """
+<style>
+  .quick-nav-panel {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: max-height .28s ease, opacity .22s ease, transform .28s ease;
+    will-change: max-height, opacity, transform;
+  }
+  .quick-nav-panel.is-open {
+    max-height: 260px;
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .quick-nav-panel .card.soft {
+    margin-top: 10px;
+  }
+</style>
+<div class="quick-nav-panel is-open">
 <div class="card soft" style="margin-top:10px;">
   <b>☰ Menu nhanh</b>
   <div class="small-muted" style="margin-top:6px;">Dùng để mở nhanh các chức năng phổ biến, độc lập với sidebar.</div>
+</div>
 </div>
 """,
             unsafe_allow_html=True,
