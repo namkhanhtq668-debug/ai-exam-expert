@@ -428,10 +428,10 @@ section[data-testid="stSidebar"]{
   position: relative;
   overflow: hidden;
   background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  border-radius: 18px;
-  padding: 30px 28px;
+  border-radius: 14px;
+  padding: 16px 18px;
   border: 1px solid rgba(255,255,255,.16);
-  box-shadow: 0 18px 36px rgba(59,130,246,.18), 0 10px 24px rgba(139,92,246,.12);
+  box-shadow: 0 10px 22px rgba(59,130,246,.14), 0 6px 14px rgba(139,92,246,.08);
 }
 .hero::before{
   content:"";
@@ -447,8 +447,8 @@ section[data-testid="stSidebar"]{
   display:inline-flex;
   align-items:center;
   gap:8px;
-  margin-bottom:12px;
-  padding:6px 12px;
+  margin-bottom:10px;
+  padding:5px 10px;
   border-radius:999px;
   background: rgba(255,255,255,.14);
   border: 1px solid rgba(255,255,255,.20);
@@ -462,21 +462,21 @@ section[data-testid="stSidebar"]{
   z-index: 1;
 }
 .hero-titlebox{
-  margin-top: 8px;
-  padding: 16px 18px;
-  border-radius: 18px;
+  margin-top: 4px;
+  padding: 9px 12px;
+  border-radius: 14px;
   background: rgba(255,255,255,.10);
   border: 1px solid rgba(255,255,255,.18);
-  border-left: 6px solid rgba(255,255,255,.35);
-  box-shadow: 0 10px 24px rgba(15,23,42,.08);
+  border-left: 4px solid rgba(255,255,255,.35);
+  box-shadow: 0 6px 14px rgba(15,23,42,.07);
   position: relative;
   z-index: 1;
 }
 .hero h1{
   margin: 0;
-  font-size: clamp(30px, 3vw, 42px);
+  font-size: clamp(20px, 2vw, 28px);
   font-weight: 900;
-  line-height: 1.03;
+  line-height: 1.12;
   letter-spacing: -0.045em;
   color: #ffffff;
   max-width: 100%;
@@ -489,35 +489,35 @@ section[data-testid="stSidebar"]{
   color: rgba(255,255,255,.88);
 }
 .hero p{
-  margin: 12px 0 0 0;
-  font-size: 15px;
-  line-height: 1.5;
+  margin: 8px 0 0 0;
+  font-size: 13px;
+  line-height: 1.4;
   position: relative;
   z-index: 1;
 }
 .hero-badges{
-  display:flex; flex-wrap:wrap; gap:10px;
-  margin-top: 14px;
+  display:flex; flex-wrap:wrap; gap:6px;
+  margin-top: 8px;
   position: relative;
   z-index: 1;
 }
 .hero-badge{
   display:inline-flex; align-items:center; gap:6px;
-  padding: 7px 12px;
+  padding: 5px 9px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,.22);
   background: rgba(255,255,255,.16);
   color: #ffffff;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: .02em;
   box-shadow: 0 8px 18px rgba(15,23,42,.08);
   backdrop-filter: blur(8px);
 }
 .hero-cta{
-  margin-top: 10px;
+  margin-top: 6px;
   color: rgba(255,255,255,.82);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   position: relative;
   z-index: 1;
@@ -569,25 +569,25 @@ section[data-testid="stSidebar"]{
   }
   .hero{
     border-radius: 16px;
-    padding: 20px 16px;
+    padding: 16px 14px;
   }
   .hero-titlebox{
-    padding: 12px 14px;
+    padding: 10px 12px;
     border-radius: 14px;
   }
   .hero h1{
-    font-size: clamp(24px, 6vw, 30px);
+    font-size: clamp(22px, 5.3vw, 28px);
   }
   .hero p{
-    font-size: 14px;
+    font-size: 13px;
   }
   .hero-badges{
-    gap: 8px;
-    margin-top: 12px;
+    gap: 6px;
+    margin-top: 10px;
   }
   .hero-badge{
-    padding: 6px 10px;
-    font-size: 10px;
+    padding: 5px 9px;
+    font-size: 9px;
   }
 }
 .glass{
