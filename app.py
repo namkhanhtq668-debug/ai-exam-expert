@@ -24,7 +24,7 @@ except Exception:  # pragma: no cover
     bcrypt = None
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
 from docx.oxml.ns import qn
-from docx.shared import Pt
+from docx.shared import Pt, Cm
 # === Brand logo (SVG, transparent) ===
 # ===== Brand logo (PNG) =====
 # Keep helper name `logo_svg()` for compatibility across the app.
@@ -1335,6 +1335,8 @@ class _SimpleHTMLToDocxParser(HTMLParser):
             style = "Heading 1"
         elif self.current_block == "h2":
             style = "Heading 2"
+        elif self.current_block == "h3":
+            style = "Heading 3"
         para = self.document.add_paragraph(style=style)
         if self.current_block == "li":
             para.add_run("• ")
@@ -1380,7 +1382,7 @@ class _SimpleHTMLToDocxParser(HTMLParser):
             return
         if self.ignore_depth:
             return
-        if tag in ("h1", "h2", "p", "li"):
+        if tag in ("h1", "h2", "h3", "p", "li"):
             self._flush_block()
             self.current_block = tag
             return
@@ -1416,7 +1418,7 @@ class _SimpleHTMLToDocxParser(HTMLParser):
         if tag in ("b", "strong"):
             self.bold_depth = max(0, self.bold_depth - 1)
             return
-        if tag in ("h1", "h2", "p", "li"):
+        if tag in ("h1", "h2", "h3", "p", "li"):
             self._flush_block()
             return
         if tag in ("td", "th") and self.in_table:
@@ -1441,17 +1443,7 @@ class _SimpleHTMLToDocxParser(HTMLParser):
 def create_docx_from_html(html: str, title: str) -> bytes:
     doc = docx.Document()
     doc.core_properties.title = title or ""
-    for style_name in ("Normal", "Heading 1", "Heading 2", "Table Grid"):
-        try:
-            style = doc.styles[style_name]
-            style.font.name = "Times New Roman"
-            style.font.size = Pt(13)
-            try:
-                style._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
-            except Exception:
-                pass
-        except Exception:
-            pass
+    _configure_docx_branding(doc, title)
     parser = _SimpleHTMLToDocxParser(doc)
     parser.feed(html or "")
     parser.close()
@@ -1482,6 +1474,60 @@ def _render_ul(items) -> str:
         return "<ul><li>...</li></ul>"
     lis = "".join([f"<li>{_html_escape(x)}</li>" for x in items if str(x).strip()])
     return f"<ul>{lis or '<li>...</li>'}</ul>"
+def _configure_docx_branding(document: docx.Document, title: str) -> None:
+    try:
+        section = document.sections[0]
+        section.page_width = Cm(21)
+        section.page_height = Cm(29.7)
+        section.top_margin = Cm(2)
+        section.bottom_margin = Cm(2)
+        section.left_margin = Cm(2.5)
+        section.right_margin = Cm(2)
+        header = section.header
+        header_p = header.paragraphs[0]
+        header_p.text = "AIEXAM"
+        header_p.alignment = 1
+        for run in header_p.runs:
+            run.font.name = "Times New Roman"
+            run.font.size = Pt(9)
+            run.bold = True
+            try:
+                run._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
+            except Exception:
+                pass
+        footer = section.footer
+        footer_p = footer.paragraphs[0]
+        footer_p.text = "AIEXAM | Nền tảng AI cho giáo viên"
+        footer_p.alignment = 1
+        for run in footer_p.runs:
+            run.font.name = "Times New Roman"
+            run.font.size = Pt(9)
+            try:
+                run._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
+            except Exception:
+                pass
+    except Exception:
+        pass
+    styles_to_size = {
+        "Normal": (13, False),
+        "Heading 1": (14, True),
+        "Heading 2": (13, True),
+        "Heading 3": (13, True),
+        "Table Grid": (13, False),
+    }
+    for style_name, (size, bold) in styles_to_size.items():
+        try:
+            style = document.styles[style_name]
+            style.font.name = "Times New Roman"
+            style.font.size = Pt(size)
+            try:
+                style._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
+            except Exception:
+                pass
+            if hasattr(style, "font"):
+                style.font.bold = bold if style_name.startswith("Heading") else False
+        except Exception:
+            pass
 def render_lesson_plan_html(data: dict) -> str:
     """Render lesson plan JSON (meta + sections) -> printable HTML (A4) theo bảng 2 cột GV/HS."""
     data = data or {}
