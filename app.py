@@ -402,13 +402,13 @@ div[data-testid="stHeader"]{
 header{
   background: transparent !important;
 }
-.block-container{ max-width: 1280px; padding-top: .95rem; padding-bottom: 2rem; padding-left: 1.1rem; padding-right: 1.1rem; }
+.block-container{ max-width: 1440px; padding-top: .85rem; padding-bottom: 1.75rem; padding-left: .85rem; padding-right: .85rem; }
 div.block-container > div:first-child{
   position: sticky;
   top: .5rem;
   z-index: 999;
   background: var(--bg);
-  padding-top: .25rem;
+  padding-top: .15rem;
 }
 section[data-testid="stSidebar"]{
   background: #F8FAFC;
@@ -434,10 +434,10 @@ section[data-testid="stSidebar"]{
   overflow: hidden;
   background: linear-gradient(135deg, #0f62fe 0%, #6d28d9 52%, #06b6d4 100%);
   background-size: 140% 140%;
-  border-radius: 18px;
-  padding: 22px 22px 20px;
+  border-radius: 16px;
+  padding: 18px 18px 16px;
   border: 1px solid rgba(255,255,255,.14);
-  box-shadow: 0 18px 34px rgba(15, 23, 42, .12), 0 8px 20px rgba(37, 99, 235, .16);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, .10), 0 6px 16px rgba(37, 99, 235, .14);
 }
 .hero::before{
   content:"";
@@ -453,8 +453,8 @@ section[data-testid="stSidebar"]{
   display:inline-flex;
   align-items:center;
   gap:8px;
-  margin-bottom:12px;
-  padding:6px 12px;
+  margin-bottom:10px;
+  padding:5px 10px;
   border-radius:999px;
   background: rgba(255,255,255,.14);
   border: 1px solid rgba(255,255,255,.20);
@@ -468,9 +468,9 @@ section[data-testid="stSidebar"]{
   z-index: 1;
 }
 .hero-titlebox{
-  margin-top: 6px;
-  padding: 12px 14px;
-  border-radius: 16px;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
   background: rgba(255,255,255,.10);
   border: 1px solid rgba(255,255,255,.18);
   border-left: 4px solid rgba(255,255,255,.40);
@@ -480,10 +480,10 @@ section[data-testid="stSidebar"]{
 }
 .hero h1{
   margin: 0;
-  font-size: clamp(24px, 2.7vw, 36px);
+  font-size: clamp(22px, 2.35vw, 32px);
   font-weight: 900;
-  line-height: 1.08;
-  letter-spacing: -0.05em;
+  line-height: 1.06;
+  letter-spacing: -0.045em;
   color: #ffffff;
   max-width: 100%;
 }
@@ -495,44 +495,44 @@ section[data-testid="stSidebar"]{
   color: rgba(255,255,255,.88);
 }
 .hero p{
-  margin: 10px 0 0 0;
-  font-size: 14px;
-  line-height: 1.5;
+  margin: 8px 0 0 0;
+  font-size: 13px;
+  line-height: 1.45;
   position: relative;
   z-index: 1;
 }
 .hero-badges{
   display:flex; flex-wrap:wrap; gap:6px;
-  margin-top: 10px;
+  margin-top: 8px;
   position: relative;
   z-index: 1;
 }
 .hero-badge{
   display:inline-flex; align-items:center; gap:6px;
-  padding: 6px 10px;
+  padding: 5px 9px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,.22);
   background: rgba(255,255,255,.16);
   color: #ffffff;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: .02em;
   box-shadow: 0 8px 18px rgba(15,23,42,.08);
   backdrop-filter: blur(8px);
 }
 .hero-cta{
-  margin-top: 8px;
+  margin-top: 6px;
   color: rgba(255,255,255,.82);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   position: relative;
   z-index: 1;
 }
 @media (max-width: 768px){
   .block-container{
-    padding-left: .75rem;
-    padding-right: .75rem;
-    padding-top: .75rem;
+    padding-left: .65rem;
+    padding-right: .65rem;
+    padding-top: .65rem;
   }
   div[data-testid="stHorizontalBlock"]{
     flex-direction: column !important;
@@ -574,29 +574,29 @@ section[data-testid="stSidebar"]{
     font-size: 12px;
   }
   .hero{
-    border-radius: 16px;
-    padding: 18px 16px 16px;
+    border-radius: 14px;
+    padding: 14px 14px 13px;
   }
   .hero-titlebox{
-    padding: 11px 12px;
-    border-radius: 14px;
+    padding: 9px 11px;
+    border-radius: 12px;
   }
   .hero h1{
-    font-size: clamp(24px, 5.8vw, 30px);
+    font-size: clamp(21px, 5.4vw, 28px);
   }
   .hero p{
-    font-size: 13px;
+    font-size: 12px;
   }
   .hero-badges{
-    gap: 6px;
-    margin-top: 10px;
+    gap: 5px;
+    margin-top: 8px;
   }
   .hero-badge{
-    padding: 5px 9px;
+    padding: 4px 8px;
     font-size: 9px;
   }
   .hero-cta{
-    font-size: 11px;
+    font-size: 10px;
   }
 }
 .glass{
