@@ -402,10 +402,10 @@ div[data-testid="stHeader"]{
 header{
   background: transparent !important;
 }
-.block-container{ max-width: 1440px; padding-top: .45rem; padding-bottom: 1.5rem; padding-left: .85rem; padding-right: .85rem; }
+.block-container{ max-width: 1440px; padding-top: .15rem; padding-bottom: 1.5rem; padding-left: .85rem; padding-right: .85rem; }
 div.block-container > div:first-child{
   position: sticky;
-  top: .2rem;
+  top: 0rem;
   z-index: 999;
   background: var(--bg);
   padding-top: 0;
