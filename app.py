@@ -411,8 +411,8 @@ div.block-container > div:first-child{
   padding-top: .25rem;
 }
 section[data-testid="stSidebar"]{
-  background: var(--sidebar);
-  border-right: 1px solid rgba(15,23,42,.08);
+  background: #F8FAFC;
+  border-right: 1px solid #E2E8F0;
 }
 .sb-brand{
   display:flex; align-items:center; gap:10px;
@@ -739,8 +739,8 @@ section[data-testid="stSidebar"] .stRadio > div{
   padding: 4px 6px 2px 6px;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
-  background: rgba(255,255,255,.78);
-  border: 1px solid rgba(37,99,235,.10);
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
   border-radius: 14px;
   padding: 10px 12px;
   margin: 6px 0;
@@ -749,16 +749,17 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover{
   transform: translateY(-1px);
   box-shadow: 0 12px 24px rgba(2,6,23,.10);
-  background: rgba(255,255,255,.94);
+  background: #F1F5F9;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label p{
   font-weight: 650;
+  color: #334155;
   margin: 0;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div{
-  background: var(--primary-soft) !important;
-  border-color: rgba(37,99,235,.38) !important;
-  box-shadow: 0 14px 28px rgba(37,99,235,.18) !important;
+  background: #DBEAFE !important;
+  border-color: #BFDBFE !important;
+  box-shadow: 0 14px 28px rgba(37,99,235,.14) !important;
   position: relative;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div::before{
@@ -767,7 +768,13 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked +
   left:-1px; top:-1px; bottom:-1px;
   width: 6px;
   border-radius: 14px 0 0 14px;
-  background: linear-gradient(180deg, #6d28d9, #2563eb);
+  background: #2563EB;
+}
+.stSidebar, section[data-testid="stSidebar"]{
+  color: #334155;
+}
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div p{
+  color: #2563EB;
 }
 /* Make Streamlit buttons look premium inside cards only */
 .card .stButton > button,
