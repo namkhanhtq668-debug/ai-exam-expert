@@ -1099,6 +1099,7 @@ st.markdown(textwrap.dedent('''
 # ==============================================================================
 # 4. HÀM XỬ LÝ LOGIC
 # ==============================================================================
+@st.cache_resource(show_spinner=False)
 def init_supabase():
     try:
         if not SUPABASE_URL or not SUPABASE_KEY:
