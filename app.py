@@ -778,7 +778,6 @@ def go(page_key: str):
     # Programmatic navigation: also sync sidebar highlight
     st.session_state["current_page"] = page_key
     st.session_state["_sync_sidebar_menu"] = True
-    st.rerun()
 inject_premium_theme()
 # ==============================================================================
 # [MỚI] DỮ LIỆU NĂNG LỰC SỐ (TỪ FILE constants.ts CỦA THẦY)
@@ -1949,7 +1948,6 @@ def forgot_password_ui(supabase):
     with c2:
         if st.button("Quay lại đăng nhập", key="forgot_back_btn"):
             st.session_state["show_forgot"] = False
-            st.rerun()
 # ==============================================================================
 # [MỚI - ĐÃ SỬA LỖI JSON] MODULE QUẢN LÝ YÊU CẦU CẦN ĐẠT (KHÔNG CẦN FILE JSON)
 # ==============================================================================
@@ -2708,13 +2706,11 @@ def main_app():
             st.session_state['dossier'] = [] 
             st.toast("Đã làm mới hệ thống!", icon="🧹")
             time.sleep(0.5)
-            st.rerun()
             
     # Nút ĐĂNG XUẤT
     with c3:
         if st.button("ĐĂNG XUẤT", use_container_width=True):
             st.session_state.pop('user', None)
-            st.rerun()
     # --- CẬP NHẬT TAB MỚI: THÊM '🎯 ĐỀ CHUẨN YCCĐ' ---
     tabs = st.tabs(["🚀 THIẾT LẬP", "📄 XEM ĐỀ", "✅ ĐÁP ÁN", "⚖️ PHÁP LÝ", "📂 HỒ SƠ", "🎯 ĐỀ CHUẨN YCCĐ"])
     # --- TAB 1: THIẾT LẬP ---
@@ -3036,7 +3032,6 @@ def main_app():
                     if st.button("↩️ Hủy chỉnh sửa", use_container_width=True, key=f"cancel_exam_{curr['id']}"):
                         st.session_state["exam_edit_mode"] = False
                         st.session_state["exam_edit_text"] = curr_exam_edit_text
-                        st.rerun()
 
             approve_col1, approve_col2 = st.columns([1, 3])
             with approve_col1:
@@ -3125,7 +3120,6 @@ def main_app():
                             st.session_state['dossier'] = saved_exams
                             st.success(f"Đã tải {len(saved_exams)} đề từ kho lưu trữ!")
                             time.sleep(1)
-                            st.rerun()
                         else: st.info("Bạn chưa lưu đề nào.")
                     except Exception: st.error("Lỗi tải lịch sử.")
             
@@ -3584,7 +3578,6 @@ def login_screen():
                         st.error(f"Lỗi đăng nhập: {e}")
             if st.button("Quên mật khẩu", key="forgot_password_toggle"):
                 st.session_state["show_forgot"] = True
-                st.rerun()
         # ======================
         # TAB ĐĂNG KÝ
         # ======================
@@ -3902,7 +3895,6 @@ def dashboard_screen():
                         st.session_state["user"]["points"] = updates['points']
                     st.balloons()
                     st.success("✅ Kích hoạt VIP thành công! Điểm đã được cộng (nếu DB có cột points).")
-                    st.rerun()
     with st.expander("💰 CHƯƠNG TRÌNH ĐỐI TÁC (AFFILIATE)", expanded=False):
         if not client or not username:
             st.warning("Bạn cần đăng nhập để xem chương trình đối tác.")
@@ -4698,7 +4690,6 @@ def render_topbar():
     with c1:
         if st.button("☰", key="tb_sidebar_toggle", use_container_width=False, help="Ẩn/hiện sidebar"):
             st.session_state["sidebar_open"] = not bool(st.session_state.get("sidebar_open", True))
-            st.rerun()
         st.markdown(
             f"""
 <style>
@@ -5155,7 +5146,6 @@ background: rgba(255,255,255,.72); box-shadow: 0 10px 22px rgba(2,6,23,.05);">
     with cols[0]:
         if st.button("🧹 Xóa chat", key="chat_clear"):
             st.session_state["chat_messages"] = []
-            st.rerun()
     with cols[1]:
         if st.button("⬅️ Về Home", key="chat_home"):
             go("dashboard")
@@ -5633,7 +5623,6 @@ with st.sidebar:
         if st.button("🚪 Đăng xuất", use_container_width=True, key="sb_logout"):
             st.session_state.pop("user", None)
             st.session_state["current_page"] = "dashboard"
-            st.rerun()
     else:
         st.markdown("""<div class="card soft">
 <b>👋 Chào mừng!</b>
@@ -5642,7 +5631,6 @@ with st.sidebar:
         if st.button("🔐 Đăng nhập", type="primary", use_container_width=True, key="sb_login"):
             st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
             st.session_state["current_page"] = "login"
-            st.rerun()
 # ROUTER
 page = st.session_state.get("current_page", "dashboard")
 # Login page
