@@ -4816,16 +4816,92 @@ def render_topbar():
             pts = user.get("points", 0)
             st.markdown(
                 f"""
-<div class="user-chip">
-  <div class="user-chip__avatar">👤</div>
-  <div class="user-chip__body">
-    <div class="user-chip__name">{html_lib.escape(str(fullname))}</div>
-    <div class="user-chip__sub">
-      <span class="user-chip__badge">{html_lib.escape(role)}</span>
-      <span>{pts} điểm</span>
-    </div>
+<style>
+  .profile-card-shell {{
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }}
+
+  .profile-card {{
+    width: fit-content;
+    max-width: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(245,248,255,.96));
+    border: 1px solid rgba(37,99,235,.08);
+    box-shadow: 0 6px 14px rgba(15,23,42,.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }}
+
+  .profile-card:hover {{
+    transform: translateY(-1px);
+    border-color: rgba(37,99,235,.14);
+    box-shadow: 0 8px 18px rgba(15,23,42,.07);
+  }}
+
+  .profile-card__avatar {{
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(37,99,235,.12), rgba(14,165,233,.08));
+  }}
+
+  .profile-card__body {{
+    min-width: 0;
+    flex: 1 1 auto;
+  }}
+
+  .profile-card__name {{
+    font-size: 13px;
+    line-height: 1.15;
+    font-weight: 850;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }}
+
+  .profile-card__meta {{
+    margin-top: 3px;
+    font-size: 11px;
+    line-height: 1.2;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }}
+
+  .profile-card__chev {{
+    flex: 0 0 auto;
+    color: #94a3b8;
+    font-size: 16px;
+    line-height: 1;
+    font-weight: 700;
+    margin-left: 0;
+  }}
+</style>
+<div class="profile-card-shell">
+<div class="profile-card">
+  <div class="profile-card__avatar">
+    {logo_svg(34)}
   </div>
-  <div class="user-chip__chev">⌄</div>
+  <div class="profile-card__body">
+    <div class="profile-card__name">{html_lib.escape(str(fullname))}</div>
+    <div class="profile-card__meta">{html_lib.escape(role)} • AIEXAM</div>
+  </div>
+  <div class="profile-card__chev">⌄</div>
+</div>
 </div>
 """,
                 unsafe_allow_html=True,
