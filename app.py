@@ -3490,14 +3490,17 @@ def dashboard_screen():
                 else:
                     go("advisor")
         st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown(f"""
-<div class="pills">
-  <span class="pill">💬 Chat/Tư vấn</span>
-  <span class="pill">📝 Ra đề – KTĐG</span>
-  <span class="pill">📘 Soạn giáo án</span>
-  <span class="pill">💻 Năng lực số</span>
-</div>
-""", unsafe_allow_html=True)
+        quick_pills = [
+            ("💬 Chat/Tư vấn", "chat"),
+            ("📝 Ra đề – KTĐG", "exam"),
+            ("📘 Soạn giáo án", "lesson_plan"),
+            ("💻 Năng lực số", "digital"),
+        ]
+        pill_cols = st.columns(4, gap="small")
+        for col, (label, page_key) in zip(pill_cols, quick_pills):
+            with col:
+                if st.button(label, key=f"dash_quick_{page_key}", use_container_width=True):
+                    go(page_key)
     st.write("")
     # Stat cards
     s1, s2, s3 = st.columns(3, gap="small")
@@ -4453,9 +4456,8 @@ def _handle_global_search(search_text: str | None = None):
     ]
     for keywords, page_key in route_map:
         if any(k in q for k in keywords):
-            st.session_state["current_page"] = page_key
             st.session_state["global_search"] = ""
-            st.rerun()
+            go(page_key)
 def render_topbar():
     """Topbar gọn (không trùng điều hướng sidebar) + dropdown tài khoản."""
     _ensure_nav_state()
@@ -5200,7 +5202,7 @@ with st.sidebar:
         st.session_state["_sync_sidebar_menu"] = False
     def _on_sidebar_nav_change():
         label = st.session_state.get("sidebar_menu_main", current_label)
-        st.session_state["current_page"] = page_map.get(label, "dashboard")
+        go(page_map.get(label, "dashboard"))
     menu_label = st.radio(
         "Điều hướng",
         list(page_map.keys()),
