@@ -4621,7 +4621,18 @@ section[data-testid="stSidebar"]{
     max-width .28s ease,
     transform .28s ease,
     opacity .18s ease;
-  will-change: width, transform, opacity;
+    will-change: width, transform, opacity;
+}
+section[data-testid="stSidebar"] > div,
+section[data-testid="stSidebar"] > div:first-child,
+section[data-testid="stSidebar"] [data-testid="stSidebarContent"],
+section[data-testid="stSidebar"] [data-testid="stSidebarNav"]{
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  opacity: 1 !important;
+  transform: translateX(0) !important;
 }
 
 </style>
@@ -4651,6 +4662,17 @@ section[data-testid="stSidebar"] > div{
   min-width: 0 !important;
   max-width: 0 !important;
   overflow: hidden !important;
+}
+section[data-testid="stSidebar"] > div:first-child,
+section[data-testid="stSidebar"] [data-testid="stSidebarContent"],
+section[data-testid="stSidebar"] [data-testid="stSidebarNav"]{
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  transform: translateX(-100%) !important;
+  pointer-events: none !important;
 }
 
 </style>
@@ -4690,6 +4712,7 @@ def render_topbar():
     with c1:
         if st.button("☰", key="tb_sidebar_toggle", use_container_width=False, help="Ẩn/hiện sidebar"):
             st.session_state["sidebar_open"] = not bool(st.session_state.get("sidebar_open", True))
+            st.rerun()
         st.markdown(
             f"""
 <style>
@@ -5847,7 +5870,8 @@ def module_profile():
 # ENTRY POINT (PUBLIC HOME + LOGIN-ON-DEMAND + TOPBAR + SIDEBAR)
 # ==============================================================================
 _ensure_nav_state()
-st.session_state["show_quick_nav"] = False
+# Admin luôn thấy Menu nhanh ở topbar
+st.session_state["show_quick_nav"] = is_admin_user()
 # Topbar luôn hiển thị
 render_topbar()
 st.write("")  # spacing
