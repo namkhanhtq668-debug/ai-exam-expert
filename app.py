@@ -4621,7 +4621,18 @@ section[data-testid="stSidebar"]{
     max-width .28s ease,
     transform .28s ease,
     opacity .18s ease;
-  will-change: width, transform, opacity;
+    will-change: width, transform, opacity;
+}
+section[data-testid="stSidebar"] > div,
+section[data-testid="stSidebar"] > div:first-child,
+section[data-testid="stSidebar"] [data-testid="stSidebarContent"],
+section[data-testid="stSidebar"] [data-testid="stSidebarNav"]{
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  opacity: 1 !important;
+  transform: translateX(0) !important;
 }
 
 </style>
@@ -4651,6 +4662,17 @@ section[data-testid="stSidebar"] > div{
   min-width: 0 !important;
   max-width: 0 !important;
   overflow: hidden !important;
+}
+section[data-testid="stSidebar"] > div:first-child,
+section[data-testid="stSidebar"] [data-testid="stSidebarContent"],
+section[data-testid="stSidebar"] [data-testid="stSidebarNav"]{
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  transform: translateX(-100%) !important;
+  pointer-events: none !important;
 }
 
 </style>
@@ -4690,6 +4712,7 @@ def render_topbar():
     with c1:
         if st.button("☰", key="tb_sidebar_toggle", use_container_width=False, help="Ẩn/hiện sidebar"):
             st.session_state["sidebar_open"] = not bool(st.session_state.get("sidebar_open", True))
+            st.rerun()
         st.markdown(
             f"""
 <style>
@@ -5504,68 +5527,137 @@ def module_mindmap():
                     branch_rule = "4 nhánh chính, mỗi nhánh 2–4 ý phụ, đầy đủ nhưng gọn."
                 core_topic = inp.strip()
                 prompt = f"""
-Bạn là chuyên gia sư phạm và thiết kế học liệu giáo dục phổ thông.
-Nhiệm vụ: Từ tài liệu hoặc chủ đề được cung cấp, hãy trích xuất và hệ thống hóa kiến thức thành một sơ đồ tư duy (Mindmap) phục vụ cho việc trình chiếu và ôn tập.
+Bạn là chuyên gia giáo dục tiểu học theo CTGDPT 2018 và là trợ lý AI hỗ trợ giáo viên.
+
+Nhiệm vụ:
+Tạo sơ đồ tư duy (mindmap) dạng cây, phục vụ trực tiếp cho dạy học, đảm bảo có giá trị sử dụng thực tế trong lớp học.
 
 Thông tin đầu vào:
 - Môn học: {mon_hoc or "Chưa nhập"}
 - Lớp: {lop or "Chưa nhập"}
-- Chủ đề/Tài liệu cốt lõi: {core_topic[:12000]}
-- Yêu cầu cấp độ: {so_cap_do} (giới hạn đúng 3 hoặc 4 cấp độ)
+- Nội dung/chủ đề: {core_topic[:12000]}
+- Mục đích sử dụng: {mindmap_style} ({mindmap_goal})
+- Mức độ chi tiết: {so_cap_do} (ngắn / trung bình / chi tiết)
+- Số nhánh gợi ý: {branch_rule}
 
 Yêu cầu bắt buộc:
-- Bám sát chương trình GDPT 2018, phản ánh đúng trọng tâm và Yêu cầu cần đạt.
-- Từ khóa ở mỗi nhánh phải cực kỳ ngắn gọn, tối đa 5-7 từ/nhánh, phù hợp học sinh tiểu học.
-- Xuất kết quả dưới dạng cấu trúc Markdown (Bulleted list) để hệ thống phần mềm có thể tự động vẽ biểu đồ trực quan.
-- Tuyệt đối không sinh thêm văn bản giải thích thừa.
+1. Cấu trúc mindmap rõ ràng, logic:
+- Có tiêu đề trung tâm ở dạng nhánh gốc
+- Các nhánh chính (ý lớn)
+- Nhánh con (ý chi tiết)
+- Sắp xếp theo trình tự dễ dạy – dễ học
 
-Ràng buộc chuyên môn:
-- Giữ ngôn ngữ sư phạm, rõ nghĩa, dễ hiểu.
-- Sắp xếp nhánh theo logic học tập từ khái quát đến cụ thể.
-- Nếu nội dung quá dài, ưu tiên rút gọn nhưng không mất ý chính.
+2. Bám chuẩn CTGDPT 2018:
+- Xác định mục tiêu bài học ngắn gọn, đúng trọng tâm
+- Tổ chức nội dung theo 3 mức:
+  - Nhận biết
+  - Thông hiểu
+  - Vận dụng
 
-Chủ đề hiện tại:
-{core_topic[:12000]}
+3. Hỗ trợ trực tiếp cho dạy học:
+Với mỗi nhánh chính, bổ sung:
+- 1–2 câu hỏi gợi mở cho học sinh
+- 1 hoạt động học tập đơn giản (thảo luận, luyện tập, trò chơi…)
+
+4. Tùy biến theo mục đích:
+- Soạn bài → rõ cấu trúc nội dung + tiến trình
+- Ôn tập → hệ thống hóa, dễ ghi nhớ
+- Trình chiếu → ngắn gọn, rõ ý
+- Hoạt động nhóm → có nhiệm vụ cụ thể cho học sinh
+
+5. Điều chỉnh theo mức độ chi tiết:
+- Ngắn → chỉ ý chính
+- Trung bình → có giải thích ngắn
+- Chi tiết → đầy đủ nhánh + ví dụ + hoạt động
+
+6. Ngôn ngữ:
+- Chuẩn sư phạm, dễ hiểu với giáo viên tiểu học
+- Rõ ràng, không lan man, không dùng từ quá học thuật
+
+7. Định dạng đầu ra (BẮT BUỘC):
+- Chỉ trả về mindmap dạng cây bằng Markdown
+- Dùng dấu "-" và thụt đầu dòng
+- Không giải thích thêm ngoài mindmap
+- Không thêm tiêu đề thừa hoặc mô tả ngoài sơ đồ
+- Bắt đầu ngay bằng nhánh trung tâm ở dòng đầu tiên
 """
                 raw_out = _gemini_generate(prompt)
                 out = (raw_out or "").strip()
                 # Nếu model lạc sang dàn ý/prose, tự sửa lại theo đúng cây Markdown trước khi hiển thị.
                 def _mindmap_is_valid(markdown_text: str) -> bool:
-                    lines = [ln.strip() for ln in (markdown_text or "").splitlines() if ln.strip()]
+                    lines = [ln.rstrip() for ln in (markdown_text or "").splitlines() if ln.strip()]
                     if not lines:
                         return False
-                    if not lines[0].startswith("# "):
+                    if not lines[0].startswith("- "):
                         return False
-                    branch_lines = [ln for ln in lines if ln.startswith("- ")]
-                    sub_lines = [ln for ln in lines if ln.startswith("  - ")]
-                    return len(branch_lines) >= 2 and len(sub_lines) >= 4
+                    branch_lines = [ln for ln in lines[1:] if ln.startswith("  - ")]
+                    sub_lines = [ln for ln in lines[1:] if ln.startswith("    - ")]
+                    return len(branch_lines) >= 3 and len(sub_lines) >= 3
 
                 if not _mindmap_is_valid(out):
                     repair_prompt = f"""
+Bạn là chuyên gia giáo dục tiểu học theo CTGDPT 2018 và là trợ lý AI hỗ trợ giáo viên.
+
 Chuyển nội dung sau thành mindmap Markdown cây đúng nghĩa cho giáo viên.
 Chỉ xuất ra Markdown, không giải thích, không thêm đoạn văn.
 Phải có:
-- 1 tiêu đề dạng # ...
-- 1 chủ đề trung tâm
+- 1 nhánh trung tâm ở dòng đầu tiên
 - tối đa 4 nhánh chính
 - mỗi nhánh theo đúng mục đích: {mindmap_style}
+- ưu tiên tổ chức theo 3 mức: Nhận biết - Thông hiểu - Vận dụng
 - từ khóa ngắn, không câu dài
-- có thể thêm 1 dòng "Gợi ý sử dụng: ..." ngắn ở cuối
+- với mỗi nhánh chính, nếu phù hợp, thêm 1–2 câu hỏi gợi mở và 1 hoạt động học tập đơn giản
+- không thêm tiêu đề thừa hoặc mô tả ngoài sơ đồ
 
 Nội dung cần sửa:
 {raw_out}
 """
                     out = _gemini_generate(repair_prompt).strip() or out
-                if out and not out.startswith("# "):
+                if out and not _mindmap_is_valid(out):
                     topic_line = topic or "Mindmap"
                     if mindmap_style == "trình chiếu":
-                        out = f"# {topic_line}\n\n- {topic_line}\n  - Ý 1\n  - Ý 2\n  - Ý 3\n\nGợi ý sử dụng: Dùng trên slide."
+                        out = (
+                            f"- {topic_line}\n"
+                            f"  - Nhận biết\n"
+                            f"    - Ý 1\n"
+                            f"    - Ý 2\n"
+                            f"  - Thông hiểu\n"
+                            f"    - Ý 3\n"
+                            f"  - Vận dụng\n"
+                            f"    - Ý 4"
+                        )
                     elif mindmap_style == "hoạt động nhóm":
-                        out = f"# {topic_line}\n\n- {topic_line}\n  - Nhiệm vụ 1\n  - Nhiệm vụ 2\n  - Nhiệm vụ 3\n  - Nhiệm vụ 4\n\nGợi ý sử dụng: Giao nhóm thảo luận."
+                        out = (
+                            f"- {topic_line}\n"
+                            f"  - Nhận biết\n"
+                            f"    - Nhiệm vụ 1\n"
+                            f"  - Thông hiểu\n"
+                            f"    - Nhiệm vụ 2\n"
+                            f"    - Nhiệm vụ 3\n"
+                            f"  - Vận dụng\n"
+                            f"    - Nhiệm vụ 4"
+                        )
                     elif mindmap_style == "ôn tập":
-                        out = f"# {topic_line}\n\n- {topic_line}\n  - Trọng tâm 1\n  - Trọng tâm 2\n  - Trọng tâm 3\n\nGợi ý sử dụng: Ôn nhanh trước giờ học."
+                        out = (
+                            f"- {topic_line}\n"
+                            f"  - Nhận biết\n"
+                            f"    - Trọng tâm 1\n"
+                            f"  - Thông hiểu\n"
+                            f"    - Trọng tâm 2\n"
+                            f"  - Vận dụng\n"
+                            f"    - Trọng tâm 3"
+                        )
                     else:
-                        out = f"# {topic_line}\n\n- {topic_line}\n  - Ý chính 1\n  - Ý chính 2\n  - Ý chính 3\n  - Ý chính 4\n\nGợi ý sử dụng: Dùng trực tiếp trên lớp."
+                        out = (
+                            f"- {topic_line}\n"
+                            f"  - Nhận biết\n"
+                            f"    - Ý chính 1\n"
+                            f"    - Ý chính 2\n"
+                            f"  - Thông hiểu\n"
+                            f"    - Ý chính 3\n"
+                            f"  - Vận dụng\n"
+                            f"    - Ý chính 4"
+                        )
             st.markdown(out)
             st.download_button("⬇️ Tải mindmap (.md)", data=out.encode("utf-8"), file_name="mindmap.md", mime="text/markdown", use_container_width=True)
 # ==============================================================================
@@ -5778,7 +5870,8 @@ def module_profile():
 # ENTRY POINT (PUBLIC HOME + LOGIN-ON-DEMAND + TOPBAR + SIDEBAR)
 # ==============================================================================
 _ensure_nav_state()
-st.session_state["show_quick_nav"] = False
+# Admin luôn thấy Menu nhanh ở topbar
+st.session_state["show_quick_nav"] = is_admin_user()
 # Topbar luôn hiển thị
 render_topbar()
 st.write("")  # spacing
