@@ -1274,35 +1274,6 @@ def clean_json(text):
         if end_idx != -1: return text[:end_idx+1]
         return text
 # [CẬP NHẬT] Hàm tạo File Word chuẩn Font XML VÀ CÓ BẢNG
-def create_word_doc(html, title):
-    doc_content = f"""
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-    <head>
-        <meta charset='utf-8'>
-        <title>{title}</title>
-        <xml>
-            <w:WordDocument>
-                <w:View>Print</w:View>
-                <w:Zoom>100</w:Zoom>
-                <w:DoNotOptimizeForBrowser/>
-            </w:WordDocument>
-        </xml>
-        <style>
-            @page {{ size: 21cm 29.7cm; margin: 2cm 2cm 2cm 2cm; mso-page-orientation: portrait; }}
-            body {{ font-family: 'Times New Roman', serif; font-size: 13pt; line-height: 1.3; }}
-            p, div, span, li, td, th {{ font-family: 'Times New Roman', serif; mso-ascii-font-family: 'Times New Roman'; mso-hansi-font-family: 'Times New Roman'; color: #000000; }}
-            table {{ border-collapse: collapse; width: 100%; border: 1px solid black; }}
-            td, th {{ border: 1px solid black; padding: 5px; vertical-align: top; }}
-        </style>
-    </head>
-    <body>
-        <div class="WordSection1">
-            {html}
-        </div>
-    </body>
-    </html>
-    """
-    return "\ufeff" + doc_content
 class _SimpleHTMLToDocxParser(HTMLParser):
     def __init__(self, document):
         super().__init__(convert_charrefs=False)
