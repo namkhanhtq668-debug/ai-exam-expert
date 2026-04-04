@@ -16,12 +16,15 @@ import secrets
 from datetime import datetime, timezone, timedelta
 import requests
 import random
+from html.parser import HTMLParser
 from typing import Any, cast
 try:
     import bcrypt  # pyright: ignore[reportMissingImports]
 except Exception:  # pragma: no cover
     bcrypt = None
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
+from docx.oxml.ns import qn
+from docx.shared import Pt
 # === Brand logo (SVG, transparent) ===
 # ===== Brand logo (PNG) =====
 # Keep helper name `logo_svg()` for compatibility across the app.
@@ -1300,6 +1303,196 @@ def create_word_doc(html, title):
     </html>
     """
     return "\ufeff" + doc_content
+class _SimpleHTMLToDocxParser(HTMLParser):
+    def __init__(self, document):
+        super().__init__(convert_charrefs=False)
+        self.document = document
+        self.current_block = None
+        self.current_segments = []
+        self.bold_depth = 0
+        self.ignore_depth = 0
+        self.in_table = False
+        self.in_cell = False
+        self.current_cell_segments = []
+        self.current_row = []
+        self.table_rows = []
+
+    def _target_segments(self):
+        if self.in_table and self.in_cell:
+            return self.current_cell_segments
+        if self.current_block:
+            return self.current_segments
+        return None
+
+    def _append_text(self, text: str):
+        if not text:
+            return
+        target = self._target_segments()
+        if target is None:
+            if text.strip():
+                self.current_block = "p"
+                target = self.current_segments
+            else:
+                return
+        target.append((text, self.bold_depth > 0))
+
+    def _write_segments(self, paragraph, segments):
+        for text, bold in segments:
+            if not text:
+                continue
+            pieces = str(text).split("\n")
+            for idx, piece in enumerate(pieces):
+                if piece:
+                    run = paragraph.add_run(piece)
+                    run.bold = bool(bold)
+                    run.font.name = "Times New Roman"
+                    run.font.size = Pt(13)
+                    try:
+                        run._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
+                    except Exception:
+                        pass
+                if idx < len(pieces) - 1:
+                    paragraph.add_run().add_break()
+
+    def _flush_block(self):
+        if not self.current_block or not self.current_segments:
+            self.current_block = None
+            self.current_segments = []
+            return
+        style = "Normal"
+        if self.current_block == "h1":
+            style = "Heading 1"
+        elif self.current_block == "h2":
+            style = "Heading 2"
+        para = self.document.add_paragraph(style=style)
+        if self.current_block == "li":
+            para.add_run("• ")
+        self._write_segments(para, self.current_segments)
+        self.current_block = None
+        self.current_segments = []
+
+    def _close_cell(self):
+        if self.in_cell:
+            self.current_row.append(self.current_cell_segments[:])
+            self.current_cell_segments = []
+            self.in_cell = False
+
+    def _close_row(self):
+        self._close_cell()
+        if self.current_row:
+            self.table_rows.append(self.current_row[:])
+            self.current_row = []
+
+    def _flush_table(self):
+        self._close_row()
+        if not self.table_rows:
+            return
+        max_cols = max((len(r) for r in self.table_rows), default=0)
+        if max_cols <= 0:
+            self.table_rows = []
+            return
+        table = self.document.add_table(rows=len(self.table_rows), cols=max_cols)
+        table.style = "Table Grid"
+        for r_idx, row in enumerate(self.table_rows):
+            for c_idx in range(max_cols):
+                cell = table.cell(r_idx, c_idx)
+                cell.text = ""
+                para = cell.paragraphs[0]
+                if c_idx < len(row):
+                    self._write_segments(para, row[c_idx])
+        self.table_rows = []
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        if tag in ("script", "style"):
+            self.ignore_depth += 1
+            return
+        if self.ignore_depth:
+            return
+        if tag in ("h1", "h2", "p", "li"):
+            self._flush_block()
+            self.current_block = tag
+            return
+        if tag == "br":
+            self._append_text("\n")
+            return
+        if tag in ("b", "strong"):
+            self.bold_depth += 1
+            return
+        if tag == "table":
+            self._flush_block()
+            self.in_table = True
+            self.table_rows = []
+            self.current_row = []
+            self.in_cell = False
+            return
+        if tag == "tr" and self.in_table:
+            self._close_row()
+            self.current_row = []
+            return
+        if tag in ("td", "th") and self.in_table:
+            self._close_cell()
+            self.in_cell = True
+            self.current_cell_segments = []
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if tag in ("script", "style"):
+            self.ignore_depth = max(0, self.ignore_depth - 1)
+            return
+        if self.ignore_depth:
+            return
+        if tag in ("b", "strong"):
+            self.bold_depth = max(0, self.bold_depth - 1)
+            return
+        if tag in ("h1", "h2", "p", "li"):
+            self._flush_block()
+            return
+        if tag in ("td", "th") and self.in_table:
+            self._close_cell()
+            return
+        if tag == "tr" and self.in_table:
+            self._close_row()
+            return
+        if tag == "table" and self.in_table:
+            self._flush_table()
+            self.in_table = False
+            self.in_cell = False
+
+    def handle_data(self, data):
+        if self.ignore_depth:
+            return
+        text = html_lib.unescape(data or "")
+        if not text.strip() and "\n" not in text:
+            return
+        self._append_text(text)
+
+def create_docx_from_html(html: str, title: str) -> bytes:
+    doc = docx.Document()
+    doc.core_properties.title = title or ""
+    for style_name in ("Normal", "Heading 1", "Heading 2", "Table Grid"):
+        try:
+            style = doc.styles[style_name]
+            style.font.name = "Times New Roman"
+            style.font.size = Pt(13)
+            try:
+                style._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
+            except Exception:
+                pass
+        except Exception:
+            pass
+    parser = _SimpleHTMLToDocxParser(doc)
+    parser.feed(html or "")
+    parser.close()
+    parser._flush_block()
+    if parser.in_table:
+        parser._flush_table()
+    if not doc.paragraphs:
+        doc.add_paragraph("")
+    bio = io.BytesIO()
+    doc.save(bio)
+    bio.seek(0)
+    return bio.getvalue()
 # ==============================================================================
 # [PATCH 3/3] RENDER HTML TỪ JSON (BẢNG 2 CỘT GV/HS) - KHÓA MẪU
 # ==============================================================================
@@ -2872,22 +3065,22 @@ def main_app():
                 st.markdown(f"""<div class="paper-view">{preview_html}</div>""", unsafe_allow_html=True)
                 footer = f"<br/><center><p>{APP_CONFIG['name']}</p></center>"
                 if is_admin or user.get('role') == 'pro': 
-                    st.download_button("⬇️ Tải Đề (.doc)", create_word_doc(preview_html + footer, curr['title']), f"De_{curr['id']}.doc", type="primary")
+                    st.download_button("⬇️ Tải Đề (.docx)", create_docx_from_html(preview_html + footer, curr['title']), f"De_{curr['id']}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", type="primary")
                 else: st.warning("🔒 Nâng cấp PRO để tải file Word")
             
             with st2:
                 st.markdown(curr.get('matrixHtml', 'Không có dữ liệu ma trận'), unsafe_allow_html=True)
-                if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Ma trận", create_word_doc(curr['matrixHtml'], "MaTran"), f"MaTran_{curr['id']}.doc")
+                if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Ma trận (.docx)", create_docx_from_html(curr['matrixHtml'], "MaTran"), f"MaTran_{curr['id']}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
             with st3:
                 st.markdown(curr.get('specHtml', 'Không có dữ liệu đặc tả'), unsafe_allow_html=True)
-                if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Đặc tả", create_word_doc(curr['specHtml'], "DacTa"), f"DacTa_{curr['id']}.doc")
+                if is_admin or user.get('role') == 'pro': st.download_button("⬇️ Tải Đặc tả (.docx)", create_docx_from_html(curr['specHtml'], "DacTa"), f"DacTa_{curr['id']}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
     # --- TAB 3: ĐÁP ÁN ---
     with tabs[2]:
         if st.session_state['dossier']:
             curr = st.session_state['dossier'][sel]
             if is_admin or user.get('role') == 'pro':
                 st.markdown(f"""<div class="paper-view">{curr.get('answers','Chưa có đáp án')}</div>""", unsafe_allow_html=True)
-                st.download_button("⬇️ Tải Đáp án (.doc)", create_word_doc(curr.get('answers',''), "DapAn"), f"DA_{curr['id']}.doc")
+                st.download_button("⬇️ Tải Đáp án (.docx)", create_docx_from_html(curr.get('answers',''), "DapAn"), f"DA_{curr['id']}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
             else: st.info("🔒 Nâng cấp PRO để xem và tải Đáp án chi tiết.")
         else: st.info("Chưa có dữ liệu.")
     # --- TAB 4: PHÁP LÝ ---
@@ -4353,10 +4546,10 @@ def module_lesson_plan():
         c1, c2 = st.columns(2)
         with c1:
             st.download_button(
-                "⬇️ Tải Word (.doc)",
-                data=create_word_doc(html, st.session_state.get(_lp2_key("title"), "GiaoAn")),
-                file_name=f"{st.session_state.get(_lp2_key('title'),'GiaoAn')}.doc",
-                mime="application/msword",
+                "⬇️ Tải Word (.docx)",
+                data=create_docx_from_html(html, st.session_state.get(_lp2_key("title"), "GiaoAn")),
+                file_name=f"{st.session_state.get(_lp2_key('title'),'GiaoAn')}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 type="primary",
                 use_container_width=True,
                 key=_lp2_key("dl_doc"),
