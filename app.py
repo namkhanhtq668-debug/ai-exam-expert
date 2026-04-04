@@ -4728,6 +4728,29 @@ def render_topbar():
     """Topbar gọn (không trùng điều hướng sidebar) + dropdown tài khoản."""
     _ensure_nav_state()
     _render_sidebar_visibility_css()
+    st.markdown(
+        """
+<style>
+  section[data-testid="stHeader"] div[data-testid="stTextInput"]{
+    max-width: 46%;
+    margin: 0 auto;
+  }
+  section[data-testid="stHeader"] div[data-testid="stTextInput"] input{
+    min-height: 38px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    font-size: 13px;
+  }
+  section[data-testid="stHeader"] .stButton > button[key="tb_login"],
+  section[data-testid="stHeader"] .stButton > button[data-testid="baseButton-primary"]{
+    padding: 0.38rem 0.8rem;
+    min-height: 38px;
+    font-size: 13px;
+  }
+</style>
+""",
+        unsafe_allow_html=True,
+    )
     user = st.session_state.get("user") or {}
     is_authed = bool(user)
     fullname = user.get("fullname") or user.get("email") or "Khách"
@@ -6178,10 +6201,18 @@ else:
 
 st.markdown(
     """
-<div style="margin-top:36px; padding-top:14px; border-top:1px solid rgba(107,114,128,.22); text-align:center;">
-  <div style="font-size:12.5px; line-height:1.55; color:#4b5563; max-width:920px; margin:0 auto;">
-    <div style="font-weight:500; margin-bottom:6px;">© 2026 Trần Thanh Tuấn – Ứng dụng AI hỗ trợ giáo viên trong dạy học và kiểm tra đánh giá.</div>
-    <div>Hệ thống được phát triển phục vụ mục đích giáo dục. AI chỉ hỗ trợ gợi ý nội dung, giáo viên là người kiểm tra và quyết định sử dụng.</div>
+<div style="margin-top:28px; padding-top:12px; border-top:1px solid rgba(226,232,240,.95); text-align:center;">
+  <div style="font-size:12px; line-height:1.6; color:#64748b; max-width:920px; margin:0 auto;">
+    <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center;">
+      <span>Chính sách bảo mật</span>
+      <span style="color:#cbd5e1;">•</span>
+      <span>Điều khoản sử dụng</span>
+      <span style="color:#cbd5e1;">•</span>
+      <span>Cam kết dữ liệu AI</span>
+      <span style="color:#cbd5e1;">•</span>
+      <span>Liên hệ hỗ trợ</span>
+    </div>
+    <div style="margin-top:6px; font-size:11.5px;">© 2026 AIEXAM.VN. AI chỉ hỗ trợ gợi ý, giáo viên là người kiểm tra và quyết định sử dụng.</div>
   </div>
 </div>
 """,
