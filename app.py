@@ -3435,10 +3435,10 @@ YÊU CẦU CHẤT LƯỢNG:
         title = st.session_state.get(_lp_key("last_title"), "GiaoAn")
         with cdl1:
             st.download_button(
-                "⬇️ Tải Word (.doc)",
-                data=create_word_doc(content_html, title),
-                file_name=f"{title}.doc",
-                mime="application/msword",
+                "⬇️ Tải Word (.docx)",
+                data=create_docx_from_html(content_html, title),
+                file_name=f"{title}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 type="primary",
                 use_container_width=True,
                 key=_lp_key("dl_word")
@@ -4058,10 +4058,10 @@ def module_digital():
             # Tái sử dụng hàm create_word_doc có sẵn trong app.py cũ
             doc_html = st.session_state['nls_result'].replace("\n", "<br>") # Chuyển đổi sơ bộ sang HTML
             st.download_button(
-                label="⬇️ Tải Giáo án Word (.doc)",
-                data=create_word_doc(doc_html, "Giao_An_NLS"),
-                file_name=f"Giao_An_NLS_{subject}_{grade}.doc",
-                mime="application/msword",
+                label="⬇️ Tải Giáo án Word (.docx)",
+                data=create_docx_from_html(doc_html, "Giao_An_NLS"),
+                file_name=f"Giao_An_NLS_{subject}_{grade}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 type="primary"
             )
 AI_EDU_ADVISOR_SYSTEM_PROMPT = """
