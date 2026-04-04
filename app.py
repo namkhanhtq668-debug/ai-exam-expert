@@ -431,57 +431,58 @@ section[data-testid="stSidebar"]{
 .hero{
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  border-radius: 14px;
-  padding: 16px 18px;
-  border: 1px solid rgba(255,255,255,.16);
-  box-shadow: 0 10px 22px rgba(59,130,246,.14), 0 6px 14px rgba(139,92,246,.08);
+  background: linear-gradient(135deg, #0f62fe 0%, #6d28d9 52%, #06b6d4 100%);
+  background-size: 140% 140%;
+  border-radius: 18px;
+  padding: 22px 22px 20px;
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, .12), 0 8px 20px rgba(37, 99, 235, .16);
 }
 .hero::before{
   content:"";
   position:absolute;
   inset:0;
   background:
-    radial-gradient(circle at 12% 18%, rgba(255,255,255,.22), transparent 28%),
-    radial-gradient(circle at 88% 12%, rgba(255,255,255,.16), transparent 24%),
-    radial-gradient(circle at 70% 82%, rgba(255,255,255,.10), transparent 26%);
+    radial-gradient(circle at 14% 16%, rgba(255,255,255,.24), transparent 26%),
+    radial-gradient(circle at 86% 12%, rgba(255,255,255,.18), transparent 22%),
+    radial-gradient(circle at 70% 84%, rgba(34,211,238,.12), transparent 28%);
   pointer-events:none;
 }
 .hero-topline{
   display:inline-flex;
   align-items:center;
   gap:8px;
-  margin-bottom:10px;
-  padding:5px 10px;
+  margin-bottom:12px;
+  padding:6px 12px;
   border-radius:999px;
   background: rgba(255,255,255,.14);
   border: 1px solid rgba(255,255,255,.20);
   color: #fff;
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: .04em;
+  letter-spacing: .06em;
   text-transform: uppercase;
   box-shadow: 0 10px 22px rgba(15,23,42,.10);
   position: relative;
   z-index: 1;
 }
 .hero-titlebox{
-  margin-top: 4px;
-  padding: 9px 12px;
-  border-radius: 14px;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border-radius: 16px;
   background: rgba(255,255,255,.10);
   border: 1px solid rgba(255,255,255,.18);
-  border-left: 4px solid rgba(255,255,255,.35);
-  box-shadow: 0 6px 14px rgba(15,23,42,.07);
+  border-left: 4px solid rgba(255,255,255,.40);
+  box-shadow: 0 8px 18px rgba(15,23,42,.08);
   position: relative;
   z-index: 1;
 }
 .hero h1{
   margin: 0;
-  font-size: clamp(20px, 2vw, 28px);
+  font-size: clamp(24px, 2.7vw, 36px);
   font-weight: 900;
-  line-height: 1.12;
-  letter-spacing: -0.045em;
+  line-height: 1.08;
+  letter-spacing: -0.05em;
   color: #ffffff;
   max-width: 100%;
 }
@@ -493,35 +494,35 @@ section[data-testid="stSidebar"]{
   color: rgba(255,255,255,.88);
 }
 .hero p{
-  margin: 8px 0 0 0;
-  font-size: 13px;
-  line-height: 1.4;
+  margin: 10px 0 0 0;
+  font-size: 14px;
+  line-height: 1.5;
   position: relative;
   z-index: 1;
 }
 .hero-badges{
   display:flex; flex-wrap:wrap; gap:6px;
-  margin-top: 8px;
+  margin-top: 10px;
   position: relative;
   z-index: 1;
 }
 .hero-badge{
   display:inline-flex; align-items:center; gap:6px;
-  padding: 5px 9px;
+  padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,.22);
   background: rgba(255,255,255,.16);
   color: #ffffff;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: .02em;
   box-shadow: 0 8px 18px rgba(15,23,42,.08);
   backdrop-filter: blur(8px);
 }
 .hero-cta{
-  margin-top: 6px;
+  margin-top: 8px;
   color: rgba(255,255,255,.82);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   position: relative;
   z-index: 1;
@@ -573,14 +574,14 @@ section[data-testid="stSidebar"]{
   }
   .hero{
     border-radius: 16px;
-    padding: 16px 14px;
+    padding: 18px 16px 16px;
   }
   .hero-titlebox{
-    padding: 10px 12px;
+    padding: 11px 12px;
     border-radius: 14px;
   }
   .hero h1{
-    font-size: clamp(22px, 5.3vw, 28px);
+    font-size: clamp(24px, 5.8vw, 30px);
   }
   .hero p{
     font-size: 13px;
@@ -592,6 +593,9 @@ section[data-testid="stSidebar"]{
   .hero-badge{
     padding: 5px 9px;
     font-size: 9px;
+  }
+  .hero-cta{
+    font-size: 11px;
   }
 }
 .glass{
