@@ -411,8 +411,8 @@ div.block-container > div:first-child{
   padding-top: .25rem;
 }
 section[data-testid="stSidebar"]{
-  background: var(--sidebar);
-  border-right: 1px solid rgba(15,23,42,.08);
+  background: #F8FAFC;
+  border-right: 1px solid #E2E8F0;
 }
 .sb-brand{
   display:flex; align-items:center; gap:10px;
@@ -611,45 +611,49 @@ section[data-testid="stSidebar"]{
   justify-content:center;
   margin-top: 10px;
 }
-.pill{
+.card .pill,
+.card.soft .pill,
+.stat-card .pill{
   display:inline-flex; align-items:center; gap:8px;
   padding: 8px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(15,23,42,.10);
-  background: rgba(255,255,255,.65);
+  border: 1px solid rgba(37,99,235,.12);
+  background: rgba(255,255,255,.82);
   font-size: 13px;
-  color: rgba(15,23,42,.78);
+  color: rgba(15,23,42,.84);
   transition: transform .12s ease, box-shadow .12s ease;
 }
-.pill:hover{ transform: translateY(-1px); box-shadow: 0 10px 20px rgba(2,6,23,.08); }
+.card .pill:hover,
+.card.soft .pill:hover,
+.stat-card .pill:hover{ transform: translateY(-1px); box-shadow: 0 10px 20px rgba(2,6,23,.08); }
 .card{
   background: var(--card);
-  border: 1px solid rgba(15,23,42,.08);
+  border: 1px solid rgba(37,99,235,.10);
   border-radius: var(--radius-md);
   padding: 14px;
-  box-shadow: 0 10px 18px rgba(2,6,23,.06);
+  box-shadow: 0 10px 18px rgba(15,23,42,.06);
 }
 .card.soft{
-  background: var(--soft);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,255,.96));
   transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
 .card.soft:hover{
   transform: translateY(-2px);
   box-shadow: 0 18px 34px rgba(2,6,23,.10);
-  border-color: rgba(29,78,216,.18);
+  border-color: rgba(37,99,235,.18);
 }
 .stat-card{
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,247,255,.97));
-  border: 1px solid rgba(29,78,216,.12);
-  box-shadow: 0 12px 22px rgba(2,6,23,.06);
+  background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(244,247,255,.97));
+  border: 1px solid rgba(37,99,235,.12);
+  box-shadow: 0 12px 22px rgba(15,23,42,.06);
   transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
 .stat-card:hover{
   transform: translateY(-2px);
   box-shadow: 0 20px 38px rgba(2,6,23,.12);
-  border-color: rgba(29,78,216,.24);
+  border-color: rgba(37,99,235,.24);
 }
 .stat-head{
   display:flex;
@@ -668,10 +672,10 @@ section[data-testid="stSidebar"]{
   flex: 0 0 auto;
   overflow: hidden;
   box-shadow:
-    0 14px 28px rgba(29,78,216,.18),
+    0 14px 28px rgba(37,99,235,.18),
     0 4px 10px rgba(2,6,23,.08),
     inset 0 1px 0 rgba(255,255,255,.55);
-  border: 1px solid rgba(29,78,216,.16);
+  border: 1px solid rgba(37,99,235,.16);
 }
 .stat-icon svg{
   position: relative;
@@ -695,11 +699,11 @@ section[data-testid="stSidebar"]{
   background: linear-gradient(135deg, rgba(255,255,255,.18), transparent 46%, rgba(255,255,255,.08));
   mix-blend-mode: screen;
 }
-.stat-icon.user{ background: linear-gradient(135deg, rgba(47,128,255,.18), rgba(91,92,246,.18)); color:var(--primary); }
-.stat-icon.state{ background: linear-gradient(135deg, rgba(91,92,246,.18), rgba(149,117,255,.18)); color:var(--primary2); }
-.stat-icon.activity{ background: linear-gradient(135deg, rgba(16,185,129,.18), rgba(45,212,191,.18)); color:#0ea5a4; }
+.stat-icon.user{ background: linear-gradient(135deg, rgba(37,99,235,.16), rgba(99,102,241,.16)); color:var(--primary); }
+.stat-icon.state{ background: linear-gradient(135deg, rgba(91,92,246,.16), rgba(168,85,247,.16)); color:var(--primary2); }
+.stat-icon.activity{ background: linear-gradient(135deg, rgba(6,182,212,.16), rgba(16,185,129,.16)); color:#0891b2; }
 .stat-title{
-  color: var(--primary2);
+  color: #1d4ed8;
   font-weight: 900;
   font-size: 15px;
   line-height: 1.15;
@@ -713,7 +717,7 @@ section[data-testid="stSidebar"]{
 }
 .stat-sub{
   margin-top: 4px;
-  color: rgba(15,23,42,.56);
+  color: rgba(15,23,42,.60);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -724,19 +728,19 @@ section[data-testid="stSidebar"]{
   box-shadow: 0 10px 24px rgba(2,6,23,.10);
   margin: 0 auto 8px auto;
 }
-.ic1{ background: linear-gradient(135deg, rgba(47,128,255,.95), rgba(91,92,246,.95)); }
-.ic2{ background: linear-gradient(135deg, rgba(16,185,129,.95), rgba(47,128,255,.80)); }
-.ic3{ background: linear-gradient(135deg, rgba(245,158,11,.95), rgba(236,72,153,.75)); }
-.ic4{ background: linear-gradient(135deg, rgba(236,72,153,.95), rgba(91,92,246,.80)); }
-.ic5{ background: linear-gradient(135deg, rgba(100,116,139,.95), rgba(47,128,255,.75)); }
-.ic6{ background: linear-gradient(135deg, rgba(91,92,246,.95), rgba(2,132,199,.75)); }
+.ic1{ background: linear-gradient(135deg, #2563eb, #4f46e5); }
+.ic2{ background: linear-gradient(135deg, #10b981, #2563eb); }
+.ic3{ background: linear-gradient(135deg, #f59e0b, #ec4899); }
+.ic4{ background: linear-gradient(135deg, #ec4899, #6366f1); }
+.ic5{ background: linear-gradient(135deg, #64748b, #2563eb); }
+.ic6{ background: linear-gradient(135deg, #6366f1, #0ea5e9); }
 /* Sidebar radio -> nav list */
 section[data-testid="stSidebar"] .stRadio > div{
   padding: 4px 6px 2px 6px;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
-  background: rgba(255,255,255,.55);
-  border: 1px solid rgba(15,23,42,.08);
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
   border-radius: 14px;
   padding: 10px 12px;
   margin: 6px 0;
@@ -745,16 +749,17 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover{
   transform: translateY(-1px);
   box-shadow: 0 12px 24px rgba(2,6,23,.10);
-  background: rgba(255,255,255,.80);
+  background: #F1F5F9;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label p{
   font-weight: 650;
+  color: #334155;
   margin: 0;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div{
-  background: var(--primary-soft) !important;
-  border-color: rgba(29,78,216,.38) !important;
-  box-shadow: 0 14px 28px rgba(29,78,216,.18) !important;
+  background: #DBEAFE !important;
+  border-color: #BFDBFE !important;
+  box-shadow: 0 14px 28px rgba(37,99,235,.14) !important;
   position: relative;
 }
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div::before{
@@ -763,16 +768,26 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked +
   left:-1px; top:-1px; bottom:-1px;
   width: 6px;
   border-radius: 14px 0 0 14px;
-  background: linear-gradient(180deg, var(--primary2), var(--primary));
+  background: #2563EB;
 }
-/* Make Streamlit buttons look premium */
-.stButton > button{
+.stSidebar, section[data-testid="stSidebar"]{
+  color: #334155;
+}
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div p{
+  color: #2563EB;
+}
+/* Make Streamlit buttons look premium inside cards only */
+.card .stButton > button,
+.card.soft .stButton > button,
+.stat-card .stButton > button{
   border-radius: 14px;
-  border: 1px solid rgba(15,23,42,.10);
-  box-shadow: 0 10px 18px rgba(2,6,23,.06);
+  border: 1px solid rgba(37,99,235,.12);
+  box-shadow: 0 10px 18px rgba(15,23,42,.06);
   min-height: 44px;
 }
-.stButton > button:hover{
+.card .stButton > button:hover,
+.card.soft .stButton > button:hover,
+.stat-card .stButton > button:hover{
   transform: translateY(-1px);
 }
 .small-muted{ color: var(--muted); font-size: 12px; }
