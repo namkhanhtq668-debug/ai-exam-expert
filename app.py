@@ -6,6 +6,7 @@ import base64
 import pandas as pd
 import docx
 import json
+import html as html_lib
 import re
 import hashlib
 import textwrap
@@ -4142,6 +4143,17 @@ def _lp2_key(name: str) -> str:
     return f"lp2_{name}_{_lp2_uid()}"
 def _lp2_api_key():
     return st.session_state.get("api_key") or SYSTEM_GOOGLE_KEY
+def _lp2_html_to_text(html_text: str) -> str:
+    if not html_text:
+        return ""
+    cleaned = re.sub(r"(?is)<(script|style).*?>.*?(</\\1>)", " ", html_text)
+    cleaned = re.sub(r"(?is)<br\\s*/?>", "\n", cleaned)
+    cleaned = re.sub(r"(?is)</p\\s*>", "\n", cleaned)
+    cleaned = re.sub(r"(?is)<[^>]+>", " ", cleaned)
+    cleaned = html_lib.unescape(cleaned)
+    cleaned = re.sub(r"[ \t\r\f\v]+", " ", cleaned)
+    cleaned = re.sub(r"\n\s*\n+", "\n\n", cleaned)
+    return cleaned.strip()
 def _lp2_extract_from_upload(uploaded_file) -> str:
     if not uploaded_file:
         return ""
@@ -4153,6 +4165,13 @@ def _lp2_extract_from_upload(uploaded_file) -> str:
             return txt or ""
         if name.endswith(".docx"):
             return read_file_content(uploaded_file, "docx") or ""
+        if name.endswith(".doc"):
+            raw = uploaded_file.getvalue()
+            text = raw.decode("utf-8", errors="ignore")
+            lowered = text.lower()
+            if "<html" in lowered or "<body" in lowered or "progid=word.document" in lowered:
+                return _lp2_html_to_text(text)
+            return text or ""
         if name.endswith(".txt"):
             return uploaded_file.getvalue().decode("utf-8", errors="ignore")
     except Exception:
@@ -4274,7 +4293,7 @@ def module_lesson_plan():
         st.markdown("### Tài liệu bài học (tuỳ chọn nhưng khuyến nghị)")
         up1, up2 = st.columns([1.2, 1.8])
         with up1:
-            lesson_file = st.file_uploader("Tải PDF/DOCX/TXT bài học", type=["pdf","docx","txt"], key=_lp2_key("lesson_file"))
+            lesson_file = st.file_uploader("Tải PDF/DOCX/TXT/DOC bài học", type=["pdf","docx","doc","txt"], key=_lp2_key("lesson_file"))
         with up2:
             show_preview = st.checkbox("Xem trước nội dung trích xuất", value=False, key=_lp2_key("show_preview"))
         teacher_note = st.text_area(
