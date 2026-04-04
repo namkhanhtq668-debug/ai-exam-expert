@@ -5496,19 +5496,27 @@ def module_mindmap():
     with c3:
         so_cap_do = st.selectbox("Số cấp độ", ["3", "4"], index=1, key="mm_levels")
     inp = st.text_area("Nội dung / chủ đề", height=200, key="mm_in")
-    st.caption("Gợi ý: thêm từ khóa như 'soạn bài', 'ôn tập', 'trình chiếu' hoặc 'hoạt động nhóm' để AI chọn đúng style.")
+    c4, c5 = st.columns(2)
+    purpose_options = ["Soạn bài", "Ôn tập", "Trình chiếu", "Hoạt động nhóm"]
+    detail_options = ["Ngắn", "Trung bình", "Chi tiết"]
+    with c4:
+        purpose = st.selectbox("Mục đích sử dụng", purpose_options, index=0, key="mm_purpose")
+    with c5:
+        detail_level = st.selectbox("Mức độ chi tiết", detail_options, index=1, key="mm_detail")
+    st.caption("Gợi ý: nhập chủ đề thật rõ; Mindmap sẽ bám mục đích sử dụng và mức độ chi tiết bạn chọn.")
 
-    def _detect_mindmap_style(text: str) -> tuple[str, str]:
-        q = (text or "").strip().lower()
-        if any(k in q for k in ("trình chiếu", "slide", "thuyết trình", "powerpoint", "ppt")):
-            return ("trình chiếu", "cực ngắn, dễ nhìn")
-        if any(k in q for k in ("hoạt động nhóm", "nhóm", "thảo luận", "giao nhiệm vụ", "trạm")):
-            return ("hoạt động nhóm", "chia ý rõ, giao nhiệm vụ")
-        if any(k in q for k in ("ôn tập", "củng cố", "nhắc lại", "review", "revision")):
-            return ("ôn tập", "ngắn gọn, trọng tâm")
-        if any(k in q for k in ("soạn bài", "giáo án", "kế hoạch bài dạy", "bài dạy", "chuẩn bị bài")):
-            return ("soạn bài", "đầy đủ cấu trúc nội dung")
-        return ("soạn bài", "đầy đủ cấu trúc nội dung")
+    purpose_goal_map = {
+        "Soạn bài": "rõ cấu trúc nội dung + tiến trình",
+        "Ôn tập": "hệ thống hóa, dễ ghi nhớ",
+        "Trình chiếu": "ngắn gọn, rõ ý",
+        "Hoạt động nhóm": "có nhiệm vụ cụ thể cho học sinh",
+    }
+    detail_rule_map = {
+        "Ngắn": "chỉ ý chính, câu ngắn, tập trung vào nhánh gốc và 3 mức kiến thức",
+        "Trung bình": "có giải thích ngắn, mỗi nhánh có 1 câu hỏi gợi mở và 1 hoạt động",
+        "Chi tiết": "đầy đủ nhánh + ví dụ + 1–2 câu hỏi gợi mở + 1 hoạt động học tập",
+    }
+    detail_need_examples = detail_level == "Chi tiết"
 
     if st.button("✨ Tạo Mindmap", type="primary", key="mm_go"):
         if not inp.strip():
@@ -5516,15 +5524,9 @@ def module_mindmap():
         else:
             with st.spinner("AI đang tạo mindmap…"):
                 topic = inp.strip().splitlines()[0][:80]
-                mindmap_style, mindmap_goal = _detect_mindmap_style(inp)
-                if mindmap_style == "trình chiếu":
-                    branch_rule = "3 nhánh chính, mỗi nhánh 1–2 ý phụ rất ngắn."
-                elif mindmap_style == "hoạt động nhóm":
-                    branch_rule = "4 nhánh chính, mỗi nhánh 2 ý phụ, ưu tiên nhiệm vụ rõ ràng."
-                elif mindmap_style == "ôn tập":
-                    branch_rule = "3–4 nhánh chính, mỗi nhánh 2–3 ý phụ, ưu tiên trọng tâm."
-                else:
-                    branch_rule = "4 nhánh chính, mỗi nhánh 2–4 ý phụ, đầy đủ nhưng gọn."
+                mindmap_style = purpose.lower()
+                mindmap_goal = purpose_goal_map.get(purpose, "rõ cấu trúc nội dung + tiến trình")
+                branch_rule = detail_rule_map.get(detail_level, "có giải thích ngắn")
                 core_topic = inp.strip()
                 prompt = f"""
 Bạn là chuyên gia giáo dục tiểu học theo CTGDPT 2018 và là trợ lý AI hỗ trợ giáo viên.
@@ -5536,8 +5538,8 @@ Thông tin đầu vào:
 - Môn học: {mon_hoc or "Chưa nhập"}
 - Lớp: {lop or "Chưa nhập"}
 - Nội dung/chủ đề: {core_topic[:12000]}
-- Mục đích sử dụng: {mindmap_style} ({mindmap_goal})
-- Mức độ chi tiết: {so_cap_do} (ngắn / trung bình / chi tiết)
+- Mục đích sử dụng: {purpose} ({mindmap_goal})
+- Mức độ chi tiết: {detail_level}
 - Số nhánh gợi ý: {branch_rule}
 
 Yêu cầu bắt buộc:
@@ -5558,6 +5560,7 @@ Yêu cầu bắt buộc:
 Với mỗi nhánh chính, bổ sung:
 - 1–2 câu hỏi gợi mở cho học sinh
 - 1 hoạt động học tập đơn giản (thảo luận, luyện tập, trò chơi…)
+- Nếu mức độ chi tiết là Chi tiết, thêm 1 ví dụ ngắn cho mỗi nhánh chính
 
 4. Tùy biến theo mục đích:
 - Soạn bài → rõ cấu trúc nội dung + tiến trình
@@ -5580,6 +5583,10 @@ Với mỗi nhánh chính, bổ sung:
 - Không giải thích thêm ngoài mindmap
 - Không thêm tiêu đề thừa hoặc mô tả ngoài sơ đồ
 - Bắt đầu ngay bằng nhánh trung tâm ở dòng đầu tiên
+- Mỗi nhánh chính phải có:
+  - 1–2 câu hỏi gợi mở
+  - 1 hoạt động học tập
+- Với mức độ chi tiết Chi tiết, thêm 1 ví dụ ngắn cho mỗi nhánh chính
 """
                 raw_out = _gemini_generate(prompt)
                 out = (raw_out or "").strip()
@@ -5590,9 +5597,188 @@ Với mỗi nhánh chính, bổ sung:
                         return False
                     if not lines[0].startswith("- "):
                         return False
-                    branch_lines = [ln for ln in lines[1:] if ln.startswith("  - ")]
-                    sub_lines = [ln for ln in lines[1:] if ln.startswith("    - ")]
-                    return len(branch_lines) >= 3 and len(sub_lines) >= 3
+                    branches = []
+                    current = None
+                    for ln in lines[1:]:
+                        if ln.startswith("  - ") and not ln.startswith("    - "):
+                            if current:
+                                branches.append(current)
+                            current = {"header": ln, "body": []}
+                        elif current:
+                            current["body"].append(ln)
+                    if current:
+                        branches.append(current)
+                    if len(branches) < 3:
+                        return False
+                    for block in branches[:3]:
+                        body_text = "\n".join(block["body"])
+                        has_question = ("Câu hỏi gợi mở" in body_text) or ("Câu hỏi" in body_text)
+                        has_activity = "Hoạt động" in body_text
+                        if not (has_question and has_activity):
+                            return False
+                        if detail_need_examples and "Ví dụ" not in body_text:
+                            return False
+                    return True
+
+                def _mindmap_fallback(topic_line: str) -> str:
+                    if purpose == "Trình chiếu":
+                        if detail_level == "Ngắn":
+                            return (
+                                f"- {topic_line}\n"
+                                f"  - Nhận biết\n"
+                                f"    - Ý chốt 1\n"
+                                f"    - Câu hỏi gợi mở: Nhận ra điều gì?\n"
+                                f"    - Hoạt động: Quan sát nhanh\n"
+                                f"  - Thông hiểu\n"
+                                f"    - Ý chốt 2\n"
+                                f"    - Câu hỏi gợi mở: Vì sao?\n"
+                                f"    - Hoạt động: Trả lời miệng\n"
+                                f"  - Vận dụng\n"
+                                f"    - Ý chốt 3\n"
+                                f"    - Câu hỏi gợi mở: Làm thế nào áp dụng?\n"
+                                f"    - Hoạt động: Thực hành ngắn"
+                            )
+                        if detail_level == "Chi tiết":
+                            return (
+                                f"- {topic_line}\n"
+                                f"  - Nhận biết\n"
+                                f"    - Ý chốt 1\n"
+                                f"    - Câu hỏi gợi mở: Nhận ra khái niệm nào?\n"
+                                f"    - Hoạt động: Quan sát và nêu ý chính\n"
+                                f"    - Ví dụ: 1 ví dụ trực quan\n"
+                                f"  - Thông hiểu\n"
+                                f"    - Ý chốt 2\n"
+                                f"    - Câu hỏi gợi mở: Vì sao nội dung này quan trọng?\n"
+                                f"    - Hoạt động: Thảo luận cặp đôi\n"
+                                f"    - Ví dụ: 1 ví dụ minh họa\n"
+                                f"  - Vận dụng\n"
+                                f"    - Ý chốt 3\n"
+                                f"    - Câu hỏi gợi mở: Ứng dụng thế nào trong bài dạy?\n"
+                                f"    - Hoạt động: Trình bày nhanh\n"
+                                f"    - Ví dụ: 1 tình huống áp dụng"
+                            )
+                    if purpose == "Hoạt động nhóm":
+                        if detail_level == "Ngắn":
+                            return (
+                                f"- {topic_line}\n"
+                                f"  - Nhận biết\n"
+                                f"    - Nhiệm vụ 1\n"
+                                f"    - Câu hỏi gợi mở: Nhóm cần tìm gì?\n"
+                                f"    - Hoạt động: Chia vai nhanh\n"
+                                f"  - Thông hiểu\n"
+                                f"    - Nhiệm vụ 2\n"
+                                f"    - Câu hỏi gợi mở: Nhóm trao đổi điều gì?\n"
+                                f"    - Hoạt động: Thảo luận nhóm\n"
+                                f"  - Vận dụng\n"
+                                f"    - Nhiệm vụ 3\n"
+                                f"    - Câu hỏi gợi mở: Nhóm trình bày kết quả ra sao?\n"
+                                f"    - Hoạt động: Báo cáo ngắn"
+                            )
+                        if detail_level == "Chi tiết":
+                            return (
+                                f"- {topic_line}\n"
+                                f"  - Nhận biết\n"
+                                f"    - Nhiệm vụ 1\n"
+                                f"    - Câu hỏi gợi mở: Nhóm xác định khái niệm nào?\n"
+                                f"    - Hoạt động: Phân vai và ghi ý chính\n"
+                                f"    - Ví dụ: Mẫu thẻ nhóm\n"
+                                f"  - Thông hiểu\n"
+                                f"    - Nhiệm vụ 2\n"
+                                f"    - Câu hỏi gợi mở: Nhóm giải thích điều gì?\n"
+                                f"    - Hoạt động: Thảo luận và hoàn thiện sơ đồ\n"
+                                f"    - Ví dụ: Mẫu phiếu thảo luận\n"
+                                f"  - Vận dụng\n"
+                                f"    - Nhiệm vụ 3\n"
+                                f"    - Câu hỏi gợi mở: Nhóm vận dụng như thế nào?\n"
+                                f"    - Hoạt động: Trình bày trước lớp\n"
+                                f"    - Ví dụ: Tình huống thực tế"
+                            )
+                    if purpose == "Ôn tập":
+                        if detail_level == "Ngắn":
+                            return (
+                                f"- {topic_line}\n"
+                                f"  - Nhận biết\n"
+                                f"    - Trọng tâm 1\n"
+                                f"    - Câu hỏi gợi mở: Nhớ được gì?\n"
+                                f"    - Hoạt động: Nhắc lại nhanh\n"
+                                f"  - Thông hiểu\n"
+                                f"    - Trọng tâm 2\n"
+                                f"    - Câu hỏi gợi mở: Hiểu phần nào?\n"
+                                f"    - Hoạt động: Luyện tập ngắn\n"
+                                f"  - Vận dụng\n"
+                                f"    - Trọng tâm 3\n"
+                                f"    - Câu hỏi gợi mở: Áp dụng ra sao?\n"
+                                f"    - Hoạt động: Làm bài nhanh"
+                            )
+                        if detail_level == "Chi tiết":
+                            return (
+                                f"- {topic_line}\n"
+                                f"  - Nhận biết\n"
+                                f"    - Trọng tâm 1\n"
+                                f"    - Câu hỏi gợi mở: Nhớ được ý nào?\n"
+                                f"    - Hoạt động: Đọc lại và gạch chân\n"
+                                f"    - Ví dụ: Một ví dụ nhớ nhanh\n"
+                                f"  - Thông hiểu\n"
+                                f"    - Trọng tâm 2\n"
+                                f"    - Câu hỏi gợi mở: Giải thích thế nào?\n"
+                                f"    - Hoạt động: Ghép ý đúng\n"
+                                f"    - Ví dụ: Một ví dụ minh họa\n"
+                                f"  - Vận dụng\n"
+                                f"    - Trọng tâm 3\n"
+                                f"    - Câu hỏi gợi mở: Dùng vào bài tập nào?\n"
+                                f"    - Hoạt động: Làm bài thực hành\n"
+                                f"    - Ví dụ: Một bài tập mẫu"
+                            )
+                    if detail_level == "Ngắn":
+                        return (
+                            f"- {topic_line}\n"
+                            f"  - Nhận biết\n"
+                            f"    - Ý chính 1\n"
+                            f"    - Câu hỏi gợi mở: Nhận ra gì?\n"
+                            f"    - Hoạt động: Nêu nhanh\n"
+                            f"  - Thông hiểu\n"
+                            f"    - Ý chính 2\n"
+                            f"    - Câu hỏi gợi mở: Vì sao?\n"
+                            f"    - Hoạt động: Trao đổi cặp đôi\n"
+                            f"  - Vận dụng\n"
+                            f"    - Ý chính 3\n"
+                            f"    - Câu hỏi gợi mở: Áp dụng thế nào?\n"
+                            f"    - Hoạt động: Thực hành"
+                        )
+                    if detail_level == "Chi tiết":
+                        return (
+                            f"- {topic_line}\n"
+                            f"  - Nhận biết\n"
+                            f"    - Ý chính 1\n"
+                            f"    - Câu hỏi gợi mở: Nhận ra điều gì?\n"
+                            f"    - Hoạt động: Quan sát\n"
+                            f"    - Ví dụ: 1 ví dụ ngắn\n"
+                            f"  - Thông hiểu\n"
+                            f"    - Ý chính 2\n"
+                            f"    - Câu hỏi gợi mở: Giải thích ra sao?\n"
+                            f"    - Hoạt động: Thảo luận\n"
+                            f"    - Ví dụ: 1 ví dụ ngắn\n"
+                            f"  - Vận dụng\n"
+                            f"    - Ý chính 3\n"
+                            f"    - Câu hỏi gợi mở: Vận dụng thế nào?\n"
+                            f"    - Hoạt động: Làm bài\n"
+                            f"    - Ví dụ: 1 ví dụ ngắn"
+                        )
+                    return (
+                        f"- {topic_line}\n"
+                        f"  - Nhận biết\n"
+                        f"    - Ý chính 1\n"
+                        f"    - Câu hỏi gợi mở: Nhận ra gì?\n"
+                        f"    - Hoạt động: Nêu nhanh\n"
+                        f"  - Thông hiểu\n"
+                        f"    - Ý chính 2\n"
+                        f"    - Câu hỏi gợi mở: Vì sao?\n"
+                        f"    - Hoạt động: Trao đổi\n"
+                        f"  - Vận dụng\n"
+                        f"    - Ý chính 3\n"
+                        f"    - Câu hỏi gợi mở: Áp dụng thế nào?\n"
+                        f"    - Hoạt động: Thực hành"
+                    )
 
                 if not _mindmap_is_valid(out):
                     repair_prompt = f"""
@@ -5603,10 +5789,11 @@ Chỉ xuất ra Markdown, không giải thích, không thêm đoạn văn.
 Phải có:
 - 1 nhánh trung tâm ở dòng đầu tiên
 - tối đa 4 nhánh chính
-- mỗi nhánh theo đúng mục đích: {mindmap_style}
+- mỗi nhánh theo đúng mục đích: {purpose}
 - ưu tiên tổ chức theo 3 mức: Nhận biết - Thông hiểu - Vận dụng
 - từ khóa ngắn, không câu dài
-- với mỗi nhánh chính, nếu phù hợp, thêm 1–2 câu hỏi gợi mở và 1 hoạt động học tập đơn giản
+- với mỗi nhánh chính, bắt buộc có 1–2 câu hỏi gợi mở và 1 hoạt động học tập
+- nếu mức độ chi tiết là Chi tiết, thêm 1 ví dụ ngắn cho mỗi nhánh chính
 - không thêm tiêu đề thừa hoặc mô tả ngoài sơ đồ
 
 Nội dung cần sửa:
@@ -5614,50 +5801,7 @@ Nội dung cần sửa:
 """
                     out = _gemini_generate(repair_prompt).strip() or out
                 if out and not _mindmap_is_valid(out):
-                    topic_line = topic or "Mindmap"
-                    if mindmap_style == "trình chiếu":
-                        out = (
-                            f"- {topic_line}\n"
-                            f"  - Nhận biết\n"
-                            f"    - Ý 1\n"
-                            f"    - Ý 2\n"
-                            f"  - Thông hiểu\n"
-                            f"    - Ý 3\n"
-                            f"  - Vận dụng\n"
-                            f"    - Ý 4"
-                        )
-                    elif mindmap_style == "hoạt động nhóm":
-                        out = (
-                            f"- {topic_line}\n"
-                            f"  - Nhận biết\n"
-                            f"    - Nhiệm vụ 1\n"
-                            f"  - Thông hiểu\n"
-                            f"    - Nhiệm vụ 2\n"
-                            f"    - Nhiệm vụ 3\n"
-                            f"  - Vận dụng\n"
-                            f"    - Nhiệm vụ 4"
-                        )
-                    elif mindmap_style == "ôn tập":
-                        out = (
-                            f"- {topic_line}\n"
-                            f"  - Nhận biết\n"
-                            f"    - Trọng tâm 1\n"
-                            f"  - Thông hiểu\n"
-                            f"    - Trọng tâm 2\n"
-                            f"  - Vận dụng\n"
-                            f"    - Trọng tâm 3"
-                        )
-                    else:
-                        out = (
-                            f"- {topic_line}\n"
-                            f"  - Nhận biết\n"
-                            f"    - Ý chính 1\n"
-                            f"    - Ý chính 2\n"
-                            f"  - Thông hiểu\n"
-                            f"    - Ý chính 3\n"
-                            f"  - Vận dụng\n"
-                            f"    - Ý chính 4"
-                        )
+                    out = _mindmap_fallback(topic or "Mindmap")
             st.markdown(out)
             st.download_button("⬇️ Tải mindmap (.md)", data=out.encode("utf-8"), file_name="mindmap.md", mime="text/markdown", use_container_width=True)
 # ==============================================================================
