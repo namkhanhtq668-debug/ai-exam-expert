@@ -4952,15 +4952,35 @@ def render_topbar():
       || parentDoc.querySelector('button[title*="sidebar"]');
   }
 
+  function setSidebar(open) {
+    const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
+    if (!sidebar) return;
+    if (open) {
+      sidebar.style.display = "block";
+      sidebar.style.width = "15.5rem";
+      sidebar.style.minWidth = "15.5rem";
+      sidebar.style.maxWidth = "15.5rem";
+      sidebar.style.transform = "translateX(0)";
+      sidebar.style.opacity = "1";
+      sidebar.style.pointerEvents = "auto";
+    } else {
+      sidebar.style.width = "0";
+      sidebar.style.minWidth = "0";
+      sidebar.style.maxWidth = "0";
+      sidebar.style.transform = "translateX(-100%)";
+      sidebar.style.opacity = "0";
+      sidebar.style.pointerEvents = "none";
+      sidebar.style.display = "block";
+    }
+  }
+
   function sync() {
     btn.style.display = isSidebarClosed() ? "block" : "none";
   }
 
   btn.onclick = function () {
-    const control = nativeToggleButton();
-    if (control && isSidebarClosed()) {
-      control.click();
-    }
+    const open = isSidebarClosed();
+    setSidebar(open);
     setTimeout(sync, 120);
   };
 
