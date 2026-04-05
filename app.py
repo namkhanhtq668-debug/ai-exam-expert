@@ -398,12 +398,9 @@ div[data-testid="stHeader"]{
   display: block !important;
   visibility: visible !important;
 }
-div[data-testid="stToolbar"] button:not(:first-child),
-div[data-testid="stToolbar"] a {
-  display: none !important;
-}
 div[data-testid="stToolbar"]{
-  min-height: 24px;
+  display: none !important;
+  visibility: hidden !important;
 }
 header{
   background: transparent !important;
@@ -4793,6 +4790,9 @@ def render_topbar():
 """,
             unsafe_allow_html=True,
         )
+        toggle_label = "☰ Mở menu" if not bool(st.session_state.get("sidebar_open", True)) else "✕ Đóng menu"
+        if st.button(toggle_label, key="tb_custom_sidebar_toggle", use_container_width=False):
+            st.session_state["sidebar_open"] = not bool(st.session_state.get("sidebar_open", True))
     with c2:
         search_text = st.text_input(
             "Tìm nhanh...",
@@ -5965,6 +5965,61 @@ _ensure_nav_state()
 # Topbar luôn hiển thị
 render_topbar()
 st.write("")  # spacing
+sidebar_open = bool(st.session_state.get("sidebar_open", True))
+if sidebar_open:
+    st.markdown(
+        """
+<style>
+section[data-testid="stSidebar"]{
+  width: 220px !important;
+  min-width: 220px !important;
+  max-width: 220px !important;
+  opacity: 1 !important;
+  transform: translateX(0) !important;
+  pointer-events: auto !important;
+  transition: width .2s ease, min-width .2s ease, max-width .2s ease, opacity .2s ease, transform .2s ease;
+}
+section[data-testid="stSidebar"] > div{
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+.block-container{
+  max-width: 1440px !important;
+  padding-left: .85rem !important;
+  padding-right: .85rem !important;
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown(
+        """
+<style>
+section[data-testid="stSidebar"]{
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  opacity: 0 !important;
+  transform: translateX(-100%) !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  transition: width .2s ease, min-width .2s ease, max-width .2s ease, opacity .2s ease, transform .2s ease;
+}
+section[data-testid="stSidebar"] > div{
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+.block-container{
+  max-width: 100% !important;
+  padding-left: .5rem !important;
+  padding-right: .5rem !important;
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
 # Sidebar (hiển thị cả với khách)
 with st.sidebar:
     st.markdown(f"""<div class="sb-brand">
