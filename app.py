@@ -4660,14 +4660,12 @@ section[data-testid="stSidebar"] [data-testid="stSidebarNav"]{
 }
 @media (max-width: 768px){
 section[data-testid="stSidebar"]{
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  width: min(82vw, 15.5rem) !important;
-  min-width: min(82vw, 15.5rem) !important;
-  max-width: min(82vw, 15.5rem) !important;
-  z-index: 10000;
+  position: relative;
+  height: auto;
+  width: 220px !important;
+  min-width: 220px !important;
+  max-width: 220px !important;
+  z-index: 999;
 }
 }
 
