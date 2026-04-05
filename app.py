@@ -4899,9 +4899,80 @@ def render_topbar():
                     st.toast("👋 Bạn đã đăng xuất.", icon="✅")
                     go("dashboard")
         else:
-                if st.button("🔐 Đăng nhập", type="primary", use_container_width=True, key="tb_login"):
-                    st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
-                    go("login")
+            if st.button("🔐 Đăng nhập", type="primary", use_container_width=True, key="tb_login"):
+                st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
+                go("login")
+    components.html(
+        """
+<script>
+(function () {
+  const parentDoc = window.parent && window.parent.document;
+  if (!parentDoc) return;
+  const BTN_ID = "ai_sidebar_open_fab";
+  const existing = parentDoc.getElementById(BTN_ID);
+  if (existing) existing.remove();
+
+  const btn = parentDoc.createElement("button");
+  btn.id = BTN_ID;
+  btn.type = "button";
+  btn.textContent = "☰";
+  btn.title = "Mở sidebar";
+  btn.setAttribute("aria-label", "Mở sidebar");
+
+  Object.assign(btn.style, {
+    position: "fixed",
+    top: "12px",
+    left: "12px",
+    zIndex: "10001",
+    width: "28px",
+    height: "28px",
+    borderRadius: "8px",
+    border: "1px solid rgba(226,232,240,.95)",
+    background: "rgba(255,255,255,.98)",
+    boxShadow: "0 6px 14px rgba(15,23,42,.10)",
+    color: "#0f172a",
+    cursor: "pointer",
+    fontSize: "16px",
+    lineHeight: "1",
+    padding: "0",
+    display: "none"
+  });
+
+  function isSidebarClosed() {
+    const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
+    if (!sidebar) return false;
+    const rect = sidebar.getBoundingClientRect();
+    const style = parentDoc.defaultView.getComputedStyle(sidebar);
+    return rect.width < 56 || style.transform.includes("matrix(0") || style.transform.includes("translateX(-100%)");
+  }
+
+  function nativeToggleButton() {
+    return parentDoc.querySelector('[data-testid="collapsedControl"]')
+      || parentDoc.querySelector('button[aria-label*="sidebar"]')
+      || parentDoc.querySelector('button[title*="sidebar"]');
+  }
+
+  function sync() {
+    btn.style.display = isSidebarClosed() ? "block" : "none";
+  }
+
+  btn.onclick = function () {
+    const control = nativeToggleButton();
+    if (control && isSidebarClosed()) {
+      control.click();
+    }
+    setTimeout(sync, 120);
+  };
+
+  parentDoc.body.appendChild(btn);
+  sync();
+  const observer = new MutationObserver(sync);
+  observer.observe(parentDoc.body, { childList: true, subtree: true, attributes: true });
+})();
+</script>
+""",
+        height=0,
+    )
 def _gemini_generate(prompt: str, system: str | None = None) -> str:
     api_key = _get_api_key_effective()
     if not api_key:
