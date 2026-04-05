@@ -399,9 +399,8 @@ div[data-testid="stHeader"]{
   visibility: visible !important;
 }
 div[data-testid="stToolbar"] button,
-div[data-testid="stToolbar"] a{
+div[data-testid="stToolbar"] a {
   display: none !important;
-  visibility: hidden !important;
 }
 div[data-testid="stToolbar"]{
   min-height: 24px;
