@@ -5968,6 +5968,51 @@ _ensure_nav_state()
 # Topbar luôn hiển thị
 render_topbar()
 st.write("")  # spacing
+sidebar_open = bool(st.session_state.get("sidebar_open", True))
+if sidebar_open:
+    st.markdown(
+        """
+<style>
+section[data-testid="stSidebar"]{
+  width: 220px !important;
+  min-width: 220px !important;
+  max-width: 220px !important;
+  opacity: 1 !important;
+  transform: translateX(0) !important;
+  pointer-events: auto !important;
+  transition: width .2s ease, min-width .2s ease, max-width .2s ease, opacity .2s ease, transform .2s ease;
+}
+section[data-testid="stSidebar"] > div{
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown(
+        """
+<style>
+section[data-testid="stSidebar"]{
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  opacity: 0 !important;
+  transform: translateX(-100%) !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  transition: width .2s ease, min-width .2s ease, max-width .2s ease, opacity .2s ease, transform .2s ease;
+}
+section[data-testid="stSidebar"] > div{
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
 # Sidebar (hiển thị cả với khách)
 with st.sidebar:
     st.markdown(f"""<div class="sb-brand">
