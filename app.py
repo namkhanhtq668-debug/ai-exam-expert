@@ -4999,35 +4999,21 @@ def render_topbar():
                 st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
                 go("login")
     if st.session_state.get("show_quick_nav", False):
-        st.markdown(
-            """
-<style>
-  .quick-nav-panel {
-    max-height: 0;
-    overflow: hidden;
-    opacity: 0;
-    transform: translateY(-8px);
-    transition: max-height .28s ease, opacity .22s ease, transform .28s ease;
-    will-change: max-height, opacity, transform;
-  }
-  .quick-nav-panel.is-open {
-    max-height: 260px;
-    opacity: 1;
-    transform: translateY(0);
-  }
-  .quick-nav-panel .card.soft {
-    margin-top: 10px;
-  }
-</style>
-<div class="quick-nav-panel is-open">
+        hdr1, hdr2 = st.columns([8, 1], gap="small")
+        with hdr1:
+            st.markdown(
+                """
 <div class="card soft" style="margin-top:10px;">
   <b>☰ Menu nhanh</b>
   <div class="small-muted" style="margin-top:6px;">Dùng để mở nhanh các chức năng phổ biến, độc lập với sidebar.</div>
 </div>
-</div>
 """,
-            unsafe_allow_html=True,
-        )
+                unsafe_allow_html=True,
+            )
+        with hdr2:
+            if st.button("«", key="qn_collapse", use_container_width=True, help="Ẩn menu nhanh"):
+                st.session_state["show_quick_nav"] = False
+                st.rerun()
         q1, q2, q3 = st.columns(3, gap="small")
         quick_items = [
             ("🏡 Trang chủ", "dashboard"),
@@ -5048,6 +5034,22 @@ def render_topbar():
             if st.button(quick_items[2][0], use_container_width=True, key="qn_mindmap"):
                 st.session_state["show_quick_nav"] = False
                 go(quick_items[2][1])
+                st.rerun()
+    else:
+        qopen1, qopen2 = st.columns([8, 1], gap="small")
+        with qopen1:
+            st.markdown(
+                """
+<div class="card soft" style="margin-top:10px;">
+  <b>☰ Menu nhanh</b>
+  <div class="small-muted" style="margin-top:6px;">Đã thu gọn. Bấm mở lại để dùng các lối tắt phổ biến.</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+        with qopen2:
+            if st.button("»", key="qn_expand", use_container_width=True, help="Mở menu nhanh"):
+                st.session_state["show_quick_nav"] = True
                 st.rerun()
 def _gemini_generate(prompt: str, system: str | None = None) -> str:
     api_key = _get_api_key_effective()
@@ -6102,8 +6104,10 @@ def module_profile():
 # ENTRY POINT (PUBLIC HOME + LOGIN-ON-DEMAND + TOPBAR + SIDEBAR)
 # ==============================================================================
 _ensure_nav_state()
-# Admin luôn thấy Menu nhanh ở topbar
-st.session_state["show_quick_nav"] = is_admin_user()
+# Mọi user đều có thể tự ẩn/mở Menu nhanh ở topbar
+if not st.session_state.get("_quick_nav_bootstrapped", False):
+    st.session_state["show_quick_nav"] = True
+    st.session_state["_quick_nav_bootstrapped"] = True
 # Topbar luôn hiển thị
 render_topbar()
 st.write("")  # spacing
