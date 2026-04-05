@@ -398,7 +398,7 @@ div[data-testid="stHeader"]{
   display: block !important;
   visibility: visible !important;
 }
-div[data-testid="stToolbar"] button,
+div[data-testid="stToolbar"] button:not(:first-child),
 div[data-testid="stToolbar"] a {
   display: none !important;
 }
