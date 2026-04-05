@@ -4621,8 +4621,6 @@ def _ensure_nav_state():
     st.session_state.setdefault("requested_page", None)
     st.session_state.setdefault("demo_used", False)
     st.session_state.setdefault("demo_history", [])  # lưu demo Q/A để hiện lại
-    st.session_state.setdefault("show_quick_nav", False)
-    st.session_state.setdefault("sidebar_open", True)
 def is_admin_user() -> bool:
     user = st.session_state.get("user") or {}
     role = str(user.get("role") or "").strip().lower()
@@ -4743,7 +4741,6 @@ def _handle_global_search(search_text: str | None = None):
 def render_topbar():
     """Topbar gọn (không trùng điều hướng sidebar) + dropdown tài khoản."""
     _ensure_nav_state()
-    _render_sidebar_visibility_css()
     st.markdown(
         """
 <style>
@@ -4775,9 +4772,6 @@ def render_topbar():
     fullname = user.get("fullname") or user.get("email") or "Khách"
     c1, c2, c3 = st.columns([2.8, 5.2, 2.0], vertical_alignment="center", gap="small")
     with c1:
-        if st.button("☰", key="tb_sidebar_toggle", use_container_width=False, help="Ẩn/hiện sidebar"):
-            st.session_state["sidebar_open"] = not bool(st.session_state.get("sidebar_open", True))
-            st.rerun()
         st.markdown(
             f"""
 <style>
@@ -4995,62 +4989,9 @@ def render_topbar():
                     st.toast("👋 Bạn đã đăng xuất.", icon="✅")
                     go("dashboard")
         else:
-            if st.button("🔐 Đăng nhập", type="primary", use_container_width=True, key="tb_login"):
-                st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
-                go("login")
-    if st.session_state.get("show_quick_nav", False):
-        hdr1, hdr2 = st.columns([8, 1], gap="small")
-        with hdr1:
-            st.markdown(
-                """
-<div class="card soft" style="margin-top:10px;">
-  <b>☰ Menu nhanh</b>
-  <div class="small-muted" style="margin-top:6px;">Dùng để mở nhanh các chức năng phổ biến, độc lập với sidebar.</div>
-</div>
-""",
-                unsafe_allow_html=True,
-            )
-        with hdr2:
-            if st.button("«", key="qn_collapse", use_container_width=True, help="Ẩn menu nhanh"):
-                st.session_state["show_quick_nav"] = False
-                st.rerun()
-        q1, q2, q3 = st.columns(3, gap="small")
-        quick_items = [
-            ("🏡 Trang chủ", "dashboard"),
-            ("📊 Hoạt động hệ thống AI", "evidence"),
-            ("🧠 Mindmap", "mindmap"),
-        ]
-        with q1:
-            if st.button(quick_items[0][0], use_container_width=True, key="qn_home"):
-                st.session_state["show_quick_nav"] = False
-                go(quick_items[0][1])
-                st.rerun()
-        with q2:
-            if st.button(quick_items[1][0], use_container_width=True, key="qn_evidence"):
-                st.session_state["show_quick_nav"] = False
-                go(quick_items[1][1])
-                st.rerun()
-        with q3:
-            if st.button(quick_items[2][0], use_container_width=True, key="qn_mindmap"):
-                st.session_state["show_quick_nav"] = False
-                go(quick_items[2][1])
-                st.rerun()
-    else:
-        qopen1, qopen2 = st.columns([8, 1], gap="small")
-        with qopen1:
-            st.markdown(
-                """
-<div class="card soft" style="margin-top:10px;">
-  <b>☰ Menu nhanh</b>
-  <div class="small-muted" style="margin-top:6px;">Đã thu gọn. Bấm mở lại để dùng các lối tắt phổ biến.</div>
-</div>
-""",
-                unsafe_allow_html=True,
-            )
-        with qopen2:
-            if st.button("»", key="qn_expand", use_container_width=True, help="Mở menu nhanh"):
-                st.session_state["show_quick_nav"] = True
-                st.rerun()
+                if st.button("🔐 Đăng nhập", type="primary", use_container_width=True, key="tb_login"):
+                    st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
+                    go("login")
 def _gemini_generate(prompt: str, system: str | None = None) -> str:
     api_key = _get_api_key_effective()
     if not api_key:
@@ -6104,10 +6045,6 @@ def module_profile():
 # ENTRY POINT (PUBLIC HOME + LOGIN-ON-DEMAND + TOPBAR + SIDEBAR)
 # ==============================================================================
 _ensure_nav_state()
-# Mọi user đều có thể tự ẩn/mở Menu nhanh ở topbar
-if not st.session_state.get("_quick_nav_bootstrapped", False):
-    st.session_state["show_quick_nav"] = True
-    st.session_state["_quick_nav_bootstrapped"] = True
 # Topbar luôn hiển thị
 render_topbar()
 st.write("")  # spacing
