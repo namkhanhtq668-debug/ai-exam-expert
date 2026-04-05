@@ -6262,6 +6262,10 @@ st.markdown(
     font-size: 13px;
     line-height: 1.65;
     color: #334155;
+    word-break: break-word;
+  }
+  .policy-modal__content p{
+    margin: 0 0 10px 0;
   }
   .policy-modal__content ul{
     margin: 10px 0 0 20px;
@@ -6269,6 +6273,9 @@ st.markdown(
   }
   .policy-modal__content li{
     margin: 6px 0;
+  }
+  .policy-modal__content strong{
+    color: #0f172a;
   }
 </style>
 """,
@@ -6419,31 +6426,38 @@ if footer_modal:
         st.rerun()
     if footer_modal == "privacy":
         modal_title = "Chính sách bảo mật"
-        modal_body = """
-        <ul>
-          <li>AIEXAM chỉ sử dụng dữ liệu người dùng cho mục đích hỗ trợ giáo dục.</li>
-          <li>Dữ liệu có thể được xử lý bởi các hệ thống AI để tạo nội dung và gợi ý.</li>
-          <li>Không chia sẻ dữ liệu cá nhân khi chưa có sự cho phép hợp lệ.</li>
-          <li>Giáo viên chịu trách nhiệm rà soát nội dung do AI sinh ra trước khi sử dụng.</li>
-        </ul>
-        """
+        modal_body = textwrap.dedent("""
+            <p>AIEXAM cam kết bảo vệ thông tin người dùng theo định hướng an toàn, minh bạch và phù hợp với môi trường giáo dục.</p>
+            <ul>
+              <li>Dữ liệu được sử dụng chủ yếu để cung cấp, cá nhân hóa và cải thiện trải nghiệm hỗ trợ dạy học.</li>
+              <li>Một số nội dung có thể được xử lý bởi hệ thống AI để tạo gợi ý, tóm tắt hoặc định dạng đầu ra.</li>
+              <li>Chúng tôi không chia sẻ dữ liệu cá nhân cho bên thứ ba khi không có cơ sở hợp lệ hoặc sự cho phép phù hợp.</li>
+              <li>Giáo viên và nhà trường cần rà soát, xác minh và chịu trách nhiệm cuối cùng trước khi sử dụng nội dung do AI sinh ra.</li>
+            </ul>
+            <p><strong>Lưu ý:</strong> AIEXAM ưu tiên tính an toàn dữ liệu và chỉ phục vụ mục đích hỗ trợ giáo dục.</p>
+        """).strip()
     elif footer_modal == "terms":
         modal_title = "Điều khoản sử dụng"
-        modal_body = """
-        <ul>
-          <li>Hệ thống hỗ trợ giảng dạy, không thay thế vai trò của giáo viên.</li>
-          <li>Kết quả AI chỉ mang tính gợi ý.</li>
-          <li>Người dùng cần đảm bảo việc sử dụng phù hợp bối cảnh giáo dục.</li>
-          <li>Không sử dụng vào nội dung gây hại hoặc trái pháp luật.</li>
-        </ul>
-        """
+        modal_body = textwrap.dedent("""
+            <p>AIEXAM là công cụ hỗ trợ chuyên môn cho giáo viên, không thay thế vai trò sư phạm, kinh nghiệm và quyết định chuyên môn của người dạy.</p>
+            <ul>
+              <li>Toàn bộ kết quả AI chỉ mang tính gợi ý và cần được giáo viên kiểm tra trước khi áp dụng thực tế.</li>
+              <li>Người dùng cần sử dụng hệ thống đúng mục đích giáo dục, phù hợp với chuẩn mực nhà trường và quy định hiện hành.</li>
+              <li>Nghiêm cấm sử dụng công cụ để tạo hoặc lan truyền nội dung gây hại, sai sự thật, vi phạm pháp luật hoặc xâm phạm quyền lợi người khác.</li>
+              <li>AIEXAM có thể cập nhật tính năng, giao diện và điều kiện sử dụng để nâng cao chất lượng dịch vụ và bảo mật.</li>
+            </ul>
+            <p><strong>Khuyến nghị:</strong> Luôn xem AI như trợ lý, không phải nguồn thay thế hoàn toàn cho chuyên môn giáo viên.</p>
+        """).strip()
     else:
         modal_title = "Liên hệ hỗ trợ"
-        modal_body = """
-        <ul>
-          <li>Email hỗ trợ: <b>tttuanttvt2@gmail.com</b></li>
-        </ul>
-        """
+        modal_body = textwrap.dedent("""
+            <p>Nếu cần hỗ trợ kỹ thuật, góp ý sản phẩm hoặc phối hợp triển khai, vui lòng liên hệ:</p>
+            <ul>
+              <li><strong>Email:</strong> tttuanttvt2@gmail.com</li>
+              <li><strong>Phạm vi hỗ trợ:</strong> lỗi hệ thống, hướng dẫn sử dụng, và phản hồi tính năng.</li>
+              <li><strong>Thời gian phản hồi:</strong> trong giờ làm việc, ưu tiên các yêu cầu liên quan đến lớp học và bài giảng.</li>
+            </ul>
+        """).strip()
     st.markdown(
         f"""
 <a class="policy-modal-backdrop" href="?footer=close" aria-label="Đóng hộp thoại"></a>
