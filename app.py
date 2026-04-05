@@ -398,12 +398,8 @@ div[data-testid="stHeader"]{
   display: block !important;
   visibility: visible !important;
 }
-div[data-testid="stToolbar"] [aria-label*="Share"],
-div[data-testid="stToolbar"] [title*="Share"],
-div[data-testid="stToolbar"] [aria-label*="Star"],
-div[data-testid="stToolbar"] [title*="Star"],
-div[data-testid="stToolbar"] [aria-label*="GitHub"],
-div[data-testid="stToolbar"] [title*="GitHub"]{
+div[data-testid="stToolbar"] button,
+div[data-testid="stToolbar"] a{
   display: none !important;
   visibility: hidden !important;
 }
