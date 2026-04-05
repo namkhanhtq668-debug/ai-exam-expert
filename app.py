@@ -6427,14 +6427,11 @@ if footer_modal:
     if footer_modal == "privacy":
         modal_title = "Chính sách bảo mật"
         modal_body = textwrap.dedent("""
-            <p>AIEXAM cam kết bảo vệ thông tin người dùng theo định hướng an toàn, minh bạch và phù hợp với môi trường giáo dục.</p>
-            <ul>
-              <li>Dữ liệu được sử dụng chủ yếu để cung cấp, cá nhân hóa và cải thiện trải nghiệm hỗ trợ dạy học.</li>
-              <li>Một số nội dung có thể được xử lý bởi hệ thống AI để tạo gợi ý, tóm tắt hoặc định dạng đầu ra.</li>
-              <li>Chúng tôi không chia sẻ dữ liệu cá nhân cho bên thứ ba khi không có cơ sở hợp lệ hoặc sự cho phép phù hợp.</li>
-              <li>Giáo viên và nhà trường cần rà soát, xác minh và chịu trách nhiệm cuối cùng trước khi sử dụng nội dung do AI sinh ra.</li>
-            </ul>
-            <p><strong>Lưu ý:</strong> AIEXAM ưu tiên tính an toàn dữ liệu và chỉ phục vụ mục đích hỗ trợ giáo dục.</p>
+            <p><strong>🔒 CHÍNH SÁCH BẢO MẬT</strong></p>
+            <p>AIEXAM cam kết bảo vệ thông tin người dùng và sử dụng dữ liệu đúng mục đích giáo dục.</p>
+            <p>Các dữ liệu được nhập vào hệ thống chỉ phục vụ cho việc hỗ trợ soạn bài, kiểm tra và đánh giá học sinh theo định hướng phát triển năng lực.</p>
+            <p>Hệ thống có thể sử dụng công nghệ trí tuệ nhân tạo để xử lý và tạo ra các gợi ý nội dung. Tuy nhiên, AIEXAM không thu thập, chia sẻ hoặc sử dụng dữ liệu cá nhân cho mục đích thương mại hoặc bên thứ ba khi chưa có sự đồng ý của người dùng.</p>
+            <p>Người sử dụng có trách nhiệm kiểm tra, điều chỉnh và quyết định nội dung trước khi áp dụng vào thực tế giảng dạy.</p>
         """).strip()
     elif footer_modal == "terms":
         modal_title = "Điều khoản sử dụng"
