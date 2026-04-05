@@ -398,12 +398,9 @@ div[data-testid="stHeader"]{
   display: block !important;
   visibility: visible !important;
 }
-div[data-testid="stToolbar"] button:not(:first-child),
-div[data-testid="stToolbar"] a {
-  display: none !important;
-}
 div[data-testid="stToolbar"]{
-  min-height: 24px;
+  display: none !important;
+  visibility: hidden !important;
 }
 header{
   background: transparent !important;
@@ -5986,6 +5983,11 @@ section[data-testid="stSidebar"] > div{
   opacity: 1 !important;
   pointer-events: auto !important;
 }
+.block-container{
+  max-width: 1440px !important;
+  padding-left: .85rem !important;
+  padding-right: .85rem !important;
+}
 </style>
 """,
         unsafe_allow_html=True,
@@ -6008,6 +6010,11 @@ section[data-testid="stSidebar"] > div{
   opacity: 0 !important;
   pointer-events: none !important;
   overflow: hidden !important;
+}
+.block-container{
+  max-width: 100% !important;
+  padding-left: .5rem !important;
+  padding-right: .5rem !important;
 }
 </style>
 """,
