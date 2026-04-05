@@ -4658,6 +4658,18 @@ section[data-testid="stSidebar"] [data-testid="stSidebarNav"]{
   opacity: 1 !important;
   transform: translateX(0) !important;
 }
+@media (max-width: 768px){
+section[data-testid="stSidebar"]{
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: min(82vw, 15.5rem) !important;
+  min-width: min(82vw, 15.5rem) !important;
+  max-width: min(82vw, 15.5rem) !important;
+  z-index: 10000;
+}
+}
 
 </style>
 """
@@ -4697,6 +4709,11 @@ section[data-testid="stSidebar"] [data-testid="stSidebarNav"]{
   opacity: 0 !important;
   transform: translateX(-100%) !important;
   pointer-events: none !important;
+}
+@media (max-width: 768px){
+section[data-testid="stSidebar"]{
+  display: none !important;
+}
 }
 
 </style>
