@@ -6199,22 +6199,151 @@ else:
     # exam + fallback
     main_app()
 
+st.session_state.setdefault("_footer_modal", None)
 st.markdown(
     """
-<div style="margin-top:28px; padding-top:12px; border-top:1px solid rgba(226,232,240,.95); text-align:center;">
-  <div style="font-size:12px; line-height:1.6; color:#64748b; max-width:920px; margin:0 auto;">
-    <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center;">
-      <span>Chính sách bảo mật</span>
-      <span style="color:#cbd5e1;">•</span>
-      <span>Điều khoản sử dụng</span>
-      <span style="color:#cbd5e1;">•</span>
-      <span>Cam kết dữ liệu AI</span>
-      <span style="color:#cbd5e1;">•</span>
-      <span>Liên hệ hỗ trợ</span>
-    </div>
-    <div style="margin-top:6px; font-size:11.5px;">© 2026 AIEXAM.VN. AI chỉ hỗ trợ gợi ý, giáo viên là người kiểm tra và quyết định sử dụng.</div>
+<style>
+  .app-footer{
+    margin-top: 24px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(226,232,240,.95);
+    text-align: center;
+  }
+  .app-footer__links{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    justify-content:center;
+    align-items:center;
+  }
+  .app-footer__note{
+    margin-top: 6px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: #64748b;
+  }
+  .policy-modal-backdrop{
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,.42);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+  }
+  .policy-modal{
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(640px, calc(100vw - 2rem));
+    max-height: min(78vh, 720px);
+    overflow: auto;
+    background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,250,255,.97));
+    border: 1px solid rgba(37,99,235,.12);
+    border-radius: 18px;
+    box-shadow: 0 28px 70px rgba(15,23,42,.28);
+    z-index: 1001;
+    color: #0f172a;
+    padding: 18px 20px 16px;
+  }
+  .policy-modal__top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    margin-bottom: 10px;
+  }
+  .policy-modal__title{
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.2;
+    color: #1d4ed8;
+  }
+  .policy-modal__content{
+    font-size: 13px;
+    line-height: 1.65;
+    color: #334155;
+  }
+  .policy-modal__content ul{
+    margin: 10px 0 0 20px;
+    padding: 0;
+  }
+  .policy-modal__content li{
+    margin: 6px 0;
+  }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+footer_col1, footer_col2, footer_col3 = st.columns([1, 1, 1], gap="small")
+with footer_col1:
+    if st.button("Chính sách bảo mật", key="footer_privacy", use_container_width=True):
+        st.session_state["_footer_modal"] = "privacy"
+with footer_col2:
+    if st.button("Điều khoản sử dụng", key="footer_terms", use_container_width=True):
+        st.session_state["_footer_modal"] = "terms"
+with footer_col3:
+    if st.button("Liên hệ hỗ trợ", key="footer_support", use_container_width=True):
+        st.session_state["_footer_modal"] = "support"
+
+st.markdown(
+    """
+<div class="app-footer">
+  <div class="app-footer__links">
+    <span>Chính sách bảo mật</span>
+    <span style="color:#cbd5e1;">•</span>
+    <span>Điều khoản sử dụng</span>
+    <span style="color:#cbd5e1;">•</span>
+    <span>Liên hệ hỗ trợ</span>
   </div>
+  <div class="app-footer__note">© 2026 AIEXAM.VN. AI chỉ hỗ trợ gợi ý, giáo viên là người kiểm tra và quyết định sử dụng.</div>
 </div>
 """,
     unsafe_allow_html=True,
 )
+
+modal = st.session_state.get("_footer_modal")
+if modal:
+    if st.button("✕ Đóng", key="footer_modal_close", use_container_width=False):
+        st.session_state["_footer_modal"] = None
+        st.rerun()
+    if modal == "privacy":
+        modal_title = "Chính sách bảo mật"
+        modal_body = """
+        <ul>
+          <li>AIEXAM chỉ sử dụng dữ liệu người dùng cho mục đích hỗ trợ giáo dục.</li>
+          <li>Dữ liệu có thể được xử lý bởi các hệ thống AI để tạo nội dung và gợi ý.</li>
+          <li>Không chia sẻ dữ liệu cá nhân khi chưa có sự cho phép hợp lệ.</li>
+          <li>Giáo viên chịu trách nhiệm rà soát nội dung do AI sinh ra trước khi sử dụng.</li>
+        </ul>
+        """
+    elif modal == "terms":
+        modal_title = "Điều khoản sử dụng"
+        modal_body = """
+        <ul>
+          <li>Hệ thống hỗ trợ giảng dạy, không thay thế vai trò của giáo viên.</li>
+          <li>Kết quả AI chỉ mang tính gợi ý.</li>
+          <li>Người dùng cần đảm bảo việc sử dụng phù hợp bối cảnh giáo dục.</li>
+          <li>Không sử dụng vào nội dung gây hại hoặc trái pháp luật.</li>
+        </ul>
+        """
+    else:
+        modal_title = "Liên hệ hỗ trợ"
+        modal_body = """
+        <ul>
+          <li>Email hỗ trợ: <b>tttuanttvt2@gmail.com</b></li>
+        </ul>
+        """
+    st.markdown(
+        f"""
+<div class="policy-modal-backdrop"></div>
+<div class="policy-modal">
+  <div class="policy-modal__top">
+    <div class="policy-modal__title">{modal_title}</div>
+  </div>
+  <div class="policy-modal__content">
+    {modal_body}
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
