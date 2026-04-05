@@ -4750,7 +4750,7 @@ def render_topbar():
         """
 <style>
   section[data-testid="stHeader"] div[data-testid="stTextInput"]{
-    max-width: 42%;
+    max-width: 28%;
     margin: 0 auto;
   }
   section[data-testid="stHeader"] div[data-testid="stTextInput"] input{
@@ -4761,7 +4761,10 @@ def render_topbar():
   }
   section[data-testid="stHeader"] .stButton > button[key="tb_login"],
   section[data-testid="stHeader"] .stButton > button[data-testid="baseButton-primary"]{
-    padding: 0.32rem 0.72rem;
+    width: 66% !important;
+    margin-left: auto !important;
+    margin-right: 0 !important;
+    padding: 0.22rem 0.48rem;
     min-height: 36px;
     font-size: 12.5px;
   }
