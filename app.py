@@ -5037,14 +5037,17 @@ def render_topbar():
             if st.button(quick_items[0][0], use_container_width=True, key="qn_home"):
                 st.session_state["show_quick_nav"] = False
                 go(quick_items[0][1])
+                st.rerun()
         with q2:
             if st.button(quick_items[1][0], use_container_width=True, key="qn_evidence"):
                 st.session_state["show_quick_nav"] = False
                 go(quick_items[1][1])
+                st.rerun()
         with q3:
             if st.button(quick_items[2][0], use_container_width=True, key="qn_mindmap"):
                 st.session_state["show_quick_nav"] = False
                 go(quick_items[2][1])
+                st.rerun()
 def _gemini_generate(prompt: str, system: str | None = None) -> str:
     api_key = _get_api_key_effective()
     if not api_key:
