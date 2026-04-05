@@ -6444,12 +6444,12 @@ if footer_modal:
     else:
         modal_title = "Liên hệ hỗ trợ"
         modal_body = textwrap.dedent("""
-            <p>Nếu cần hỗ trợ kỹ thuật, góp ý sản phẩm hoặc phối hợp triển khai, vui lòng liên hệ:</p>
-            <ul>
-              <li><strong>Email:</strong> tttuanttvt2@gmail.com</li>
-              <li><strong>Phạm vi hỗ trợ:</strong> lỗi hệ thống, hướng dẫn sử dụng, và phản hồi tính năng.</li>
-              <li><strong>Thời gian phản hồi:</strong> trong giờ làm việc, ưu tiên các yêu cầu liên quan đến lớp học và bài giảng.</li>
-            </ul>
+            <p><strong>📞 LIÊN HỆ HỖ TRỢ</strong></p>
+            <p>AIEXAM luôn sẵn sàng tiếp nhận ý kiến đóng góp và hỗ trợ người dùng trong quá trình sử dụng hệ thống.</p>
+            <p><strong>Email hỗ trợ:</strong> tttuanttvt2@gmail.com</p>
+            <p><strong>Nội dung hỗ trợ:</strong> Giải đáp kỹ thuật, hướng dẫn sử dụng, tiếp nhận góp ý cải tiến hệ thống</p>
+            <p><strong>Thời gian phản hồi:</strong> Trong giờ hành chính hoặc trong thời gian sớm nhất có thể</p>
+            <p>Mọi phản hồi của người dùng là cơ sở quan trọng để AIEXAM tiếp tục hoàn thiện và nâng cao chất lượng phục vụ trong lĩnh vực giáo dục.</p>
         """).strip()
     st.markdown(
         f"""
