@@ -398,6 +398,15 @@ div[data-testid="stHeader"]{
   display: block !important;
   visibility: visible !important;
 }
+div[data-testid="stToolbar"] [aria-label*="Share"],
+div[data-testid="stToolbar"] [title*="Share"],
+div[data-testid="stToolbar"] [aria-label*="Star"],
+div[data-testid="stToolbar"] [title*="Star"],
+div[data-testid="stToolbar"] [aria-label*="GitHub"],
+div[data-testid="stToolbar"] [title*="GitHub"]{
+  display: none !important;
+  visibility: hidden !important;
+}
 header{
   background: transparent !important;
 }
