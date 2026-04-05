@@ -3595,6 +3595,7 @@ def login_screen():
                             st.toast("✅ Đăng nhập thành công! Đang chuyển về Trang chủ…", icon="✅")
                             target = st.session_state.pop("requested_page", None) or "dashboard"
                             go(target)
+                            st.rerun()
                         else:
                             st.error("Sai tài khoản hoặc mật khẩu")
                     except Exception as e:
