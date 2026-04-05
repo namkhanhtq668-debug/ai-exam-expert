@@ -4793,6 +4793,9 @@ def render_topbar():
 """,
             unsafe_allow_html=True,
         )
+        toggle_label = "☰ Mở menu" if not bool(st.session_state.get("sidebar_open", True)) else "✕ Đóng menu"
+        if st.button(toggle_label, key="tb_custom_sidebar_toggle", use_container_width=False):
+            st.session_state["sidebar_open"] = not bool(st.session_state.get("sidebar_open", True))
     with c2:
         search_text = st.text_input(
             "Tìm nhanh...",
