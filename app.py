@@ -4975,12 +4975,15 @@ def render_topbar():
   }
 
   function sync() {
-    btn.style.display = isSidebarClosed() ? "block" : "none";
+    btn.style.display = "block";
+    btn.textContent = isSidebarClosed() ? "☰" : "✕";
+    btn.title = isSidebarClosed() ? "Mở sidebar" : "Đóng sidebar";
+    btn.setAttribute("aria-label", isSidebarClosed() ? "Mở sidebar" : "Đóng sidebar");
   }
 
   btn.onclick = function () {
     const open = isSidebarClosed();
-    setSidebar(open);
+    setSidebar(!open);
     setTimeout(sync, 120);
   };
 
