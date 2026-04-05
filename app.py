@@ -4626,7 +4626,8 @@ def _ensure_nav_state():
     st.session_state.setdefault("current_page", "dashboard")
     st.session_state.setdefault("requested_page", None)
     st.session_state.setdefault("demo_used", False)
-    st.session_state.setdefault("demo_history", [])  # lưu demo Q/A để hiện lại
+    st.session_state.setdefault("demo_history", [])
+    st.session_state.setdefault("sidebar_open", True)
 def is_admin_user() -> bool:
     user = st.session_state.get("user") or {}
     role = str(user.get("role") or "").strip().lower()
