@@ -389,7 +389,6 @@ def inject_premium_theme():
 /* Hide Streamlit chrome for a clean app shell */
 #MainMenu,
 footer,
-div[data-testid="stToolbar"],
 div[data-testid="stDecoration"],
 div[data-testid="stStatusWidget"]{
   display: none !important;
