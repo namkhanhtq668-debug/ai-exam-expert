@@ -3595,6 +3595,7 @@ def login_screen():
                             st.toast("✅ Đăng nhập thành công! Đang chuyển về Trang chủ…", icon="✅")
                             target = st.session_state.pop("requested_page", None) or "dashboard"
                             go(target)
+                            st.rerun()
                         else:
                             st.error("Sai tài khoản hoặc mật khẩu")
                     except Exception as e:
@@ -4657,6 +4658,18 @@ section[data-testid="stSidebar"] [data-testid="stSidebarNav"]{
   opacity: 1 !important;
   transform: translateX(0) !important;
 }
+@media (max-width: 768px){
+section[data-testid="stSidebar"]{
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: min(82vw, 15.5rem) !important;
+  min-width: min(82vw, 15.5rem) !important;
+  max-width: min(82vw, 15.5rem) !important;
+  z-index: 10000;
+}
+}
 
 </style>
 """
@@ -4696,6 +4709,11 @@ section[data-testid="stSidebar"] [data-testid="stSidebarNav"]{
   opacity: 0 !important;
   transform: translateX(-100%) !important;
   pointer-events: none !important;
+}
+@media (max-width: 768px){
+section[data-testid="stSidebar"]{
+  display: none !important;
+}
 }
 
 </style>
@@ -6262,6 +6280,10 @@ st.markdown(
     font-size: 13px;
     line-height: 1.65;
     color: #334155;
+    word-break: break-word;
+  }
+  .policy-modal__content p{
+    margin: 0 0 10px 0;
   }
   .policy-modal__content ul{
     margin: 10px 0 0 20px;
@@ -6269,6 +6291,9 @@ st.markdown(
   }
   .policy-modal__content li{
     margin: 6px 0;
+  }
+  .policy-modal__content strong{
+    color: #0f172a;
   }
 </style>
 """,
@@ -6419,31 +6444,31 @@ if footer_modal:
         st.rerun()
     if footer_modal == "privacy":
         modal_title = "Chính sách bảo mật"
-        modal_body = """
-        <ul>
-          <li>AIEXAM chỉ sử dụng dữ liệu người dùng cho mục đích hỗ trợ giáo dục.</li>
-          <li>Dữ liệu có thể được xử lý bởi các hệ thống AI để tạo nội dung và gợi ý.</li>
-          <li>Không chia sẻ dữ liệu cá nhân khi chưa có sự cho phép hợp lệ.</li>
-          <li>Giáo viên chịu trách nhiệm rà soát nội dung do AI sinh ra trước khi sử dụng.</li>
-        </ul>
-        """
+        modal_body = textwrap.dedent("""
+            <p><strong>🔒 CHÍNH SÁCH BẢO MẬT</strong></p>
+            <p>AIEXAM cam kết bảo vệ thông tin người dùng và sử dụng dữ liệu đúng mục đích giáo dục.</p>
+            <p>Các dữ liệu được nhập vào hệ thống chỉ phục vụ cho việc hỗ trợ soạn bài, kiểm tra và đánh giá học sinh theo định hướng phát triển năng lực.</p>
+            <p>Hệ thống có thể sử dụng công nghệ trí tuệ nhân tạo để xử lý và tạo ra các gợi ý nội dung. Tuy nhiên, AIEXAM không thu thập, chia sẻ hoặc sử dụng dữ liệu cá nhân cho mục đích thương mại hoặc bên thứ ba khi chưa có sự đồng ý của người dùng.</p>
+            <p>Người sử dụng có trách nhiệm kiểm tra, điều chỉnh và quyết định nội dung trước khi áp dụng vào thực tế giảng dạy.</p>
+        """).strip()
     elif footer_modal == "terms":
         modal_title = "Điều khoản sử dụng"
-        modal_body = """
-        <ul>
-          <li>Hệ thống hỗ trợ giảng dạy, không thay thế vai trò của giáo viên.</li>
-          <li>Kết quả AI chỉ mang tính gợi ý.</li>
-          <li>Người dùng cần đảm bảo việc sử dụng phù hợp bối cảnh giáo dục.</li>
-          <li>Không sử dụng vào nội dung gây hại hoặc trái pháp luật.</li>
-        </ul>
-        """
+        modal_body = textwrap.dedent("""
+            <p><strong>📜 ĐIỀU KHOẢN SỬ DỤNG</strong></p>
+            <p>AIEXAM là công cụ hỗ trợ giáo viên trong hoạt động dạy học và kiểm tra, đánh giá; không thay thế vai trò chuyên môn của giáo viên.</p>
+            <p>Các nội dung do hệ thống AI tạo ra mang tính chất tham khảo, hỗ trợ xây dựng bài giảng, câu hỏi và nhận xét học sinh. Giáo viên cần chủ động thẩm định, điều chỉnh để đảm bảo phù hợp với đối tượng học sinh và yêu cầu chương trình giáo dục phổ thông.</p>
+            <p>Người dùng cam kết sử dụng hệ thống đúng mục đích giáo dục, không sử dụng vào các hoạt động vi phạm pháp luật, trái đạo đức hoặc không phù hợp với môi trường giáo dục.</p>
+        """).strip()
     else:
         modal_title = "Liên hệ hỗ trợ"
-        modal_body = """
-        <ul>
-          <li>Email hỗ trợ: <b>tttuanttvt2@gmail.com</b></li>
-        </ul>
-        """
+        modal_body = textwrap.dedent("""
+            <p><strong>📞 LIÊN HỆ HỖ TRỢ</strong></p>
+            <p>AIEXAM luôn sẵn sàng tiếp nhận ý kiến đóng góp và hỗ trợ người dùng trong quá trình sử dụng hệ thống.</p>
+            <p><strong>Email hỗ trợ:</strong> tttuanttvt2@gmail.com</p>
+            <p><strong>Nội dung hỗ trợ:</strong> Giải đáp kỹ thuật, hướng dẫn sử dụng, tiếp nhận góp ý cải tiến hệ thống</p>
+            <p><strong>Thời gian phản hồi:</strong> Trong giờ hành chính hoặc trong thời gian sớm nhất có thể</p>
+            <p>Mọi phản hồi của người dùng là cơ sở quan trọng để AIEXAM tiếp tục hoàn thiện và nâng cao chất lượng phục vụ trong lĩnh vực giáo dục.</p>
+        """).strip()
     st.markdown(
         f"""
 <a class="policy-modal-backdrop" href="?footer=close" aria-label="Đóng hộp thoại"></a>
