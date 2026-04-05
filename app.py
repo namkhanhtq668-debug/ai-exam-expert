@@ -407,6 +407,9 @@ div[data-testid="stToolbar"] [title*="GitHub"]{
   display: none !important;
   visibility: hidden !important;
 }
+div[data-testid="stToolbar"]{
+  min-height: 24px;
+}
 header{
   background: transparent !important;
 }
