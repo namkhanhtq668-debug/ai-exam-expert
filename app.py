@@ -6199,22 +6199,262 @@ else:
     # exam + fallback
     main_app()
 
+st.session_state.setdefault("_footer_modal", None)
 st.markdown(
     """
-<div style="margin-top:28px; padding-top:12px; border-top:1px solid rgba(226,232,240,.95); text-align:center;">
-  <div style="font-size:12px; line-height:1.6; color:#64748b; max-width:920px; margin:0 auto;">
-    <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center;">
-      <span>Chính sách bảo mật</span>
-      <span style="color:#cbd5e1;">•</span>
-      <span>Điều khoản sử dụng</span>
-      <span style="color:#cbd5e1;">•</span>
-      <span>Cam kết dữ liệu AI</span>
-      <span style="color:#cbd5e1;">•</span>
-      <span>Liên hệ hỗ trợ</span>
-    </div>
-    <div style="margin-top:6px; font-size:11.5px;">© 2026 AIEXAM.VN. AI chỉ hỗ trợ gợi ý, giáo viên là người kiểm tra và quyết định sử dụng.</div>
+<style>
+  .app-footer{
+    margin-top: 24px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(226,232,240,.95);
+    text-align: center;
+  }
+  .app-footer__links{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    justify-content:center;
+    align-items:center;
+  }
+  .app-footer__note{
+    margin-top: 6px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: #64748b;
+  }
+  .policy-modal-backdrop{
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,.42);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+  }
+  .policy-modal{
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(640px, calc(100vw - 2rem));
+    max-height: min(78vh, 720px);
+    overflow: auto;
+    background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,250,255,.97));
+    border: 1px solid rgba(37,99,235,.12);
+    border-radius: 18px;
+    box-shadow: 0 28px 70px rgba(15,23,42,.28);
+    z-index: 1001;
+    color: #0f172a;
+    padding: 18px 20px 16px;
+  }
+  .policy-modal__top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    margin-bottom: 10px;
+  }
+  .policy-modal__title{
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.2;
+    color: #1d4ed8;
+  }
+  .policy-modal__content{
+    font-size: 13px;
+    line-height: 1.65;
+    color: #334155;
+  }
+  .policy-modal__content ul{
+    margin: 10px 0 0 20px;
+    padding: 0;
+  }
+  .policy-modal__content li{
+    margin: 6px 0;
+  }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+def _footer_get_param(name: str, default: str | None = None) -> str | None:
+    try:
+        value = st.query_params.get(name, default)
+        if isinstance(value, list):
+            return value[0] if value else default
+        return value
+    except Exception:
+        try:
+            value = st.experimental_get_query_params().get(name)
+            if isinstance(value, list):
+                return value[0] if value else default
+            return value if value is not None else default
+        except Exception:
+            return default
+
+def _footer_set_param(action: str) -> None:
+    try:
+        st.query_params["footer"] = action
+    except Exception:
+        try:
+            st.experimental_set_query_params(footer=action)
+        except Exception:
+            pass
+
+footer_action = _footer_get_param("footer")
+if footer_action in {"privacy", "terms", "support"}:
+    st.session_state["_footer_modal"] = footer_action
+elif footer_action == "close":
+    st.session_state["_footer_modal"] = None
+
+st.markdown(
+    """
+<style>
+  .app-footer{
+    margin-top: 24px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(226,232,240,.95);
+    text-align: center;
+  }
+  .app-footer__links{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    justify-content:center;
+    align-items:center;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #64748b;
+  }
+  .app-footer__link{
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 700;
+    padding: 2px 0;
+  }
+  .app-footer__link:hover{
+    text-decoration: underline;
+  }
+  .app-footer__dot{
+    color:#cbd5e1;
+  }
+  .app-footer__note{
+    margin-top: 6px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: #64748b;
+  }
+  .policy-modal-backdrop{
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,.42);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: block;
+  }
+  .policy-modal{
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(640px, calc(100vw - 2rem));
+    max-height: min(78vh, 720px);
+    overflow: auto;
+    background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,250,255,.97));
+    border: 1px solid rgba(37,99,235,.12);
+    border-radius: 18px;
+    box-shadow: 0 28px 70px rgba(15,23,42,.28);
+    z-index: 1001;
+    color: #0f172a;
+    padding: 18px 20px 16px;
+  }
+  .policy-modal__top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    margin-bottom: 10px;
+  }
+  .policy-modal__title{
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.2;
+    color: #1d4ed8;
+  }
+  .policy-modal__content{
+    font-size: 13px;
+    line-height: 1.65;
+    color: #334155;
+  }
+  .policy-modal__content ul{
+    margin: 10px 0 0 20px;
+    padding: 0;
+  }
+  .policy-modal__content li{
+    margin: 6px 0;
+  }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+footer_modal = st.session_state.get("_footer_modal")
+st.markdown(
+    """
+<div class="app-footer">
+  <div class="app-footer__links">
+    <a class="app-footer__link" href="?footer=privacy">Chính sách bảo mật</a>
+    <span class="app-footer__dot">•</span>
+    <a class="app-footer__link" href="?footer=terms">Điều khoản sử dụng</a>
+    <span class="app-footer__dot">•</span>
+    <a class="app-footer__link" href="?footer=support">Liên hệ hỗ trợ</a>
   </div>
+  <div class="app-footer__note">© 2026 AIEXAM.VN. AI chỉ hỗ trợ gợi ý, giáo viên là người kiểm tra và quyết định sử dụng.</div>
 </div>
 """,
     unsafe_allow_html=True,
 )
+
+if footer_modal:
+    if st.button("✕ Đóng", key="footer_modal_close", use_container_width=False):
+        st.session_state["_footer_modal"] = None
+        _footer_set_param("close")
+        st.rerun()
+    if footer_modal == "privacy":
+        modal_title = "Chính sách bảo mật"
+        modal_body = """
+        <ul>
+          <li>AIEXAM chỉ sử dụng dữ liệu người dùng cho mục đích hỗ trợ giáo dục.</li>
+          <li>Dữ liệu có thể được xử lý bởi các hệ thống AI để tạo nội dung và gợi ý.</li>
+          <li>Không chia sẻ dữ liệu cá nhân khi chưa có sự cho phép hợp lệ.</li>
+          <li>Giáo viên chịu trách nhiệm rà soát nội dung do AI sinh ra trước khi sử dụng.</li>
+        </ul>
+        """
+    elif footer_modal == "terms":
+        modal_title = "Điều khoản sử dụng"
+        modal_body = """
+        <ul>
+          <li>Hệ thống hỗ trợ giảng dạy, không thay thế vai trò của giáo viên.</li>
+          <li>Kết quả AI chỉ mang tính gợi ý.</li>
+          <li>Người dùng cần đảm bảo việc sử dụng phù hợp bối cảnh giáo dục.</li>
+          <li>Không sử dụng vào nội dung gây hại hoặc trái pháp luật.</li>
+        </ul>
+        """
+    else:
+        modal_title = "Liên hệ hỗ trợ"
+        modal_body = """
+        <ul>
+          <li>Email hỗ trợ: <b>tttuanttvt2@gmail.com</b></li>
+        </ul>
+        """
+    st.markdown(
+        f"""
+<a class="policy-modal-backdrop" href="?footer=close" aria-label="Đóng hộp thoại"></a>
+<div class="policy-modal">
+  <div class="policy-modal__top">
+    <div class="policy-modal__title">{modal_title}</div>
+  </div>
+  <div class="policy-modal__content">
+    {modal_body}
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
