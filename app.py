@@ -6436,14 +6436,10 @@ if footer_modal:
     elif footer_modal == "terms":
         modal_title = "Điều khoản sử dụng"
         modal_body = textwrap.dedent("""
-            <p>AIEXAM là công cụ hỗ trợ chuyên môn cho giáo viên, không thay thế vai trò sư phạm, kinh nghiệm và quyết định chuyên môn của người dạy.</p>
-            <ul>
-              <li>Toàn bộ kết quả AI chỉ mang tính gợi ý và cần được giáo viên kiểm tra trước khi áp dụng thực tế.</li>
-              <li>Người dùng cần sử dụng hệ thống đúng mục đích giáo dục, phù hợp với chuẩn mực nhà trường và quy định hiện hành.</li>
-              <li>Nghiêm cấm sử dụng công cụ để tạo hoặc lan truyền nội dung gây hại, sai sự thật, vi phạm pháp luật hoặc xâm phạm quyền lợi người khác.</li>
-              <li>AIEXAM có thể cập nhật tính năng, giao diện và điều kiện sử dụng để nâng cao chất lượng dịch vụ và bảo mật.</li>
-            </ul>
-            <p><strong>Khuyến nghị:</strong> Luôn xem AI như trợ lý, không phải nguồn thay thế hoàn toàn cho chuyên môn giáo viên.</p>
+            <p><strong>📜 ĐIỀU KHOẢN SỬ DỤNG</strong></p>
+            <p>AIEXAM là công cụ hỗ trợ giáo viên trong hoạt động dạy học và kiểm tra, đánh giá; không thay thế vai trò chuyên môn của giáo viên.</p>
+            <p>Các nội dung do hệ thống AI tạo ra mang tính chất tham khảo, hỗ trợ xây dựng bài giảng, câu hỏi và nhận xét học sinh. Giáo viên cần chủ động thẩm định, điều chỉnh để đảm bảo phù hợp với đối tượng học sinh và yêu cầu chương trình giáo dục phổ thông.</p>
+            <p>Người dùng cam kết sử dụng hệ thống đúng mục đích giáo dục, không sử dụng vào các hoạt động vi phạm pháp luật, trái đạo đức hoặc không phù hợp với môi trường giáo dục.</p>
         """).strip()
     else:
         modal_title = "Liên hệ hỗ trợ"
