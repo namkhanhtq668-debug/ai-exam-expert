@@ -4790,9 +4790,10 @@ def render_topbar():
 """,
             unsafe_allow_html=True,
         )
-        toggle_label = "☰ Mở menu" if not bool(st.session_state.get("sidebar_open", True)) else "✕ Đóng menu"
+        toggle_label = "? M? menu" if not bool(st.session_state.get("sidebar_open", True)) else "? ??ng menu"
         if st.button(toggle_label, key="tb_custom_sidebar_toggle", use_container_width=False):
             st.session_state["sidebar_open"] = not bool(st.session_state.get("sidebar_open", True))
+            st.rerun()
     with c2:
         search_text = st.text_input(
             "Tìm nhanh...",
@@ -5977,7 +5978,7 @@ section[data-testid="stSidebar"]{
   opacity: 1 !important;
   transform: translateX(0) !important;
   pointer-events: auto !important;
-  transition: width .2s ease, min-width .2s ease, max-width .2s ease, opacity .2s ease, transform .2s ease;
+  transition: width .22s ease, min-width .22s ease, max-width .22s ease, opacity .18s ease, transform .22s ease;
 }
 section[data-testid="stSidebar"] > div{
   opacity: 1 !important;
@@ -5987,6 +5988,15 @@ section[data-testid="stSidebar"] > div{
   max-width: 1440px !important;
   padding-left: .85rem !important;
   padding-right: .85rem !important;
+  transition: padding-left .22s ease, padding-right .22s ease;
+}
+@media (max-width: 768px){
+  section[data-testid="stSidebar"]{
+    width: min(82vw, 220px) !important;
+    min-width: min(82vw, 220px) !important;
+    max-width: min(82vw, 220px) !important;
+    box-shadow: 0 12px 30px rgba(15,23,42,.14);
+  }
 }
 </style>
 """,
@@ -6004,7 +6014,7 @@ section[data-testid="stSidebar"]{
   transform: translateX(-100%) !important;
   pointer-events: none !important;
   overflow: hidden !important;
-  transition: width .2s ease, min-width .2s ease, max-width .2s ease, opacity .2s ease, transform .2s ease;
+  transition: width .22s ease, min-width .22s ease, max-width .22s ease, opacity .18s ease, transform .22s ease;
 }
 section[data-testid="stSidebar"] > div{
   opacity: 0 !important;
@@ -6015,6 +6025,12 @@ section[data-testid="stSidebar"] > div{
   max-width: 100% !important;
   padding-left: .5rem !important;
   padding-right: .5rem !important;
+  transition: padding-left .22s ease, padding-right .22s ease;
+}
+@media (max-width: 768px){
+  section[data-testid="stSidebar"]{
+    box-shadow: none !important;
+  }
 }
 </style>
 """,
