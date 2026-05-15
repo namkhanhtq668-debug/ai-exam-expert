@@ -334,10 +334,6 @@ except ImportError:
 # --- CẤU HÌNH GIỚI HẠN SỬ DỤNG ---
 MAX_FREE_USAGE = 3
 MAX_PRO_USAGE = 15
-FREE_OTHER_TABS_LIMIT = 5
-FREE_OTHER_TABS = {"chat", "lesson_plan", "digital", "advisor", "doc_ai", "mindmap"}
-# Chỉ áp dụng quota "5 lượt tab khác" cho tài khoản FREE tạo mới từ mốc này.
-NEW_FREE_TRIAL_START_UTC = datetime(2026, 4, 7, tzinfo=timezone.utc)
 # --- CẤU HÌNH KHUYẾN MẠI & HOA HỒNG ---
 BONUS_PER_REF = 0
 BONUS_PRO_REF = 3
@@ -1707,59 +1703,6 @@ def get_user_row(client, username: str) -> dict:
         return res.data[0] if getattr(res, "data", None) else {}
     except Exception:
         return {}
-def _free_other_tabs_counter_key(username: str) -> str:
-    return f"free_other_tabs_used::{(username or '').strip().lower()}"
-def get_free_other_tabs_used(client, username: str) -> tuple[int, str]:
-    """Trả về (số lần đã dùng, storage_mode). Ưu tiên DB nếu có cột free_other_tabs_used."""
-    username = (username or "").strip()
-    row = get_user_row(client, username) if client and username else {}
-    if isinstance(row, dict) and ("free_other_tabs_used" in row):
-        try:
-            return int(row.get("free_other_tabs_used", 0) or 0), "db"
-        except Exception:
-            return 0, "db"
-    try:
-        return int(st.session_state.get(_free_other_tabs_counter_key(username), 0) or 0), "session"
-    except Exception:
-        return 0, "session"
-def set_free_other_tabs_used(client, username: str, value: int, storage_mode: str = "session") -> None:
-    username = (username or "").strip()
-    value = max(0, int(value))
-    if storage_mode == "db" and client and username:
-        try:
-            client.table("users_pro").update({"free_other_tabs_used": value}).eq("username", username).execute()
-            return
-        except Exception:
-            pass
-    st.session_state[_free_other_tabs_counter_key(username)] = value
-def _parse_db_iso_datetime(value: Any) -> datetime | None:
-    if value is None:
-        return None
-    try:
-        raw = str(value).strip()
-        if not raw:
-            return None
-        # Hỗ trợ dạng "...Z" của Postgres/Supabase.
-        if raw.endswith("Z"):
-            raw = raw[:-1] + "+00:00"
-        dt = datetime.fromisoformat(raw)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
-    except Exception:
-        return None
-def is_new_free_trial_user(client, username: str) -> bool:
-    """Chỉ user FREE tạo mới từ mốc policy mới được áp dụng quota tab."""
-    row = get_user_row(client, username) if client and username else {}
-    if not isinstance(row, dict) or not row:
-        return False
-    role = str(row.get("role") or "free").strip().lower()
-    if role != "free":
-        return False
-    created_at = _parse_db_iso_datetime(row.get("created_at"))
-    if created_at is None:
-        return False
-    return created_at >= NEW_FREE_TRIAL_START_UTC
 def get_user_points(client, username: str) -> int:
     row = get_user_row(client, username)
     if not _db_has_points(row):
@@ -3691,7 +3634,7 @@ def login_screen():
                                     "fullname": new_name,
                                     "role": "free",
                                     "usage_count": 0,
-                                    "points": 100,
+                                    "points": 0,
                                 }
                             ).execute()
                             st.success("Đăng ký thành công! Mời đăng nhập.")
@@ -4676,40 +4619,6 @@ def require_login(page_key: str):
     st.session_state["requested_page"] = page_key
     st.session_state["current_page"] = "login"
     st.rerun()
-def apply_free_other_tabs_limit(page_key: str):
-    """Free user: chỉ dùng tối đa N lần cho các tab chức năng khác, rồi chặn."""
-    user = st.session_state.get("user") or {}
-    if not user:
-        return
-    username = str(user.get("email") or "").strip()
-    role = str(user.get("role") or "free").strip().lower()
-    client = init_supabase()
-    marker_key = "_free_other_tabs_last_page_marker"
-    current_marker = f"{username}:{page_key}"
-    last_marker = st.session_state.get(marker_key)
-    if last_marker == current_marker:
-        return
-    # Luôn cập nhật marker để chỉ đếm khi thực sự chuyển trang.
-    st.session_state[marker_key] = current_marker
-    if role != "free":
-        return
-    if not is_new_free_trial_user(client, username):
-        return
-    if page_key not in FREE_OTHER_TABS:
-        return
-    used, storage_mode = get_free_other_tabs_used(client, username)
-    if used >= FREE_OTHER_TABS_LIMIT:
-        st.error(
-            f"🔒 Tài khoản FREE đã hết lượt dùng thử các tab chức năng khác "
-            f"({FREE_OTHER_TABS_LIMIT}/{FREE_OTHER_TABS_LIMIT})."
-        )
-        st.info("Vui lòng nâng cấp gói để tiếp tục sử dụng.")
-        go("dashboard")
-        st.stop()
-    new_used = used + 1
-    set_free_other_tabs_used(client, username, new_used, storage_mode)
-    remain = max(0, FREE_OTHER_TABS_LIMIT - new_used)
-    st.caption(f"Dùng thử FREE: đã dùng {new_used}/{FREE_OTHER_TABS_LIMIT} lượt, còn {remain} lượt.")
 def _ensure_nav_state():
     st.session_state.setdefault("current_page", "dashboard")
     st.session_state.setdefault("requested_page", None)
@@ -4881,10 +4790,9 @@ def render_topbar():
 """,
             unsafe_allow_html=True,
         )
-        toggle_label = "? M? menu" if not bool(st.session_state.get("sidebar_open", True)) else "? ??ng menu"
+        toggle_label = "☰ Mở menu" if not bool(st.session_state.get("sidebar_open", True)) else "✕ Đóng menu"
         if st.button(toggle_label, key="tb_custom_sidebar_toggle", use_container_width=False):
             st.session_state["sidebar_open"] = not bool(st.session_state.get("sidebar_open", True))
-            st.rerun()
     with c2:
         search_text = st.text_input(
             "Tìm nhanh...",
@@ -6069,7 +5977,7 @@ section[data-testid="stSidebar"]{
   opacity: 1 !important;
   transform: translateX(0) !important;
   pointer-events: auto !important;
-  transition: width .22s ease, min-width .22s ease, max-width .22s ease, opacity .18s ease, transform .22s ease;
+  transition: width .2s ease, min-width .2s ease, max-width .2s ease, opacity .2s ease, transform .2s ease;
 }
 section[data-testid="stSidebar"] > div{
   opacity: 1 !important;
@@ -6079,15 +5987,6 @@ section[data-testid="stSidebar"] > div{
   max-width: 1440px !important;
   padding-left: .85rem !important;
   padding-right: .85rem !important;
-  transition: padding-left .22s ease, padding-right .22s ease;
-}
-@media (max-width: 768px){
-  section[data-testid="stSidebar"]{
-    width: min(82vw, 220px) !important;
-    min-width: min(82vw, 220px) !important;
-    max-width: min(82vw, 220px) !important;
-    box-shadow: 0 12px 30px rgba(15,23,42,.14);
-  }
 }
 </style>
 """,
@@ -6105,7 +6004,7 @@ section[data-testid="stSidebar"]{
   transform: translateX(-100%) !important;
   pointer-events: none !important;
   overflow: hidden !important;
-  transition: width .22s ease, min-width .22s ease, max-width .22s ease, opacity .18s ease, transform .22s ease;
+  transition: width .2s ease, min-width .2s ease, max-width .2s ease, opacity .2s ease, transform .2s ease;
 }
 section[data-testid="stSidebar"] > div{
   opacity: 0 !important;
@@ -6116,12 +6015,6 @@ section[data-testid="stSidebar"] > div{
   max-width: 100% !important;
   padding-left: .5rem !important;
   padding-right: .5rem !important;
-  transition: padding-left .22s ease, padding-right .22s ease;
-}
-@media (max-width: 768px){
-  section[data-testid="stSidebar"]{
-    box-shadow: none !important;
-  }
 }
 </style>
 """,
@@ -6202,8 +6095,6 @@ if page == "login":
 if (page in PROTECTED_PAGES) and (not st.session_state.get("user")):
     require_login(page)
     st.stop()
-# Free quota cho các tab chức năng khác (được áp dụng tập trung ở router).
-apply_free_other_tabs_limit(page)
 # Chat page allows 1 demo for guest; lần 2 yêu cầu login (được xử trong module_chat)
 if page == "dashboard":
     dashboard_screen()
