@@ -531,27 +531,55 @@ section[data-testid="stSidebar"]{
   position: relative;
   z-index: 1;
 }
+/* ===========================================================
+   RESPONSIVE BREAKPOINTS — 3 tầng: 480 / 768 / 1024
+   Nguyên tắc:
+   - <768px: sidebar trở thành drawer (dùng cơ chế gốc của Streamlit),
+     không ép width nữa.
+   - Font tối thiểu 12px, button >=44px (touch target WCAG).
+   - Không sửa logic, không sửa cấu trúc HTML.
+   =========================================================== */
+
+/* ---------- TABLET NGANG / LAPTOP NHỎ: 769–1024px ---------- */
+@media (min-width: 769px) and (max-width: 1024px){
+  .block-container{
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  section[data-testid="stSidebar"]{
+    width: 200px !important;
+  }
+  .hero h1{
+    font-size: clamp(22px, 3vw, 28px);
+  }
+  .hero p{ font-size: 13px; }
+  .hero-badge{ font-size: 11px; padding: 4px 9px; }
+  .hero-cta{ font-size: 12px; }
+}
+
+/* ---------- TABLET DỌC / ĐIỆN THOẠI NGANG: 481–768px ---------- */
 @media (max-width: 768px){
   .block-container{
     padding-left: .65rem;
     padding-right: .65rem;
     padding-top: .35rem;
   }
-  div[data-testid="stHorizontalBlock"]{
-    flex-direction: column !important;
-    gap: .55rem !important;
+  /* Sidebar -> drawer mặc định của Streamlit; KHÔNG ép width nữa.
+     Người dùng bấm nút toggle (>) gốc của Streamlit để mở/đóng. */
+  section[data-testid="stSidebar"]{
+    box-shadow: 0 18px 40px rgba(15,23,42,.18);
   }
-  div[data-testid="stHorizontalBlock"] > div{
-    width: 100% !important;
-    flex: 1 1 100% !important;
+  /* Mặc định cột vẫn dàn ngang; chỉ stack khi <481px (xem block sau).
+     Ở khoảng 481-768px, cho cột thu hẹp tự nhiên nhưng wrap mềm. */
+  div[data-testid="stHorizontalBlock"]{
+    gap: .5rem !important;
+    flex-wrap: wrap !important;
   }
   .stButton > button,
   .stTextInput input{
-    min-height: 48px;
+    min-height: 44px;
     font-size: 14px;
-  }
-  section[data-testid="stSidebar"]{
-    width: 220px !important;
   }
   .sb-brand{
     gap: 6px;
@@ -565,16 +593,16 @@ section[data-testid="stSidebar"]{
     font-size: 13px;
   }
   .sb-sub{
-    font-size: 10px;
+    font-size: 12px;
   }
   section[data-testid="stSidebar"] .stRadio > div{
     padding: 1px 3px 0 3px;
   }
   section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
-    padding: 6px 8px;
+    padding: 8px 10px;
     margin: 3px 0;
     border-radius: 10px;
-    font-size: 12px;
+    font-size: 13px;
   }
   .hero{
     border-radius: 14px;
@@ -585,22 +613,63 @@ section[data-testid="stSidebar"]{
     border-radius: 12px;
   }
   .hero h1{
-    font-size: clamp(20px, 5vw, 26px);
+    font-size: clamp(20px, 4.5vw, 26px);
   }
   .hero p{
-    font-size: 11px;
+    font-size: 12px;
   }
   .hero-badges{
     gap: 5px;
     margin-top: 6px;
   }
   .hero-badge{
-    padding: 4px 7px;
-    font-size: 8px;
+    padding: 4px 8px;
+    font-size: 11px;
   }
   .hero-cta{
-    font-size: 9px;
+    font-size: 12px;
   }
+}
+
+/* ---------- ĐIỆN THOẠI DỌC: <=480px ---------- */
+@media (max-width: 480px){
+  .block-container{
+    padding-left: .5rem;
+    padding-right: .5rem;
+    padding-top: .25rem;
+  }
+  /* Ở rất nhỏ, ép cột stack dọc để không bóp méo */
+  div[data-testid="stHorizontalBlock"]{
+    flex-direction: column !important;
+    gap: .55rem !important;
+    flex-wrap: wrap !important;
+  }
+  div[data-testid="stHorizontalBlock"] > div{
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+  .stButton > button,
+  .stTextInput input{
+    min-height: 48px;
+    font-size: 15px;
+  }
+  .hero{
+    border-radius: 12px;
+    padding: 11px 12px 10px;
+  }
+  .hero h1{
+    font-size: clamp(19px, 5.5vw, 23px);
+  }
+  .hero p{ font-size: 12px; }
+  .hero-badge{ font-size: 11px; padding: 4px 8px; }
+  .hero-cta{ font-size: 12px; }
+  /* Stat card thu gọn padding & icon trên màn nhỏ */
+  .stat-card{ padding: 12px; }
+  .stat-icon{ width: 44px; height: 44px; }
+  .stat-icon svg{ width: 22px; height: 22px; }
+  .stat-title{ font-size: 14px; }
+  .stat-value{ font-size: 16px; }
+  .stat-sub{ font-size: 12px; }
 }
 .glass{
   background: rgba(255,255,255,.75);
@@ -6400,3 +6469,4 @@ if footer_modal:
 """,
         unsafe_allow_html=True,
     )
+
