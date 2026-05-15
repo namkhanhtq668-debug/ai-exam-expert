@@ -418,20 +418,32 @@ section[data-testid="stSidebar"]{
   border-right: 1px solid #E2E8F0;
   color: #334155;
 }
-/* Nút toggle sidebar của Streamlit (mở/đóng) phải luôn hiện và bấm được.
+/* Nút toggle sidebar của Streamlit phải luôn hiện và bấm được.
    Streamlit 1.37+ dùng `stExpandSidebarButton` (mở) và `stSidebarCollapseButton` (đóng).
    Bản cũ hơn dùng `collapsedControl` / `stSidebarCollapsedControl`.
-   Topbar custom có z-index:999 nên nâng các nút này lên 1001. KHÔNG ép position. */
+   Topbar custom (sticky, nền trắng, z-index 999) che mất khu vực góc trên-trái nơi
+   Streamlit đặt nút mở sidebar. Ép nút expand position:fixed góc trên-trái, z-index 1002. */
 button[data-testid="stExpandSidebarButton"],
-button[data-testid="stSidebarCollapseButton"],
-button[data-testid="stSidebarCollapsedControl"],
-button[data-testid="collapsedControl"],
 [data-testid="stSidebarCollapsedControl"],
 [data-testid="collapsedControl"]{
+  position: fixed !important;
+  top: 8px !important;
+  left: 8px !important;
+  display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
   pointer-events: auto !important;
-  z-index: 1001 !important;
+  z-index: 1002 !important;
+  background: #ffffff !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 6px 14px rgba(15,23,42,.10) !important;
+}
+button[data-testid="stSidebarCollapseButton"]{
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 1002 !important;
 }
 .sb-brand{
   display:flex; align-items:center; gap:8px;
