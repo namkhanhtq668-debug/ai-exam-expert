@@ -3710,8 +3710,29 @@ def module_evidence_implementation():
     st.write("")
     st.markdown("### Ghi chú")
     st.caption("Các chỉ số này chỉ đọc dữ liệu, không ảnh hưởng tới đăng nhập, tạo đề hay soạn giáo án.")
+def _gen_math_captcha():
+    """Sinh câu hỏi toán đơn giản và lưu đáp án vào session."""
+    a = random.randint(1, 9)
+    b = random.randint(1, 9)
+    op = random.choice(["+", "-", "×"])
+    if op == "+":
+        ans = a + b
+    elif op == "-":
+        # đảm bảo kết quả dương
+        if a < b:
+            a, b = b, a
+        ans = a - b
+    else:
+        ans = a * b
+    st.session_state["captcha_question"] = f"{a} {op} {b}"
+    st.session_state["captcha_answer"] = ans
+
+
 def login_screen():
     st.session_state.setdefault("show_forgot", False)
+    st.session_state.setdefault("login_fail_count", 0)
+    if "captcha_question" not in st.session_state:
+        _gen_math_captcha()
     client = init_supabase()
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
@@ -3727,7 +3748,31 @@ def login_screen():
         with tab_login:
             u = st.text_input("Tên đăng nhập", key="login_username")
             p = st.text_input("Mật khẩu", type="password", key="login_password")
+
+            fail_count = st.session_state.get("login_fail_count", 0)
+            need_captcha = fail_count >= 2
+            captcha_input = ""
+            if need_captcha:
+                st.warning(f"⚠️ Đã sai {fail_count} lần. Vui lòng giải mã xác minh bên dưới.")
+                captcha_input = st.text_input(
+                    f"🔐 Mã xác minh: {st.session_state.get('captcha_question', '')} = ?",
+                    key="captcha_input",
+                )
+
             if st.button("ĐĂNG NHẬP", type="primary", key="login_btn"):
+                # Bước 1: kiểm CAPTCHA nếu đang yêu cầu
+                if need_captcha:
+                    try:
+                        if int((captcha_input or "").strip()) != int(st.session_state.get("captcha_answer", -999)):
+                            st.error("❌ Mã xác minh không đúng. Vui lòng thử lại.")
+                            _gen_math_captcha()
+                            return
+                    except (ValueError, TypeError):
+                        st.error("❌ Vui lòng nhập số cho mã xác minh.")
+                        _gen_math_captcha()
+                        return
+
+                # Bước 2: kiểm tài khoản
                 if client:
                     try:
                         res = (
@@ -3737,11 +3782,16 @@ def login_screen():
                             .execute()
                         )
                         rows = _as_dict_rows(res.data)
+                        login_ok = False
                         if rows:
                             user_data = rows[0]
-                            if not verify_password_compat(user_data.get("password"), p):
-                                st.error("Sai tài khoản hoặc mật khẩu")
-                                return
+                            if verify_password_compat(user_data.get("password"), p):
+                                login_ok = True
+
+                        if login_ok:
+                            # Reset đếm fail + tạo captcha mới cho lần sau
+                            st.session_state["login_fail_count"] = 0
+                            _gen_math_captcha()
                             st.session_state["user"] = {
                                 "email": user_data["username"],
                                 "fullname": user_data["fullname"],
@@ -3754,6 +3804,8 @@ def login_screen():
                             go(target)
                             st.rerun()
                         else:
+                            st.session_state["login_fail_count"] = fail_count + 1
+                            _gen_math_captcha()
                             st.error("Sai tài khoản hoặc mật khẩu")
                     except Exception as e:
                         st.error(f"Lỗi đăng nhập: {e}")
@@ -6539,9 +6591,22 @@ if footer_modal:
         modal_body = textwrap.dedent("""
             <p><strong>📞 LIÊN HỆ HỖ TRỢ</strong></p>
             <p>AIEXAM luôn sẵn sàng tiếp nhận ý kiến đóng góp và hỗ trợ người dùng trong quá trình sử dụng hệ thống.</p>
-            <p><strong>Email hỗ trợ:</strong> tttuanttvt2@gmail.com</p>
-            <p><strong>Nội dung hỗ trợ:</strong> Giải đáp kỹ thuật, hướng dẫn sử dụng, tiếp nhận góp ý cải tiến hệ thống</p>
-            <p><strong>Thời gian phản hồi:</strong> Trong giờ hành chính hoặc trong thời gian sớm nhất có thể</p>
+            <p><strong>🏢 Đơn vị vận hành:</strong> TRẦN THANH TUẤN — T SMART AI</p>
+            <p><strong>📍 Địa chỉ:</strong> Tỉnh Tuyên Quang</p>
+            <p><strong>📱 Điện thoại / Zalo:</strong> <a href="tel:0918198687">0918 198 687</a></p>
+            <p><strong>📧 Email:</strong> <a href="mailto:tttuanttvt2@gmail.com">tttuanttvt2@gmail.com</a></p>
+            <p><strong>👥 Cộng đồng giáo viên (Zalo):</strong> <a href="https://zalo.me/g/thsstj332" target="_blank" rel="noopener">zalo.me/g/thsstj332</a></p>
+            <p><strong>🛠 Nội dung hỗ trợ:</strong> Giải đáp kỹ thuật, hướng dẫn sử dụng, xử lý giao dịch nạp VIP, tiếp nhận góp ý cải tiến hệ thống.</p>
+            <p><strong>⏱ Thời gian phản hồi:</strong></p>
+            <ul>
+              <li>Điện thoại / Zalo: 8h00 – 17h00, từ Thứ 2 đến Thứ 7.</li>
+              <li>Email: phản hồi trong vòng 24 giờ làm việc.</li>
+            </ul>
+            <p><strong>📌 Trước khi liên hệ, vui lòng:</strong></p>
+            <ul>
+              <li>Xem mục <em>Hướng dẫn sử dụng</em> để tự giải quyết các vấn đề thường gặp.</li>
+              <li>Với sự cố nạp VIP: chuẩn bị ảnh chụp giao dịch và nội dung chuyển khoản để được hỗ trợ nhanh.</li>
+            </ul>
             <p>Mọi phản hồi của người dùng là cơ sở quan trọng để AIEXAM tiếp tục hoàn thiện và nâng cao chất lượng phục vụ trong lĩnh vực giáo dục.</p>
         """).strip()
     st.markdown(
