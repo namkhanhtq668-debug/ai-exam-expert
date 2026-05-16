@@ -457,19 +457,66 @@ button[data-testid="stSidebarCollapseButton"],
   transform: translateY(-1px);
 }
 .sb-brand{
-  display:flex; align-items:center; gap:8px;
-  padding: 8px 2px 4px 2px;
+  display:flex; align-items:center; gap:10px;
+  padding: 10px 2px 6px 2px;
 }
 .sb-logo{
-  width: 60px; height: 60px; border-radius: 0px;
+  width: 42px; height: 42px; border-radius: 0px;
   background: transparent;
   display:flex; align-items:center; justify-content:center;
   color: inherit; font-weight:800;
   box-shadow: none;
+  flex-shrink: 0;
 }
-.sb-logo svg{display:block;}
-.sb-title{ font-weight: 800; line-height: 1.05; font-size: 14px; color:#0f172a; }
-.sb-sub{ color: var(--muted); font-size: 11px; margin-top: 2px; }
+.sb-logo svg{display:block; width:42px; height:42px;}
+.sb-title{ font-weight: 800; line-height: 1.1; font-size: 16px; color:#0f172a; letter-spacing:-0.01em; }
+.sb-sub{ color: var(--muted); font-size: 12px; margin-top: 2px; font-weight: 500; letter-spacing:.02em; }
+/* PRO/FREE role card — nổi bật để khuyến khích nâng cấp */
+.sb-role-card{
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #1e40af 0%, #6d28d9 55%, #0ea5e9 100%);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(37,99,235,.22);
+  margin: 4px 0 8px 0;
+}
+.sb-role-card.is-free{
+  background: linear-gradient(135deg, #475569 0%, #334155 60%, #1e293b 100%);
+  box-shadow: 0 10px 22px rgba(15,23,42,.18);
+}
+.sb-role-card::after{
+  content:"";
+  position:absolute; top:-30px; right:-30px;
+  width: 90px; height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.18), transparent 70%);
+  pointer-events:none;
+}
+.sb-role-card .sb-role-top{
+  display:flex; align-items:center; gap:8px;
+  font-size: 11px; font-weight: 800; letter-spacing:.08em;
+  text-transform: uppercase;
+  opacity: .92;
+}
+.sb-role-card .sb-role-badge{
+  display:inline-flex; align-items:center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.22);
+  border: 1px solid rgba(255,255,255,.30);
+  font-size: 11px; font-weight: 900; letter-spacing:.06em;
+}
+.sb-role-card .sb-role-title{
+  margin-top: 6px;
+  font-size: 15px; font-weight: 800; line-height: 1.25;
+}
+.sb-role-card .sb-role-desc{
+  margin-top: 4px;
+  font-size: 11.5px; line-height: 1.45;
+  color: rgba(255,255,255,.85);
+}
 .hero{
   position: relative;
   overflow: hidden;
@@ -6112,7 +6159,7 @@ st.write("")  # spacing
 # Sidebar (hiển thị cả với khách) — dùng cơ chế drawer mặc định của Streamlit trên mobile
 with st.sidebar:
     st.markdown(f"""<div class="sb-brand">
-<div class="sb-logo" style="background:transparent; box-shadow:none;">{logo_svg(52)}</div>
+<div class="sb-logo" style="background:transparent; box-shadow:none;">{logo_svg(42)}</div>
 <div>
   <div class="sb-title">AIEXAM.VN</div>
   <div class="sb-sub">WEB AI GIÁO VIÊN</div>
@@ -6132,7 +6179,6 @@ with st.sidebar:
         "🖥️ Năng lực số": "digital",
         "🧭 Nhận xét – Tư vấn": "advisor",
         "📘 Hướng dẫn": "help",
-        "🔐 Đăng nhập / Đăng ký": "login",
     }
     if is_admin_user():
         page_map = {"📊 Hoạt động hệ thống AI": "evidence", **page_map}
@@ -6141,7 +6187,11 @@ with st.sidebar:
     current_page = st.session_state.get("current_page", "dashboard")
     current_label = reverse_map.get(current_page, "🏡 Trang chủ")
     # Sync radio highlight when navigation happens programmatically (go(...))
-    if st.session_state.get("_sync_sidebar_menu", False) or "sidebar_menu_main" not in st.session_state:
+    if (
+        st.session_state.get("_sync_sidebar_menu", False)
+        or "sidebar_menu_main" not in st.session_state
+        or st.session_state.get("sidebar_menu_main") not in page_map
+    ):
         st.session_state["sidebar_menu_main"] = current_label
         st.session_state["_sync_sidebar_menu"] = False
     def _on_sidebar_nav_change():
@@ -6158,20 +6208,39 @@ with st.sidebar:
     user = st.session_state.get("user") or {}
     if user:
         role = user.get("role", "free")
-        role_badge = "PRO" if role == "pro" else "FREE"
-        st.markdown(f"""<div class="card">
-<b>⭐ Gói hiện tại: {role_badge}</b>
-<div class="small-muted" style="margin-top:6px;">Nâng cấp để mở giới hạn & nhận thêm điểm.</div>
+        is_pro = role == "pro"
+        role_badge = "PRO" if is_pro else "FREE"
+        card_cls = "sb-role-card" if is_pro else "sb-role-card is-free"
+        title_text = "Đang dùng gói PRO" if is_pro else "Mở khóa toàn bộ tính năng"
+        desc_text = (
+            "Cảm ơn bạn đã đồng hành — mọi tính năng đã sẵn sàng."
+            if is_pro
+            else "Nâng cấp để bỏ giới hạn lượt dùng & nhận thêm điểm thưởng."
+        )
+        st.markdown(f"""<div class="{card_cls}">
+<div class="sb-role-top">
+  <span>⭐ Gói hiện tại</span>
+  <span class="sb-role-badge">{role_badge}</span>
+</div>
+<div class="sb-role-title">{title_text}</div>
+<div class="sb-role-desc">{desc_text}</div>
 </div>""", unsafe_allow_html=True)
+        if not is_pro:
+            if st.button("✨ Nâng cấp PRO", type="primary", use_container_width=True, key="sb_upgrade"):
+                go("help")
         if st.button("🚪 Đăng xuất", use_container_width=True, key="sb_logout"):
             st.session_state.pop("user", None)
             st.session_state["current_page"] = "dashboard"
     else:
-        st.markdown("""<div class="card soft">
-<b>👋 Chào mừng!</b>
-<div class="small-muted" style="margin-top:6px;">Bạn có thể xem Trang chủ và dùng thử 1 câu Chat AI. Khi dùng tiếp, hệ thống sẽ yêu cầu đăng nhập.</div>
+        st.markdown("""<div class="sb-role-card is-free">
+<div class="sb-role-top">
+  <span>👋 Khách</span>
+  <span class="sb-role-badge">DEMO</span>
+</div>
+<div class="sb-role-title">Đăng nhập để dùng đầy đủ</div>
+<div class="sb-role-desc">Xem Trang chủ và thử 1 câu Chat AI miễn phí. Đăng nhập để mở khóa các module còn lại.</div>
 </div>""", unsafe_allow_html=True)
-        if st.button("🔐 Đăng nhập", type="primary", use_container_width=True, key="sb_login"):
+        if st.button("🔐 Đăng nhập / Đăng ký", type="primary", use_container_width=True, key="sb_login"):
             st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
             st.session_state["current_page"] = "login"
 # ROUTER
