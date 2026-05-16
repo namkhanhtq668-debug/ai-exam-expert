@@ -457,19 +457,66 @@ button[data-testid="stSidebarCollapseButton"],
   transform: translateY(-1px);
 }
 .sb-brand{
-  display:flex; align-items:center; gap:8px;
-  padding: 8px 2px 4px 2px;
+  display:flex; align-items:center; gap:10px;
+  padding: 10px 2px 6px 2px;
 }
 .sb-logo{
-  width: 60px; height: 60px; border-radius: 0px;
+  width: 42px; height: 42px; border-radius: 0px;
   background: transparent;
   display:flex; align-items:center; justify-content:center;
   color: inherit; font-weight:800;
   box-shadow: none;
+  flex-shrink: 0;
 }
-.sb-logo svg{display:block;}
-.sb-title{ font-weight: 800; line-height: 1.05; font-size: 14px; color:#0f172a; }
-.sb-sub{ color: var(--muted); font-size: 11px; margin-top: 2px; }
+.sb-logo svg{display:block; width:42px; height:42px;}
+.sb-title{ font-weight: 800; line-height: 1.1; font-size: 16px; color:#0f172a; letter-spacing:-0.01em; }
+.sb-sub{ color: var(--muted); font-size: 12px; margin-top: 2px; font-weight: 500; letter-spacing:.02em; }
+/* PRO/FREE role card — nổi bật để khuyến khích nâng cấp */
+.sb-role-card{
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #1e40af 0%, #6d28d9 55%, #0ea5e9 100%);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(37,99,235,.22);
+  margin: 4px 0 8px 0;
+}
+.sb-role-card.is-free{
+  background: linear-gradient(135deg, #475569 0%, #334155 60%, #1e293b 100%);
+  box-shadow: 0 10px 22px rgba(15,23,42,.18);
+}
+.sb-role-card::after{
+  content:"";
+  position:absolute; top:-30px; right:-30px;
+  width: 90px; height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.18), transparent 70%);
+  pointer-events:none;
+}
+.sb-role-card .sb-role-top{
+  display:flex; align-items:center; gap:8px;
+  font-size: 11px; font-weight: 800; letter-spacing:.08em;
+  text-transform: uppercase;
+  opacity: .92;
+}
+.sb-role-card .sb-role-badge{
+  display:inline-flex; align-items:center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.22);
+  border: 1px solid rgba(255,255,255,.30);
+  font-size: 11px; font-weight: 900; letter-spacing:.06em;
+}
+.sb-role-card .sb-role-title{
+  margin-top: 6px;
+  font-size: 15px; font-weight: 800; line-height: 1.25;
+}
+.sb-role-card .sb-role-desc{
+  margin-top: 4px;
+  font-size: 11.5px; line-height: 1.45;
+  color: rgba(255,255,255,.85);
+}
 .hero{
   position: relative;
   overflow: hidden;
@@ -3663,8 +3710,29 @@ def module_evidence_implementation():
     st.write("")
     st.markdown("### Ghi chú")
     st.caption("Các chỉ số này chỉ đọc dữ liệu, không ảnh hưởng tới đăng nhập, tạo đề hay soạn giáo án.")
+def _gen_math_captcha():
+    """Sinh câu hỏi toán đơn giản và lưu đáp án vào session."""
+    a = random.randint(1, 9)
+    b = random.randint(1, 9)
+    op = random.choice(["+", "-", "×"])
+    if op == "+":
+        ans = a + b
+    elif op == "-":
+        # đảm bảo kết quả dương
+        if a < b:
+            a, b = b, a
+        ans = a - b
+    else:
+        ans = a * b
+    st.session_state["captcha_question"] = f"{a} {op} {b}"
+    st.session_state["captcha_answer"] = ans
+
+
 def login_screen():
     st.session_state.setdefault("show_forgot", False)
+    st.session_state.setdefault("login_fail_count", 0)
+    if "captcha_question" not in st.session_state:
+        _gen_math_captcha()
     client = init_supabase()
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
@@ -3680,7 +3748,31 @@ def login_screen():
         with tab_login:
             u = st.text_input("Tên đăng nhập", key="login_username")
             p = st.text_input("Mật khẩu", type="password", key="login_password")
+
+            fail_count = st.session_state.get("login_fail_count", 0)
+            need_captcha = fail_count >= 2
+            captcha_input = ""
+            if need_captcha:
+                st.warning(f"⚠️ Đã sai {fail_count} lần. Vui lòng giải mã xác minh bên dưới.")
+                captcha_input = st.text_input(
+                    f"🔐 Mã xác minh: {st.session_state.get('captcha_question', '')} = ?",
+                    key="captcha_input",
+                )
+
             if st.button("ĐĂNG NHẬP", type="primary", key="login_btn"):
+                # Bước 1: kiểm CAPTCHA nếu đang yêu cầu
+                if need_captcha:
+                    try:
+                        if int((captcha_input or "").strip()) != int(st.session_state.get("captcha_answer", -999)):
+                            st.error("❌ Mã xác minh không đúng. Vui lòng thử lại.")
+                            _gen_math_captcha()
+                            return
+                    except (ValueError, TypeError):
+                        st.error("❌ Vui lòng nhập số cho mã xác minh.")
+                        _gen_math_captcha()
+                        return
+
+                # Bước 2: kiểm tài khoản
                 if client:
                     try:
                         res = (
@@ -3690,11 +3782,16 @@ def login_screen():
                             .execute()
                         )
                         rows = _as_dict_rows(res.data)
+                        login_ok = False
                         if rows:
                             user_data = rows[0]
-                            if not verify_password_compat(user_data.get("password"), p):
-                                st.error("Sai tài khoản hoặc mật khẩu")
-                                return
+                            if verify_password_compat(user_data.get("password"), p):
+                                login_ok = True
+
+                        if login_ok:
+                            # Reset đếm fail + tạo captcha mới cho lần sau
+                            st.session_state["login_fail_count"] = 0
+                            _gen_math_captcha()
                             st.session_state["user"] = {
                                 "email": user_data["username"],
                                 "fullname": user_data["fullname"],
@@ -3707,6 +3804,8 @@ def login_screen():
                             go(target)
                             st.rerun()
                         else:
+                            st.session_state["login_fail_count"] = fail_count + 1
+                            _gen_math_captcha()
                             st.error("Sai tài khoản hoặc mật khẩu")
                     except Exception as e:
                         st.error(f"Lỗi đăng nhập: {e}")
@@ -6112,7 +6211,7 @@ st.write("")  # spacing
 # Sidebar (hiển thị cả với khách) — dùng cơ chế drawer mặc định của Streamlit trên mobile
 with st.sidebar:
     st.markdown(f"""<div class="sb-brand">
-<div class="sb-logo" style="background:transparent; box-shadow:none;">{logo_svg(52)}</div>
+<div class="sb-logo" style="background:transparent; box-shadow:none;">{logo_svg(42)}</div>
 <div>
   <div class="sb-title">AIEXAM.VN</div>
   <div class="sb-sub">WEB AI GIÁO VIÊN</div>
@@ -6132,7 +6231,6 @@ with st.sidebar:
         "🖥️ Năng lực số": "digital",
         "🧭 Nhận xét – Tư vấn": "advisor",
         "📘 Hướng dẫn": "help",
-        "🔐 Đăng nhập / Đăng ký": "login",
     }
     if is_admin_user():
         page_map = {"📊 Hoạt động hệ thống AI": "evidence", **page_map}
@@ -6141,7 +6239,11 @@ with st.sidebar:
     current_page = st.session_state.get("current_page", "dashboard")
     current_label = reverse_map.get(current_page, "🏡 Trang chủ")
     # Sync radio highlight when navigation happens programmatically (go(...))
-    if st.session_state.get("_sync_sidebar_menu", False) or "sidebar_menu_main" not in st.session_state:
+    if (
+        st.session_state.get("_sync_sidebar_menu", False)
+        or "sidebar_menu_main" not in st.session_state
+        or st.session_state.get("sidebar_menu_main") not in page_map
+    ):
         st.session_state["sidebar_menu_main"] = current_label
         st.session_state["_sync_sidebar_menu"] = False
     def _on_sidebar_nav_change():
@@ -6158,20 +6260,39 @@ with st.sidebar:
     user = st.session_state.get("user") or {}
     if user:
         role = user.get("role", "free")
-        role_badge = "PRO" if role == "pro" else "FREE"
-        st.markdown(f"""<div class="card">
-<b>⭐ Gói hiện tại: {role_badge}</b>
-<div class="small-muted" style="margin-top:6px;">Nâng cấp để mở giới hạn & nhận thêm điểm.</div>
+        is_pro = role == "pro"
+        role_badge = "PRO" if is_pro else "FREE"
+        card_cls = "sb-role-card" if is_pro else "sb-role-card is-free"
+        title_text = "Đang dùng gói PRO" if is_pro else "Mở khóa toàn bộ tính năng"
+        desc_text = (
+            "Cảm ơn bạn đã đồng hành — mọi tính năng đã sẵn sàng."
+            if is_pro
+            else "Nâng cấp để bỏ giới hạn lượt dùng & nhận thêm điểm thưởng."
+        )
+        st.markdown(f"""<div class="{card_cls}">
+<div class="sb-role-top">
+  <span>⭐ Gói hiện tại</span>
+  <span class="sb-role-badge">{role_badge}</span>
+</div>
+<div class="sb-role-title">{title_text}</div>
+<div class="sb-role-desc">{desc_text}</div>
 </div>""", unsafe_allow_html=True)
+        if not is_pro:
+            if st.button("✨ Nâng cấp PRO", type="primary", use_container_width=True, key="sb_upgrade"):
+                go("help")
         if st.button("🚪 Đăng xuất", use_container_width=True, key="sb_logout"):
             st.session_state.pop("user", None)
             st.session_state["current_page"] = "dashboard"
     else:
-        st.markdown("""<div class="card soft">
-<b>👋 Chào mừng!</b>
-<div class="small-muted" style="margin-top:6px;">Bạn có thể xem Trang chủ và dùng thử 1 câu Chat AI. Khi dùng tiếp, hệ thống sẽ yêu cầu đăng nhập.</div>
+        st.markdown("""<div class="sb-role-card is-free">
+<div class="sb-role-top">
+  <span>👋 Khách</span>
+  <span class="sb-role-badge">DEMO</span>
+</div>
+<div class="sb-role-title">Đăng nhập để dùng đầy đủ</div>
+<div class="sb-role-desc">Xem Trang chủ và thử 1 câu Chat AI miễn phí. Đăng nhập để mở khóa các module còn lại.</div>
 </div>""", unsafe_allow_html=True)
-        if st.button("🔐 Đăng nhập", type="primary", use_container_width=True, key="sb_login"):
+        if st.button("🔐 Đăng nhập / Đăng ký", type="primary", use_container_width=True, key="sb_login"):
             st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
             st.session_state["current_page"] = "login"
 # ROUTER
@@ -6470,9 +6591,22 @@ if footer_modal:
         modal_body = textwrap.dedent("""
             <p><strong>📞 LIÊN HỆ HỖ TRỢ</strong></p>
             <p>AIEXAM luôn sẵn sàng tiếp nhận ý kiến đóng góp và hỗ trợ người dùng trong quá trình sử dụng hệ thống.</p>
-            <p><strong>Email hỗ trợ:</strong> tttuanttvt2@gmail.com</p>
-            <p><strong>Nội dung hỗ trợ:</strong> Giải đáp kỹ thuật, hướng dẫn sử dụng, tiếp nhận góp ý cải tiến hệ thống</p>
-            <p><strong>Thời gian phản hồi:</strong> Trong giờ hành chính hoặc trong thời gian sớm nhất có thể</p>
+            <p><strong>🏢 Đơn vị vận hành:</strong> TRẦN THANH TUẤN — T SMART AI</p>
+            <p><strong>📍 Địa chỉ:</strong> Tỉnh Tuyên Quang</p>
+            <p><strong>📱 Điện thoại / Zalo:</strong> <a href="tel:0918198687">0918 198 687</a></p>
+            <p><strong>📧 Email:</strong> <a href="mailto:tttuanttvt2@gmail.com">tttuanttvt2@gmail.com</a></p>
+            <p><strong>👥 Cộng đồng giáo viên (Zalo):</strong> <a href="https://zalo.me/g/thsstj332" target="_blank" rel="noopener">zalo.me/g/thsstj332</a></p>
+            <p><strong>🛠 Nội dung hỗ trợ:</strong> Giải đáp kỹ thuật, hướng dẫn sử dụng, xử lý giao dịch nạp VIP, tiếp nhận góp ý cải tiến hệ thống.</p>
+            <p><strong>⏱ Thời gian phản hồi:</strong></p>
+            <ul>
+              <li>Điện thoại / Zalo: 8h00 – 17h00, từ Thứ 2 đến Thứ 7.</li>
+              <li>Email: phản hồi trong vòng 24 giờ làm việc.</li>
+            </ul>
+            <p><strong>📌 Trước khi liên hệ, vui lòng:</strong></p>
+            <ul>
+              <li>Xem mục <em>Hướng dẫn sử dụng</em> để tự giải quyết các vấn đề thường gặp.</li>
+              <li>Với sự cố nạp VIP: chuẩn bị ảnh chụp giao dịch và nội dung chuyển khoản để được hỗ trợ nhanh.</li>
+            </ul>
             <p>Mọi phản hồi của người dùng là cơ sở quan trọng để AIEXAM tiếp tục hoàn thiện và nâng cao chất lượng phục vụ trong lĩnh vực giáo dục.</p>
         """).strip()
     st.markdown(
