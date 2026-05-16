@@ -418,32 +418,43 @@ section[data-testid="stSidebar"]{
   border-right: 1px solid #E2E8F0;
   color: #334155;
 }
-/* Nút toggle sidebar của Streamlit phải luôn hiện và bấm được.
-   Streamlit 1.37+ dùng `stExpandSidebarButton` (mở) và `stSidebarCollapseButton` (đóng).
-   Bản cũ hơn dùng `collapsedControl` / `stSidebarCollapsedControl`.
-   Topbar custom (sticky, nền trắng, z-index 999) che mất khu vực góc trên-trái nơi
-   Streamlit đặt nút mở sidebar. Ép nút expand position:fixed góc trên-trái, z-index 1002. */
+/* Ẩn các nút toggle native của Streamlit ra khỏi tầm mắt (đặt ra ngoài viewport)
+   để dùng nút custom #aiexam-sidebar-toggle bên dưới. Vẫn giữ pointer-events
+   để JS có thể click trình tự được. */
 button[data-testid="stExpandSidebarButton"],
+button[data-testid="stSidebarCollapseButton"],
 [data-testid="stSidebarCollapsedControl"],
 [data-testid="collapsedControl"]{
   position: fixed !important;
-  top: 8px !important;
-  left: 8px !important;
-  display: flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  opacity: 0 !important;
   pointer-events: auto !important;
-  z-index: 1002 !important;
-  background: #ffffff !important;
-  border: 1px solid #E2E8F0 !important;
-  border-radius: 10px !important;
-  box-shadow: 0 6px 14px rgba(15,23,42,.10) !important;
 }
-button[data-testid="stSidebarCollapseButton"]{
-  visibility: visible !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  z-index: 1002 !important;
+/* Nút custom của AIEXAM — luôn hiển thị, 1 nút duy nhất */
+#aiexam-sidebar-toggle{
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  box-shadow: 0 6px 14px rgba(15,23,42,.10);
+  cursor: pointer;
+  z-index: 999999;
+  font-size: 20px;
+  color: #0f172a;
+  transition: background .15s ease, box-shadow .15s ease, transform .12s ease;
+}
+#aiexam-sidebar-toggle:hover{
+  background: #F1F5F9;
+  box-shadow: 0 10px 20px rgba(15,23,42,.14);
+  transform: translateY(-1px);
 }
 .sb-brand{
   display:flex; align-items:center; gap:8px;
@@ -6056,6 +6067,47 @@ def module_profile():
 _ensure_nav_state()
 # Topbar luôn hiển thị
 render_topbar()
+# Inject nút toggle sidebar custom (1 nút duy nhất, dùng JS bấm hộ nút native của Streamlit)
+components.html(
+    """
+<script>
+(function(){
+  const doc = window.parent.document;
+  function findNativeToggle(){
+    return doc.querySelector('button[data-testid="stSidebarCollapseButton"]')
+        || doc.querySelector('button[data-testid="stExpandSidebarButton"]')
+        || doc.querySelector('[data-testid="stSidebarCollapsedControl"] button')
+        || doc.querySelector('[data-testid="stSidebarCollapsedControl"]')
+        || doc.querySelector('[data-testid="collapsedControl"] button')
+        || doc.querySelector('[data-testid="collapsedControl"]');
+  }
+  function ensureBtn(){
+    let btn = doc.getElementById('aiexam-sidebar-toggle');
+    if(!btn){
+      btn = doc.createElement('div');
+      btn.id = 'aiexam-sidebar-toggle';
+      btn.setAttribute('role','button');
+      btn.setAttribute('aria-label','Mở/đóng sidebar');
+      btn.innerHTML = '☰';
+      btn.addEventListener('click', function(){
+        const t = findNativeToggle();
+        if(t){
+          try { t.click(); } catch(e){}
+        }
+      });
+      doc.body.appendChild(btn);
+    }
+  }
+  ensureBtn();
+  // Re-inject nếu Streamlit rerender làm mất nút
+  const obs = new MutationObserver(()=>ensureBtn());
+  obs.observe(doc.body, { childList:true, subtree:true });
+})();
+</script>
+    """,
+    height=0,
+    width=0,
+)
 st.write("")  # spacing
 # Sidebar (hiển thị cả với khách) — dùng cơ chế drawer mặc định của Streamlit trên mobile
 with st.sidebar:
