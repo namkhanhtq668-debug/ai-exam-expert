@@ -328,6 +328,13 @@ try:
     from lesson_ui import module_lesson_plan_B  # pyright: ignore[reportMissingImports]
 except ImportError:
     module_lesson_plan_B = None
+# [GIAI ĐOẠN 2] Module "Soạn giáo án AI nâng cao" — Pro+ only
+try:
+    from lesson_plan_advanced import module_lesson_plan_advanced  # pyright: ignore[reportMissingImports]
+    _lesson_plan_advanced_error = ""
+except Exception as _e_lpa:
+    module_lesson_plan_advanced = None
+    _lesson_plan_advanced_error = str(_e_lpa)
 # ==============================================================================
 # 1. CẤU HÌNH HỆ THỐNG & KẾT NỐI
 # ==============================================================================
@@ -6360,22 +6367,22 @@ def render_lesson_plan_advanced_gate():
     st.markdown(features_html, unsafe_allow_html=True)
 
     if is_pro_user:
-        st.success("✅ Bạn đang dùng gói PRO — đủ quyền truy cập tính năng này.")
-        st.info(f"""
-**🚧 Tính năng đang được hoàn thiện — sắp ra mắt!**
-
-Module thật sẽ được kích hoạt trong bản cập nhật tới. Khi đó, mỗi lượt soạn giáo án sẽ trừ **{POINT_COST_LESSON_PLAN_ADVANCED} điểm** (đắt hơn module thường vì có OCR ảnh tốn token Vision).
-
-**Lộ trình phát triển:**
-- ✅ Giai đoạn 1 (hiện tại): UI gating + mock-up
-- 🔄 Giai đoạn 2: Tích hợp module thật, fix encoding, đổi tên hàm
-- 🔄 Giai đoạn 3: Test local Streamlit với đầy đủ tính năng
-- 🔄 Giai đoạn 4: Deploy lên VPS
-
-Trong lúc chờ, mời thầy/cô dùng tab **📚 Trợ lý Soạn bài** ở menu bên trái.
-        """)
-        if st.button("📚 Sang Trợ lý Soạn bài hiện tại", type="primary", key="lpa_goto_lesson"):
-            go("lesson_plan")
+        # [GIAI ĐOẠN 2] Gọi module thật nếu đã import thành công
+        if module_lesson_plan_advanced is not None:
+            module_lesson_plan_advanced(
+                api_key=_get_api_key_effective(),
+                point_check=require_points_or_block,
+                point_cost=POINT_COST_LESSON_PLAN_ADVANCED,
+                model_name="gemini-2.0-flash",
+            )
+        else:
+            st.error("⚠️ Module 'lesson_plan_advanced' chưa load được. Vui lòng kiểm tra file `lesson_plan_advanced.py` cùng thư mục.")
+            if _lesson_plan_advanced_error:
+                with st.expander("Chi tiết lỗi import", expanded=False):
+                    st.code(_lesson_plan_advanced_error)
+            st.info("Trong lúc chờ, mời thầy/cô dùng tab **📚 Trợ lý Soạn bài** ở menu bên trái.")
+            if st.button("📚 Sang Trợ lý Soạn bài hiện tại", type="primary", key="lpa_goto_lesson"):
+                go("lesson_plan")
     else:
         st.warning("🔒 **Tính năng dành cho thành viên PRO.** Nâng cấp để mở khóa toàn bộ công cụ soạn giáo án AI nâng cao.")
         col1, col2 = st.columns([1, 1])
