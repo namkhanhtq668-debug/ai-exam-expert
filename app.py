@@ -334,6 +334,9 @@ except ImportError:
 # --- CẤU HÌNH GIỚI HẠN SỬ DỤNG ---
 MAX_FREE_USAGE = 3
 MAX_PRO_USAGE = 15
+# --- FEATURE FLAGS (bật/tắt nhanh module mới mà không xóa code) ---
+ENABLE_LESSON_PLAN_ADVANCED = True   # Đặt False để ẩn tab "Soạn giáo án AI nâng cao"
+POINT_COST_LESSON_PLAN_ADVANCED = 35  # Điểm trừ mỗi lượt khi module thật chạy (giai đoạn sau)
 # --- CẤU HÌNH KHUYẾN MẠI & HOA HỒNG ---
 BONUS_PER_REF = 0
 BONUS_PRO_REF = 3
@@ -4811,7 +4814,7 @@ def module_lesson_plan():
 # - Demo 1 câu hỏi AI thật ở Home/Chat (guest)
 # - Chỉ khi dùng tiếp hoặc dùng module nâng cao mới yêu cầu đăng nhập
 # ==============================================================================
-PROTECTED_PAGES = {"exam", "lesson_plan", "digital", "advisor", "doc_ai", "mindmap", "profile", "evidence"}
+PROTECTED_PAGES = {"exam", "lesson_plan", "digital", "advisor", "doc_ai", "mindmap", "profile", "evidence", "lesson_plan_advanced"}
 DEMO_ALLOWED_PAGES = {"dashboard", "chat"}  # guest được xem + demo 1 câu
 def _get_api_key_effective() -> str:
     # Ưu tiên key user nhập, fallback key hệ thống
@@ -6228,6 +6231,7 @@ with st.sidebar:
         "🧠 Mindmap": "mindmap",
         "🧾 Ra đề – KTĐG": "exam",
         "📚 Trợ lý Soạn bài": "lesson_plan",
+        **({"✨ Soạn giáo án AI nâng cao": "lesson_plan_advanced"} if ENABLE_LESSON_PLAN_ADVANCED else {}),
         "🖥️ Năng lực số": "digital",
         "🧭 Nhận xét – Tư vấn": "advisor",
         "📘 Hướng dẫn": "help",
@@ -6295,6 +6299,102 @@ with st.sidebar:
         if st.button("🔐 Đăng nhập / Đăng ký", type="primary", use_container_width=True, key="sb_login"):
             st.session_state["requested_page"] = st.session_state.get("current_page", "dashboard")
             st.session_state["current_page"] = "login"
+# ==============================================================================
+# MODULE MOCK-UP: "Soạn giáo án AI nâng cao" (Giai đoạn 1 - chỉ UI gating)
+# Pro/Admin -> màn hình "Sắp ra mắt" + danh sách tính năng
+# Free user -> màn hình upgrade kèm preview
+# ==============================================================================
+def render_lesson_plan_advanced_gate():
+    user = st.session_state.get("user") or {}
+    role = (user.get("role") or "free").lower()
+    is_pro_user = role == "pro" or is_admin_user()
+
+    st.markdown("""
+    <div style="background:linear-gradient(135deg,#0F172A 0%,#1D4ED8 58%,#60A5FA 100%);
+    border-radius:16px;padding:22px 24px;color:#fff;border:1px solid rgba(255,255,255,.18);
+    box-shadow:0 10px 24px rgba(2,6,23,.18);margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h2 style="margin:0;font-weight:800;">✨ Soạn giáo án AI nâng cao</h2>
+        <span style="background:#fbbf24;color:#0f172a;font-weight:800;padding:4px 10px;border-radius:999px;font-size:12px;">PRO+</span>
+      </div>
+      <div style="opacity:.94;margin-top:8px;line-height:1.5;font-size:15px;">
+        Soạn giáo án bám SGK 100% — có OCR ảnh trang sách, đánh giá độ tin cậy nguồn, chuẩn CTGDPT 2018 &amp; CV 2345/BGDĐT-GDTH.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    features_html = """
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:10px 0 16px;">
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:#fff;">
+        <div style="font-size:22px;">📸</div>
+        <div style="font-weight:800;margin-top:4px;">OCR ảnh trang SGK</div>
+        <div style="color:#475569;font-size:13.5px;margin-top:4px;">Chụp ảnh trang sách → AI đọc, soạn giáo án bám đúng bài.</div>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:#fff;">
+        <div style="font-size:22px;">🎯</div>
+        <div style="font-weight:800;margin-top:4px;">Đánh giá độ tin cậy nguồn</div>
+        <div style="color:#475569;font-size:13.5px;margin-top:4px;">4 mức (Rất cao → Thấp) — chống AI bịa nội dung SGK.</div>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:#fff;">
+        <div style="font-size:22px;">📚</div>
+        <div style="font-weight:800;margin-top:4px;">Kho metadata SGK nội bộ</div>
+        <div style="color:#475569;font-size:13.5px;margin-top:4px;">Tự tìm bài học khớp lớp, môn, tên bài trong dữ liệu SGK chuẩn.</div>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:#fff;">
+        <div style="font-size:22px;">✅</div>
+        <div style="font-weight:800;margin-top:4px;">Quality gate 15 tiêu chí</div>
+        <div style="color:#475569;font-size:13.5px;margin-top:4px;">Tự chấm điểm 0–100, cảnh báo khi thiếu mục bắt buộc.</div>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:#fff;">
+        <div style="font-size:22px;">📥</div>
+        <div style="font-weight:800;margin-top:4px;">Xuất Word / PDF chuẩn A4</div>
+        <div style="color:#475569;font-size:13.5px;margin-top:4px;">In ra dùng ngay, có bảng tiến trình GV–HS, rubric, phiếu học tập.</div>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:#fff;">
+        <div style="font-size:22px;">🎓</div>
+        <div style="font-weight:800;margin-top:4px;">Phân hóa 3 nhóm HS</div>
+        <div style="color:#475569;font-size:13.5px;margin-top:4px;">Tự sinh nội dung cho HS yếu / TB / khá giỏi + rubric đánh giá.</div>
+      </div>
+    </div>
+    """
+    st.markdown(features_html, unsafe_allow_html=True)
+
+    if is_pro_user:
+        st.success("✅ Bạn đang dùng gói PRO — đủ quyền truy cập tính năng này.")
+        st.info(f"""
+**🚧 Tính năng đang được hoàn thiện — sắp ra mắt!**
+
+Module thật sẽ được kích hoạt trong bản cập nhật tới. Khi đó, mỗi lượt soạn giáo án sẽ trừ **{POINT_COST_LESSON_PLAN_ADVANCED} điểm** (đắt hơn module thường vì có OCR ảnh tốn token Vision).
+
+**Lộ trình phát triển:**
+- ✅ Giai đoạn 1 (hiện tại): UI gating + mock-up
+- 🔄 Giai đoạn 2: Tích hợp module thật, fix encoding, đổi tên hàm
+- 🔄 Giai đoạn 3: Test local Streamlit với đầy đủ tính năng
+- 🔄 Giai đoạn 4: Deploy lên VPS
+
+Trong lúc chờ, mời thầy/cô dùng tab **📚 Trợ lý Soạn bài** ở menu bên trái.
+        """)
+        if st.button("📚 Sang Trợ lý Soạn bài hiện tại", type="primary", key="lpa_goto_lesson"):
+            go("lesson_plan")
+    else:
+        st.warning("🔒 **Tính năng dành cho thành viên PRO.** Nâng cấp để mở khóa toàn bộ công cụ soạn giáo án AI nâng cao.")
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("🚀 Nâng cấp lên PRO ngay", type="primary", use_container_width=True, key="lpa_upgrade"):
+                go("help")
+        with col2:
+            st.link_button("📞 Tư vấn qua Zalo", "https://zalo.me/g/thsstj332", use_container_width=True)
+
+        st.markdown(f"""
+        <div style="border:1px dashed #94a3b8;border-radius:12px;padding:14px;background:#f8fafc;margin-top:12px;">
+          <div style="font-weight:800;color:#0f172a;">💰 Chi phí khi dùng (sau khi ra mắt)</div>
+          <div style="color:#334155;margin-top:6px;">
+            • Gói PRO: <b>{POINT_COST_LESSON_PLAN_ADVANCED} điểm / lượt soạn giáo án</b><br/>
+            • Bao gồm: OCR ảnh, đánh giá tin cậy nguồn, xuất Word/PDF, quality gate.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
 # ROUTER
 page = st.session_state.get("current_page", "dashboard")
 # Login page
@@ -6336,6 +6436,8 @@ elif page == "lesson_plan":
         )
     else:
         module_lesson_plan()
+elif page == "lesson_plan_advanced":
+    render_lesson_plan_advanced_gate()
 elif page == "digital":
     module_digital()
 elif page == "advisor":
