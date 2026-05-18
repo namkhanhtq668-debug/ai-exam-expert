@@ -67,7 +67,7 @@ try:
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
-    from docx.shared import Inches, Pt
+    from docx.shared import Inches, Mm, Pt
 except Exception:
     Document = None
 
@@ -834,10 +834,20 @@ def _create_docx(full_html: str) -> bytes:
     page = soup.find("article") or soup.find("div", class_="page") or soup.body or soup
     doc = Document()
     sec = doc.sections[0]
-    sec.top_margin = Inches(0.65); sec.bottom_margin = Inches(0.65)
-    sec.left_margin = Inches(0.7); sec.right_margin = Inches(0.7)
-    doc.styles["Normal"].font.name = "Times New Roman"  # type: ignore[attr-defined]
-    doc.styles["Normal"].font.size = Pt(13)  # type: ignore[attr-defined]
+    # Khổ A4 + lề chuẩn Nghị định 30/2020/NĐ-CP (trái 30mm, phải 20mm, trên/dưới 20mm)
+    sec.page_height = Mm(297)
+    sec.page_width = Mm(210)
+    sec.top_margin = Mm(20)
+    sec.bottom_margin = Mm(20)
+    sec.left_margin = Mm(30)
+    sec.right_margin = Mm(20)
+    # Style mặc định: Times New Roman 13pt, giãn dòng 1.5, cách sau đoạn 6pt
+    normal = doc.styles["Normal"]
+    normal.font.name = "Times New Roman"  # type: ignore[attr-defined]
+    normal.font.size = Pt(13)  # type: ignore[attr-defined]
+    normal.paragraph_format.line_spacing = 1.5  # type: ignore[attr-defined]
+    normal.paragraph_format.space_after = Pt(6)  # type: ignore[attr-defined]
+    normal.paragraph_format.space_before = Pt(0)  # type: ignore[attr-defined]
 
     def add_p(text: str, *, bold: bool = False, size: int = 13, align=None, indent_em: int = 0):
         text = re.sub(r"\s+", " ", text or "").strip()
@@ -848,6 +858,8 @@ def _create_docx(full_html: str) -> bytes:
             p.alignment = align
         if indent_em > 0:
             p.paragraph_format.left_indent = Inches(0.25 * indent_em)
+        p.paragraph_format.line_spacing = 1.5
+        p.paragraph_format.space_after = Pt(6)
         run = p.add_run(text)
         run.bold = bold
         run.font.name = "Times New Roman"
