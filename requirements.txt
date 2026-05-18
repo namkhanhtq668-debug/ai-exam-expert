@@ -10,6 +10,8 @@ pandas
 python-docx
 openpyxl
 flask
+beautifulsoup4
+mammoth
 
 # OCR (nếu dùng PDF scan)
 pdf2image
