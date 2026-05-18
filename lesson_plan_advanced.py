@@ -979,127 +979,113 @@ def module_lesson_plan_advanced(
     """Module soạn giáo án AI nâng cao — chỉ Pro/Admin được vào.
     Caller phải tự kiểm tra role trước khi gọi.
     """
-    # Header
+    # Thanh thông tin gọn 1 dòng — không trùng với header gọi từ app.py
     st.markdown(
-        f"""<div style="background:linear-gradient(135deg,#0F172A 0%,#1D4ED8 58%,#60A5FA 100%);
-        border-radius:16px;padding:18px 20px;color:#fff;margin-bottom:14px;
-        box-shadow:0 10px 24px rgba(2,6,23,.18);">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <h2 style="margin:0;font-weight:800;">✨ Soạn giáo án AI nâng cao</h2>
-          <span style="background:#fbbf24;color:#0f172a;font-weight:800;padding:4px 10px;border-radius:999px;font-size:12px;">PRO+</span>
-        </div>
-        <div style="opacity:.94;margin-top:6px;line-height:1.45;">
-          OCR ảnh trang SGK • Đánh giá độ tin cậy nguồn • Chuẩn CTGDPT 2018 + CV 2345/BGDĐT-GDTH
-        </div>
-        <div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,.15);border-radius:8px;font-size:13px;line-height:1.5;">
-          📚 <b>Bộ sách:</b> {BOOK_SERIES_LOCKED} · 📅 <b>Năm học:</b> từ {SCHOOL_YEAR_DEFAULT} trở đi
-        </div>
-        <div style="opacity:.8;margin-top:6px;font-size:13px;">Phiên bản: {APP_VERSION} • Phí: {point_cost} điểm/lượt • Giáo án đủ 14 mục chuẩn CTGDPT</div></div>""",
+        f"""<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+        padding:10px 14px;margin-bottom:12px;border:1px solid #e2e8f0;border-radius:10px;
+        background:#f8fafc;font-size:13px;color:#334155;">
+          <span style="background:#1d4ed8;color:#fff;font-weight:700;padding:2px 8px;border-radius:6px;font-size:12px;">KNTT</span>
+          <span><b>Năm học:</b> từ {SCHOOL_YEAR_DEFAULT}</span>
+          <span style="color:#94a3b8">·</span>
+          <span><b>14 mục</b> chuẩn CTGDPT 2018 + CV 2345</span>
+          <span style="color:#94a3b8">·</span>
+          <span><b>Phí:</b> {point_cost} điểm/lượt</span>
+          <span style="margin-left:auto;color:#64748b;font-size:12px;">v{APP_VERSION}</span>
+        </div>""",
         unsafe_allow_html=True,
     )
-
-    with st.expander("ℹ️ Hướng dẫn dùng nhanh", expanded=False):
-        st.markdown("""
-        1. Nhập ngày dạy, lớp, môn, tên bài, thời lượng.
-        2. (Khuyến khích) Upload ảnh trang SGK hoặc file bài học để AI bám đúng nội dung.
-        3. Nếu không có, hệ thống tìm trong kho metadata `data_sgk_ket_noi/`.
-        4. Bấm **Tạo giáo án bằng AI** (trừ điểm) hoặc **Tạo bản demo** (miễn phí, để xem cấu trúc).
-        5. Tải Word/HTML về dùng ngay.
-        """)
 
     # CHỈ cho phép năm học từ 2026-2027 trở đi (theo yêu cầu chuyên môn)
     current_year = max(dt.date.today().year, SCHOOL_YEAR_MIN)
     school_years = [f"{y}-{y+1}" for y in range(SCHOOL_YEAR_MIN, current_year + 4)]
 
-    with st.form(key=_k("form"), clear_on_submit=False):
-        st.markdown("### 1) Thông tin bài dạy")
-        c1, c2 = st.columns([1.1, 1.1])
-        with c1:
-            phong_gd_dt = st.text_input("Phòng GD&ĐT (cấp trên)", placeholder="VD: Phòng GD&ĐT Quận Đống Đa", key=_k("phong"))
-        with c2:
-            school = st.text_input("Tên trường", placeholder="VD: Tiểu học Đoàn Kết", key=_k("school"))
+    # Map lớp → cấp học (tự suy ra, không cần ô riêng)
+    grade_to_level = {g: lv for lv, info in SUBJECTS_BY_LEVEL.items() for g in info["grades"]}
+    all_grades_flat = [g for lv in SUBJECTS_BY_LEVEL for g in SUBJECTS_BY_LEVEL[lv]["grades"]]
 
-        c1, c2, c3 = st.columns([1.2, 1.2, 1.0])
+    with st.form(key=_k("form"), clear_on_submit=False):
+        # === Phần thiết yếu — luôn hiện ===
+        c1, c2 = st.columns(2)
         with c1:
-            department = st.text_input("Tổ / khối chuyên môn", placeholder="VD: Tổ Khoa học Tự nhiên / Khối 5", key=_k("department"))
+            school = st.text_input("Tên trường", placeholder="VD: Tiểu học Đoàn Kết", key=_k("school"))
         with c2:
             teacher = st.text_input("Họ tên giáo viên", key=_k("teacher"))
-        with c3:
-            school_year = st.selectbox("Năm học", school_years, index=min(1, len(school_years) - 1), key=_k("year"))
 
-        c1, c2, c3, c4, c5 = st.columns([1.1, 1.0, 0.9, 0.9, 1.1])
+        c1, c2, c3, c4 = st.columns([0.7, 1.8, 1.0, 1.1])
         with c1:
-            teaching_date = st.date_input("Ngày dạy", value=dt.date.today(), key=_k("date"))
+            grade = str(st.selectbox("Lớp", all_grades_flat, key=_k("grade")) or all_grades_flat[0])
+            level = grade_to_level[grade]
         with c2:
-            location = st.text_input("Địa danh", placeholder="VD: Hà Nội", key=_k("location"), help="Dùng cho dòng '...., ngày ... tháng ... năm ...' phía trên chữ ký.")
-        with c3:
-            level = st.selectbox("Cấp học", list(SUBJECTS_BY_LEVEL.keys()), key=_k("level"))
-        with c4:
-            grade = st.selectbox("Lớp", SUBJECTS_BY_LEVEL[level]["grades"], key=_k("grade"))
-        with c5:
-            subject = st.selectbox("Môn học", SUBJECTS_BY_LEVEL[level]["subjects"], key=_k("subject"))
-
-        c1, c2, c3 = st.columns([1.2, 2.2, 1.0])
-        with c1:
-            class_name = st.text_input("Lớp cụ thể", placeholder="VD: 5A", key=_k("class"))
-        with c2:
-            lesson_title = st.text_input("Tên bài học", placeholder="VD: Tìm kiếm thông tin trên Internet", key=_k("title"))
+            subject = str(st.selectbox("Môn học", SUBJECTS_BY_LEVEL[level]["subjects"], key=_k("subject")) or SUBJECTS_BY_LEVEL[level]["subjects"][0])
         with c3:
             duration = st.number_input("Thời lượng (phút)", min_value=20, max_value=120,
                                        value=int(SUBJECTS_BY_LEVEL[level]["default_duration"]), step=5, key=_k("duration"))
+        with c4:
+            teaching_date = st.date_input("Ngày dạy", value=dt.date.today(), key=_k("date"))
 
-        c1, c2, c3 = st.columns([1.2, 1.0, 1.4])
-        with c1:
-            # Bộ sách bị khóa cứng — chỉ KNTT
-            st.text_input(
-                "Bộ sách (cố định)",
-                value=BOOK_SERIES_LOCKED,
-                disabled=True,
-                key=_k("book_display"),
-                help="Module này chỉ áp dụng bộ sách Kết nối tri thức với cuộc sống, từ năm học 2026-2027.",
-            )
-            book_series = BOOK_SERIES_LOCKED
-        with c2:
-            period_note = st.text_input("Tuần / tiết / PPCT", placeholder="VD: Tuần 12 - Tiết 23", key=_k("period"))
-        with c3:
-            sgk_pages = st.text_input("Trang SGK / nguồn học liệu", placeholder="VD: SGK trang 45-47; vở bài tập trang 30", key=_k("sgk_pages"))
-        st.caption(f"📚 **Bộ sách áp dụng:** {BOOK_SERIES_LOCKED} · 📅 **Năm học:** từ {SCHOOL_YEAR_DEFAULT} trở đi.")
+        lesson_title = st.text_input("Tên bài học", placeholder="VD: Tìm kiếm thông tin trên Internet", key=_k("title"))
 
-        st.markdown("### 2) Nguồn học liệu")
-        s1, s2 = st.columns([1.0, 1.0])
+        # === Nguồn học liệu ===
+        st.markdown("**📚 Nguồn học liệu KNTT** — *khuyến khích upload để AI bám đúng SGK*")
+        s1, s2 = st.columns(2)
         with s1:
-            use_metadata = st.checkbox("Tự tìm trong kho metadata SGK", value=True, key=_k("use_meta"))
-            uploaded_files = st.file_uploader("Upload file bài học (PDF/DOCX/TXT)",
+            image_files = st.file_uploader("Ảnh trang SGK (JPG/PNG/WEBP)",
+                                           type=["jpg", "jpeg", "png", "webp"],
+                                           accept_multiple_files=True, key=_k("images"))
+            uploaded_files = st.file_uploader("File bài học (PDF/DOCX/TXT)",
                                               type=["pdf", "docx", "doc", "txt"],
                                               accept_multiple_files=True, key=_k("files"))
         with s2:
-            image_files = st.file_uploader("Upload/chụp ảnh trang SGK (JPG/PNG/WEBP)",
-                                           type=["jpg", "jpeg", "png", "webp"],
-                                           accept_multiple_files=True, key=_k("images"))
-            official_links = st.text_area("Link SGK/học liệu chính thống",
+            official_links = st.text_area("Link chính thống (hoclieuso.nxbgd.vn, moet.gov.vn…)",
                                           placeholder="VD: https://hoclieuso.nxbgd.vn/...",
-                                          height=90, key=_k("links"))
+                                          height=110, key=_k("links"))
+            use_metadata = st.checkbox("Tự tìm trong kho metadata SGK nội bộ", value=True, key=_k("use_meta"))
 
-        st.markdown("### 3) Tùy chỉnh chuyên môn")
-        c1, c2 = st.columns([1.0, 1.0])
-        with c1:
-            digital_level = st.selectbox("Mức tích hợp năng lực số",
-                                         ["Vừa đủ, tự nhiên", "Tăng cường hoạt động số", "Tối giản"], key=_k("dlevel"))
-        with c2:
-            diff_level = st.selectbox("Mức phân hóa",
-                                      ["Cơ bản", "Chi tiết theo 3 nhóm", "Lớp đông/thiếu thiết bị"], key=_k("diff"))
-        teacher_note = st.text_area("Ghi chú riêng của giáo viên",
-                                    placeholder="VD: lớp có nhiều HS yếu; cần thêm trò chơi khởi động; không có phòng máy...",
-                                    height=80, key=_k("note"))
+        # === Chi tiết hành chính — ẩn mặc định ===
+        with st.expander("📋 Chi tiết hành chính (mở khi cần in nộp tổ chuyên môn)", expanded=False):
+            c1, c2 = st.columns(2)
+            with c1:
+                phong_gd_dt = st.text_input("Phòng GD&ĐT", placeholder="VD: Phòng GD&ĐT Quận Đống Đa", key=_k("phong"))
+            with c2:
+                department = st.text_input("Tổ / khối chuyên môn", placeholder="VD: Tổ Khoa học Tự nhiên / Khối 5", key=_k("department"))
 
-        st.markdown("### 4) Tạo giáo án")
-        c1, c2, c3 = st.columns([1.2, 1.2, 1.0])
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                class_name = st.text_input("Lớp cụ thể (VD: 5A)", key=_k("class"))
+            with c2:
+                period_note = st.text_input("Tuần / tiết / PPCT", placeholder="VD: Tuần 12 - Tiết 23", key=_k("period"))
+            with c3:
+                sgk_pages = st.text_input("Trang SGK", placeholder="VD: trang 45-47", key=_k("sgk_pages"))
+
+            c1, c2 = st.columns(2)
+            with c1:
+                location = st.text_input("Địa danh (cho chữ ký)", placeholder="VD: Hà Nội", key=_k("location"))
+            with c2:
+                school_year = st.selectbox("Năm học", school_years, index=min(1, len(school_years) - 1), key=_k("year"))
+
+        # === Tùy chỉnh chuyên môn — ẩn mặc định, default đã ổn ===
+        with st.expander("⚙️ Tùy chỉnh chuyên môn (mặc định đã đủ dùng)", expanded=False):
+            c1, c2 = st.columns(2)
+            with c1:
+                digital_level = st.selectbox("Mức tích hợp năng lực số",
+                                             ["Vừa đủ, tự nhiên", "Tăng cường hoạt động số", "Tối giản"], key=_k("dlevel"))
+            with c2:
+                diff_level = st.selectbox("Mức phân hóa",
+                                          ["Cơ bản", "Chi tiết theo 3 nhóm", "Lớp đông/thiếu thiết bị"], key=_k("diff"))
+            teacher_note = st.text_area("Ghi chú riêng của giáo viên",
+                                        placeholder="VD: lớp có nhiều HS yếu; cần thêm trò chơi khởi động...",
+                                        height=70, key=_k("note"))
+
+        book_series = BOOK_SERIES_LOCKED  # khóa cứng, không cho UI sửa
+
+        st.markdown("")
+        c1, c2, c3 = st.columns([2, 2, 1])
         with c1:
-            submit_ai = st.form_submit_button(f"⚡ Tạo giáo án bằng AI (-{point_cost} điểm)", type="primary", use_container_width=True)
+            submit_ai = st.form_submit_button(f"⚡ Tạo giáo án bằng AI ({point_cost} điểm)", type="primary", use_container_width=True)
         with c2:
-            submit_demo = st.form_submit_button("🧪 Tạo bản demo (miễn phí)", use_container_width=True)
+            submit_demo = st.form_submit_button("🧪 Bản demo (miễn phí)", use_container_width=True)
         with c3:
-            reset = st.form_submit_button("🧹 Xóa kết quả", use_container_width=True)
+            reset = st.form_submit_button("🗑️ Xóa", use_container_width=True)
 
     if reset:
         for key in [_k("html_content"), _k("full_html"), _k("title_slug"), _k("validation")]:
