@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c \"import lesson_plan_advanced\")"
+      "Bash(python -c \"import lesson_plan_advanced\")",
+      "Bash(python -c \"import sys; print\\(sys.executable\\); print\\(sys.version\\)\")"
     ]
   }
 }

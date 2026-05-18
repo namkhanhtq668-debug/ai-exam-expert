@@ -555,8 +555,8 @@ def _extract_image_context(image_files, api_key: str, model_name: str) -> Tuple[
         Trả lời bằng tiếng Việt, dạng gạch đầu dòng rõ ràng.
     """).strip()
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_name)
+        genai.configure(api_key=api_key)  # type: ignore[attr-defined]
+        model = genai.GenerativeModel(model_name)  # type: ignore[attr-defined]
         resp = model.generate_content([prompt, *pil_imgs])
         text = getattr(resp, "text", "") or ""
         notes.append("Đã OCR ảnh bằng AI." if text.strip() else "AI không trả về nội dung.")
@@ -828,7 +828,17 @@ def _wrap_a4(content_html: str, title: str = "GiaoAn") -> str:
 
 def _create_docx(full_html: str) -> bytes:
     if Document is None or BeautifulSoup is None or NavigableString is None:
-        raise RuntimeError("Cần cài python-docx và beautifulsoup4.")
+        import sys
+        missing = []
+        if Document is None:
+            missing.append("python-docx")
+        if BeautifulSoup is None or NavigableString is None:
+            missing.append("beautifulsoup4")
+        raise RuntimeError(
+            f"Thiếu thư viện: {', '.join(missing)}. "
+            f"Cài bằng: \"{sys.executable}\" -m pip install {' '.join(missing)} — "
+            f"rồi RESTART streamlit."
+        )
     NavStr = NavigableString  # alias để type checker narrow ra non-None
     soup = BeautifulSoup(full_html, "html.parser")
     page = soup.find("article") or soup.find("div", class_="page") or soup.body or soup
