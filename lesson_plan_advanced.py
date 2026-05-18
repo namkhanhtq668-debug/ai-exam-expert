@@ -75,8 +75,11 @@ except Exception:
 # 1. Cấu hình
 # =============================================================================
 
-APP_VERSION = "2026.05-pro"
+APP_VERSION = "2026.05-pro-v2"
 BOOK_SERIES_DEFAULT = "Kết nối tri thức với cuộc sống"
+BOOK_SERIES_LOCKED = "Kết nối tri thức với cuộc sống"  # CHỈ DUY NHẤT bộ sách này
+SCHOOL_YEAR_DEFAULT = "2026-2027"  # Áp dụng từ năm học 2026-2027 trở đi
+SCHOOL_YEAR_MIN = 2026  # Năm bắt đầu (chặn AI tham chiếu chương trình cũ)
 PUBLISHER = "Nhà xuất bản Giáo dục Việt Nam"
 DEFAULT_MODEL = "gemini-2.0-flash"
 APP_KEY = "lp_adv"
@@ -91,10 +94,7 @@ APPROVED_DOMAINS = [
 ]
 
 BOOK_SERIES_OPTIONS = [
-    "Kết nối tri thức với cuộc sống",
-    "Cánh Diều",
-    "Chân trời sáng tạo",
-    "Khác / Tự nhập",
+    "Kết nối tri thức với cuộc sống",  # CHỈ duy nhất — bộ sách áp dụng từ 2026-2027
 ]
 
 SUBJECTS_BY_LEVEL: Dict[str, Dict[str, Any]] = {
@@ -138,12 +138,22 @@ DIGITAL_COMPETENCIES = [
     "Sử dụng công cụ AI/học liệu số có trách nhiệm",
 ]
 
+# 14 mục chuẩn CTGDPT 2018 — ánh xạ 1-1 với yêu cầu chuyên môn
 REQUIRED_SECTIONS = [
-    "thông tin chung", "nguồn học liệu", "yêu cầu cần đạt",
-    "năng lực", "phẩm chất", "năng lực số", "thiết bị",
-    "tiến trình dạy học", "hoạt động của giáo viên",
-    "hoạt động của học sinh", "đánh giá", "phân hóa",
-    "phiếu học tập", "rubric", "điều chỉnh sau tiết dạy",
+    "thông tin chung",          # 1
+    "nguồn học liệu",            # 2
+    "yêu cầu cần đạt",           # 3
+    "năng lực chung",            # 4
+    "năng lực đặc thù",          # 5
+    "phẩm chất",                 # 6
+    "năng lực số",               # 7
+    "thiết bị",                  # 8
+    "tiến trình dạy học",        # 9 (bảng GV-HS)
+    "sản phẩm học tập",          # 10
+    "đánh giá thường xuyên",     # 11
+    "phân hóa",                  # 12
+    "phiếu học tập",             # 13 (gồm cả rubric)
+    "điều chỉnh sau bài dạy",    # 14
 ]
 
 SAMPLE_LESSONS: List[Dict[str, Any]] = [
@@ -554,28 +564,35 @@ def _build_prompt(*, school, teacher, school_year, teaching_date, level, grade, 
                   subject, book_series, lesson_title, duration, period_note, digital_level,
                   diff_level, bundle: _SourceBundle) -> str:
     meta_json = _safe_json_dumps(bundle.metadata_matches[:3], 15000)
+    # ÉP bộ sách = KNTT, năm học >= 2026-2027
+    enforced_book = BOOK_SERIES_LOCKED
+    enforced_year = school_year if school_year and school_year >= SCHOOL_YEAR_DEFAULT else SCHOOL_YEAR_DEFAULT
     return textwrap.dedent(f"""
 Bạn là chuyên gia giáo dục Việt Nam, chuyên thiết kế giáo án theo định hướng phát triển phẩm chất, năng lực, tích hợp năng lực số.
 Hãy soạn GIÁO ÁN HOÀN CHỈNH bằng tiếng Việt, dùng ngay được cho giáo viên.
 
-# NGUYÊN TẮC BẮT BUỘC
-1. Không bịa nội dung SGK. Chỉ khẳng định nội dung bài khi có căn cứ từ metadata, ảnh/file giáo viên hoặc link chính thống.
-2. Nếu thiếu nguồn xác thực, vẫn tạo giáo án theo khung chuẩn nhưng ghi rõ ở mục "Nguồn học liệu và mức tin cậy": giáo án cần giáo viên kiểm tra lại nội dung trong SGK.
-3. Không trích nguyên văn SGK. Chỉ tóm tắt nội dung cần thiết.
-4. Giáo án phải thực tế, giáo viên có thể tải Word và chỉnh sửa dùng ngay.
-5. Tích hợp năng lực số phải tự nhiên, đúng hoạt động, không hình thức.
-6. Tổng thời gian các hoạt động phải xấp xỉ {duration} phút.
-7. Trả về HTML sạch, KHÔNG dùng markdown, KHÔNG bọc ```html.
+# NGUYÊN TẮC TUYỆT ĐỐI (KHÔNG VI PHẠM)
+1. **BỘ SÁCH DUY NHẤT**: Chỉ tham chiếu "Kết nối tri thức với cuộc sống" (NXB Giáo dục Việt Nam).
+   - NGHIÊM CẤM tham chiếu Cánh Diều, Chân trời sáng tạo, hoặc SGK chương trình cũ.
+   - Nếu trong tài liệu nguồn có nội dung từ bộ sách khác, BỎ QUA và chỉ dùng KNTT.
+2. **NĂM HỌC ÁP DỤNG**: Từ năm học {enforced_year} trở đi. Không tham chiếu chương trình tiền 2026.
+3. Không bịa nội dung SGK. Chỉ khẳng định khi có căn cứ từ metadata, ảnh/file GV hoặc link chính thống của KNTT.
+4. Nếu thiếu nguồn xác thực, vẫn tạo giáo án theo khung chuẩn nhưng ghi rõ ở mục "Nguồn học liệu": cần GV kiểm tra lại SGK KNTT bản {enforced_year}.
+5. Không trích nguyên văn SGK quá 50 từ liên tục. Chỉ tóm tắt nội dung cần thiết.
+6. Giáo án phải thực tế, GV có thể tải Word và chỉnh sửa dùng ngay.
+7. Tích hợp năng lực số phải tự nhiên, đúng hoạt động, không hình thức.
+8. Tổng thời gian các hoạt động phải xấp xỉ {duration} phút.
+9. Trả về HTML sạch, KHÔNG dùng markdown, KHÔNG bọc ```html.
 
 # THÔNG TIN BÀI DẠY
 - Trường: {school or "Chưa nhập"}
 - Giáo viên: {teacher or "Chưa nhập"}
-- Năm học: {school_year}
+- **Năm học: {enforced_year}** (ÁP DỤNG TỪ 2026-2027)
 - Ngày dạy: {teaching_date.strftime('%d/%m/%Y')}
 - Cấp học: {level}
 - Lớp: {class_name or grade}
 - Môn học: {subject}
-- Bộ sách: {book_series}
+- **Bộ sách: {enforced_book}** (KHÔNG dùng bộ khác)
 - NXB: {PUBLISHER}
 - Tên bài học: {lesson_title}
 - Thời lượng: {duration} phút
@@ -584,43 +601,46 @@ Hãy soạn GIÁO ÁN HOÀN CHỈNH bằng tiếng Việt, dùng ngay được c
 - Mức phân hóa: {diff_level}
 - Mức tin cậy nguồn: {bundle.trust_level} - {bundle.trust_explanation}
 
-# NGUỒN 1 - METADATA SGK
+# NGUỒN 1 - METADATA SGK KNTT
 {meta_json if meta_json.strip() else "Không có metadata khớp."}
 
 # NGUỒN 2 - FILE GIÁO VIÊN
 {bundle.uploaded_text[:18000] if bundle.uploaded_text.strip() else "Không có."}
 
-# NGUỒN 3 - ẢNH TRANG SÁCH (AI ĐỌC)
+# NGUỒN 3 - ẢNH TRANG SÁCH KNTT (AI ĐỌC)
 {bundle.image_context[:15000] if bundle.image_context.strip() else "Không có."}
 
-# NGUỒN 4 - LINK CHÍNH THỐNG
+# NGUỒN 4 - LINK CHÍNH THỐNG (chỉ chấp nhận hoclieuso.nxbgd.vn, hanhtrangso.nxbgd.vn, moet.gov.vn)
 {bundle.link_context[:12000] if bundle.link_context.strip() else "Không có."}
 
 # GHI CHÚ GIÁO VIÊN
 {bundle.teacher_note or "Không có."}
 
-# KHUNG GIÁO ÁN BẮT BUỘC
-Tạo HTML có cấu trúc:
+# KHUNG GIÁO ÁN 14 MỤC BẮT BUỘC (CHUẨN CTGDPT 2018 + CV 2345/BGDĐT-GDTH)
+Tạo HTML có cấu trúc CHÍNH XÁC 14 thẻ <section>:
 <article class="lesson-plan">
-  <h1>GIÁO ÁN ...</h1>
-  <section><h2>I. Thông tin chung</h2>Bảng thông tin bài dạy.</section>
-  <section><h2>II. Nguồn học liệu và mức tin cậy</h2>Nêu rõ dùng nguồn nào. Cảnh báo nếu thiếu nguồn xác thực.</section>
-  <section><h2>III. Yêu cầu cần đạt</h2>Chia kiến thức, kĩ năng, vận dụng. Cụ thể, đo được.</section>
-  <section><h2>IV. Năng lực và phẩm chất</h2>Năng lực chung, năng lực đặc thù, phẩm chất.</section>
-  <section><h2>V. Tích hợp năng lực số</h2>Chọn từ: {', '.join(DIGITAL_COMPETENCIES)}.</section>
-  <section><h2>VI. Thiết bị, học liệu và chuẩn bị</h2>Có chuẩn bị của GV và HS.</section>
-  <section><h2>VII. Tiến trình dạy học</h2>Bảng gồm: Hoạt động, Thời gian, Mục tiêu, Hoạt động của giáo viên, Hoạt động của học sinh, Sản phẩm, Đánh giá. Bắt buộc: Khởi động, Hình thành kiến thức, Luyện tập, Vận dụng, Củng cố.</section>
-  <section><h2>VIII. Phân hóa và hỗ trợ học sinh</h2>Có HS cần hỗ trợ, HS hoàn thành tốt, điều chỉnh lớp đông/thiếu thiết bị.</section>
-  <section><h2>IX. Đánh giá thường xuyên</h2>Tiêu chí, minh chứng, câu hỏi kiểm tra nhanh.</section>
-  <section><h2>X. Phiếu học tập</h2>Tạo phiếu dùng được ngay.</section>
-  <section><h2>XI. Rubric đánh giá</h2>Bảng 3-4 mức độ.</section>
-  <section><h2>XII. Điều chỉnh sau tiết dạy</h2>Chừa dòng để GV ghi.</section>
+  <h1>GIÁO ÁN ... (BỘ SÁCH KẾT NỐI TRI THỨC - NĂM HỌC {enforced_year})</h1>
+  <section><h2>I. Thông tin chung bài dạy</h2>Bảng đầy đủ: trường, GV, năm học, ngày dạy, cấp/lớp, môn, thời lượng, bài học, bộ sách KNTT.</section>
+  <section><h2>II. Nguồn học liệu xác thực và mức tin cậy</h2>Liệt kê nguồn đã dùng (metadata/ảnh/file/link). Đánh giá mức tin cậy 4 mức. Cảnh báo nếu thiếu nguồn KNTT chính thống.</section>
+  <section><h2>III. Yêu cầu cần đạt</h2>Chia 3 nhóm: kiến thức / kĩ năng / vận dụng. Mỗi YCCĐ phải cụ thể, đo được, bám SGK KNTT.</section>
+  <section><h2>IV. Năng lực chung</h2>Liệt kê các năng lực chung CTGDPT 2018 phát triển trong bài: tự chủ và tự học; giao tiếp và hợp tác; giải quyết vấn đề và sáng tạo. Mỗi năng lực có biểu hiện cụ thể.</section>
+  <section><h2>V. Năng lực đặc thù môn học</h2>Liệt kê năng lực đặc thù theo môn (VD Toán: tư duy và lập luận, mô hình hóa, giao tiếp toán học, giải quyết vấn đề toán học; Văn: ngôn ngữ, văn học...). Có biểu hiện trong bài.</section>
+  <section><h2>VI. Phẩm chất</h2>Chọn từ 5 phẩm chất CTGDPT: yêu nước, nhân ái, chăm chỉ, trung thực, trách nhiệm. Nêu phẩm chất nào được hình thành qua hoạt động nào.</section>
+  <section><h2>VII. Năng lực số tích hợp</h2>Chọn từ: {', '.join(DIGITAL_COMPETENCIES)}. Nêu rõ tích hợp vào hoạt động nào.</section>
+  <section><h2>VIII. Thiết bị và học liệu</h2>Tách "Giáo viên chuẩn bị" / "Học sinh chuẩn bị". Liệt kê cụ thể: SGK KNTT, phiếu học tập, thiết bị số, đồ dùng dạy học.</section>
+  <section><h2>IX. Tiến trình dạy học (Hoạt động GV - HS)</h2>Bảng 7 cột: Hoạt động | Thời gian | Mục tiêu | Hoạt động của GV | Hoạt động của HS | Sản phẩm | Đánh giá. Bắt buộc đủ: Khởi động → Hình thành kiến thức → Luyện tập → Vận dụng → Củng cố/Dặn dò.</section>
+  <section><h2>X. Sản phẩm học tập</h2>Tổng hợp các sản phẩm HS tạo ra trong và sau bài học: sản phẩm trong giờ (bài làm, câu trả lời), sản phẩm cuối bài (bài luyện tập hoàn chỉnh), sản phẩm về nhà (bài tập vận dụng, chuẩn bị bài sau).</section>
+  <section><h2>XI. Đánh giá thường xuyên</h2>Tiêu chí đánh giá theo từng hoạt động, minh chứng, công cụ (quan sát, hỏi đáp, vở, phiếu), câu hỏi kiểm tra nhanh.</section>
+  <section><h2>XII. Phân hóa và hỗ trợ học sinh</h2>3 nhóm: HS cần hỗ trợ (gợi ý từng bước), HS hoàn thành tốt (mở rộng), điều chỉnh cho lớp đông/thiếu thiết bị.</section>
+  <section><h2>XIII. Phiếu học tập và Rubric đánh giá</h2>Phần A: Phiếu học tập (có nhiệm vụ cụ thể, ô để HS điền). Phần B: Rubric 3-4 mức độ (Tốt/Đạt/Cần hỗ trợ) theo các tiêu chí: hiểu nội dung, thực hiện nhiệm vụ, hợp tác.</section>
+  <section><h2>XIV. Điều chỉnh sau bài dạy</h2>Chừa 3-5 dòng kẻ chấm để GV ghi nhận sau khi dạy thực tế (điều gì hiệu quả, cần điều chỉnh, gợi ý cho lần sau).</section>
 </article>
 
 # ĐỊNH DẠNG
-- HTML rõ, có bảng, có tiêu đề, tiếng Việt chuẩn.
+- HTML rõ ràng, có bảng, có tiêu đề, tiếng Việt chuẩn.
 - Không nói "tôi là AI", không xin lỗi.
 - Không có nội dung ngoài thẻ article.
+- **PHẢI ĐỦ 14 SECTION I-XIV, KHÔNG GỘP, KHÔNG BỎ MỤC NÀO.**
     """).strip()
 
 
@@ -792,7 +812,10 @@ def module_lesson_plan_advanced(
         <div style="opacity:.94;margin-top:6px;line-height:1.45;">
           OCR ảnh trang SGK • Đánh giá độ tin cậy nguồn • Chuẩn CTGDPT 2018 + CV 2345/BGDĐT-GDTH
         </div>
-        <div style="opacity:.8;margin-top:6px;font-size:13px;">Phiên bản: {APP_VERSION} • Phí: {point_cost} điểm/lượt</div></div>""",
+        <div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,.15);border-radius:8px;font-size:13px;line-height:1.5;">
+          📚 <b>Bộ sách:</b> {BOOK_SERIES_LOCKED} · 📅 <b>Năm học:</b> từ {SCHOOL_YEAR_DEFAULT} trở đi
+        </div>
+        <div style="opacity:.8;margin-top:6px;font-size:13px;">Phiên bản: {APP_VERSION} • Phí: {point_cost} điểm/lượt • Giáo án đủ 14 mục chuẩn CTGDPT</div></div>""",
         unsafe_allow_html=True,
     )
 
@@ -805,8 +828,9 @@ def module_lesson_plan_advanced(
         5. Tải Word/HTML về dùng ngay.
         """)
 
-    current_year = dt.date.today().year
-    school_years = [f"{y}-{y+1}" for y in range(current_year - 1, current_year + 3)]
+    # CHỈ cho phép năm học từ 2026-2027 trở đi (theo yêu cầu chuyên môn)
+    current_year = max(dt.date.today().year, SCHOOL_YEAR_MIN)
+    school_years = [f"{y}-{y+1}" for y in range(SCHOOL_YEAR_MIN, current_year + 4)]
 
     with st.form(key=_k("form"), clear_on_submit=False):
         st.markdown("### 1) Thông tin bài dạy")
@@ -839,9 +863,18 @@ def module_lesson_plan_advanced(
 
         c1, c2 = st.columns([1.0, 1.0])
         with c1:
-            book_series = st.selectbox("Bộ sách", BOOK_SERIES_OPTIONS, key=_k("book"))
+            # Bộ sách bị khóa cứng — chỉ KNTT
+            st.text_input(
+                "Bộ sách (cố định)",
+                value=BOOK_SERIES_LOCKED,
+                disabled=True,
+                key=_k("book_display"),
+                help="Module này chỉ áp dụng bộ sách Kết nối tri thức với cuộc sống, từ năm học 2026-2027.",
+            )
+            book_series = BOOK_SERIES_LOCKED
         with c2:
             period_note = st.text_input("Tuần/tiết/PPCT (tùy chọn)", placeholder="VD: Tuần 12 - Tiết 23", key=_k("period"))
+        st.caption(f"📚 **Bộ sách áp dụng:** {BOOK_SERIES_LOCKED} · 📅 **Năm học:** từ {SCHOOL_YEAR_DEFAULT} trở đi.")
 
         st.markdown("### 2) Nguồn học liệu")
         s1, s2 = st.columns([1.0, 1.0])
@@ -1019,53 +1052,122 @@ def _demo_html(*, school, teacher, school_year, teaching_date, level, grade, cla
     obj_html = "".join(f"<li>{html.escape(x)}</li>" for x in objs)
     comp_html = "".join(f"<li>{html.escape(x)}</li>" for x in comps)
 
+    # Ép bộ sách = KNTT và năm học >= 2026-2027
+    enforced_book = BOOK_SERIES_LOCKED
+    enforced_year = school_year if school_year and school_year >= SCHOOL_YEAR_DEFAULT else SCHOOL_YEAR_DEFAULT
     return f"""
 <article class="lesson-plan">
-  <h1>GIÁO ÁN {html.escape(subject).upper()}</h1>
-  <section><h2>I. Thông tin chung</h2>
+  <h1>GIÁO ÁN {html.escape(subject).upper()} — BỘ SÁCH KẾT NỐI TRI THỨC (Năm học {html.escape(enforced_year)})</h1>
+
+  <section><h2>I. Thông tin chung bài dạy</h2>
     <table>
       <tr><th>Trường</th><td>{html.escape(school or 'Chưa nhập')}</td><th>Giáo viên</th><td>{html.escape(teacher or 'Chưa nhập')}</td></tr>
-      <tr><th>Năm học</th><td>{html.escape(school_year)}</td><th>Ngày dạy</th><td>{teaching_date.strftime('%d/%m/%Y')}</td></tr>
+      <tr><th>Năm học</th><td><strong>{html.escape(enforced_year)}</strong></td><th>Ngày dạy</th><td>{teaching_date.strftime('%d/%m/%Y')}</td></tr>
       <tr><th>Cấp học</th><td>{html.escape(level)}</td><th>Lớp</th><td>{html.escape(class_name or grade)}</td></tr>
       <tr><th>Môn học</th><td>{html.escape(subject)}</td><th>Thời lượng</th><td>{duration} phút</td></tr>
-      <tr><th>Bài học</th><td colspan="3"><strong>{html.escape(lesson_title)}</strong></td></tr>
-      <tr><th>Bộ sách</th><td colspan="3">{html.escape(book_series)} — {PUBLISHER}</td></tr>
+      <tr><th>Tên bài</th><td colspan="3"><strong>{html.escape(lesson_title)}</strong></td></tr>
+      <tr><th>Bộ sách</th><td colspan="3"><strong>{html.escape(enforced_book)}</strong> — {PUBLISHER}</td></tr>
     </table>
   </section>
-  <section><h2>II. Nguồn học liệu và mức tin cậy</h2>
+
+  <section><h2>II. Nguồn học liệu xác thực và mức tin cậy</h2>
     <p><strong>Mức tin cậy:</strong> {html.escape(bundle.trust_level)}. {html.escape(bundle.trust_explanation)}</p>
-    <p class="source-warning">Bản này là bản demo không dùng AI. Khi tạo bằng AI, hệ thống sẽ soạn chi tiết theo nguồn đã cung cấp.</p>
+    <p><strong>Bộ sách áp dụng:</strong> CHỈ "Kết nối tri thức với cuộc sống" — NXB Giáo dục Việt Nam, năm học {html.escape(enforced_year)} trở đi.</p>
+    <p class="source-warning">⚠️ Bản này là bản demo không dùng AI. Khi tạo bằng AI, hệ thống sẽ bám sát SGK KNTT theo nguồn đã cung cấp.</p>
   </section>
+
   <section><h2>III. Yêu cầu cần đạt</h2><ul>{obj_html}</ul></section>
-  <section><h2>IV. Năng lực và phẩm chất</h2>
-    <ul><li><strong>Năng lực chung:</strong> tự chủ và tự học; giao tiếp và hợp tác; giải quyết vấn đề và sáng tạo.</li>
-    <li><strong>Năng lực đặc thù:</strong> phù hợp với đặc trưng môn {html.escape(subject)}.</li>
-    <li><strong>Phẩm chất:</strong> chăm chỉ, trung thực, trách nhiệm.</li></ul></section>
-  <section><h2>V. Tích hợp năng lực số</h2><ul>{comp_html}</ul></section>
-  <section><h2>VI. Thiết bị, học liệu và chuẩn bị</h2>
-    <ul><li>Giáo viên: SGK, học liệu số/ảnh trang bài, phiếu học tập, bảng tiêu chí đánh giá.</li>
-    <li>Học sinh: SGK, vở ghi, đồ dùng học tập; thiết bị số nếu có.</li></ul></section>
-  <section><h2>VII. Tiến trình dạy học</h2>
+
+  <section><h2>IV. Năng lực chung</h2>
+    <ul>
+      <li><strong>Tự chủ và tự học:</strong> HS chủ động đọc SGK KNTT, tự hoàn thành nhiệm vụ học tập theo hướng dẫn.</li>
+      <li><strong>Giao tiếp và hợp tác:</strong> HS trao đổi với bạn, trình bày ý kiến rõ ràng trong hoạt động nhóm/cặp.</li>
+      <li><strong>Giải quyết vấn đề và sáng tạo:</strong> HS vận dụng kiến thức bài học để xử lí tình huống mới, đề xuất cách làm.</li>
+    </ul>
+  </section>
+
+  <section><h2>V. Năng lực đặc thù môn học</h2>
+    <ul>
+      <li><strong>Năng lực đặc thù môn {html.escape(subject)}:</strong> phù hợp với chuẩn đầu ra CTGDPT 2018 cho cấp {html.escape(level)}.</li>
+      <li>Biểu hiện cụ thể trong bài: thể hiện qua các hoạt động khám phá và luyện tập ở mục IX.</li>
+    </ul>
+  </section>
+
+  <section><h2>VI. Phẩm chất</h2>
+    <ul>
+      <li><strong>Chăm chỉ:</strong> tích cực tham gia hoạt động học tập, hoàn thành nhiệm vụ được giao.</li>
+      <li><strong>Trung thực:</strong> báo cáo kết quả đúng thực tế, không sao chép.</li>
+      <li><strong>Trách nhiệm:</strong> giữ gìn đồ dùng học tập, hoàn thành phần việc trong nhóm.</li>
+    </ul>
+  </section>
+
+  <section><h2>VII. Năng lực số tích hợp</h2><ul>{comp_html}</ul></section>
+
+  <section><h2>VIII. Thiết bị và học liệu</h2>
+    <p><strong>Giáo viên chuẩn bị:</strong></p>
+    <ul>
+      <li>SGK Kết nối tri thức với cuộc sống — môn {html.escape(subject)}, lớp {html.escape(class_name or grade)}.</li>
+      <li>Học liệu số/ảnh trang bài, phiếu học tập, bảng tiêu chí đánh giá.</li>
+      <li>Thiết bị: máy chiếu/tivi, bảng phụ (nếu có).</li>
+    </ul>
+    <p><strong>Học sinh chuẩn bị:</strong></p>
+    <ul>
+      <li>SGK Kết nối tri thức, vở ghi, đồ dùng học tập.</li>
+      <li>Thiết bị số nếu hoạt động có yêu cầu (điện thoại/máy tính bảng).</li>
+    </ul>
+  </section>
+
+  <section><h2>IX. Tiến trình dạy học (Hoạt động GV – HS)</h2>
     <table><tr><th>Hoạt động</th><th>Thời gian</th><th>Mục tiêu</th><th>Hoạt động của giáo viên</th><th>Hoạt động của học sinh</th><th>Sản phẩm</th><th>Đánh giá</th></tr>{rows}</table>
   </section>
-  <section><h2>VIII. Phân hóa và hỗ trợ học sinh</h2>
-    <ul><li>HS cần hỗ trợ: giao nhiệm vụ ngắn, có gợi ý từng bước.</li>
-    <li>HS hoàn thành tốt: giao nhiệm vụ mở rộng, yêu cầu giải thích.</li>
-    <li>Lớp thiếu thiết bị: tổ chức nhóm/cặp và dùng học liệu in.</li></ul></section>
-  <section><h2>IX. Đánh giá thường xuyên</h2>
-    <ul><li>Minh chứng: câu trả lời, sản phẩm học tập, phiếu học tập, quan sát nhóm.</li>
-    <li>Câu hỏi nhanh: Em học được điều gì? Em còn băn khoăn điều gì?</li></ul></section>
-  <section><h2>X. Phiếu học tập</h2>
-    <table><tr><th>Nhiệm vụ</th><th>Kết quả của em</th><th>Tự đánh giá</th></tr>
-    <tr><td>Hoàn thành nhiệm vụ trọng tâm</td><td></td><td>Đạt / Cần cố gắng</td></tr>
-    <tr><td>Nêu điều em vận dụng được</td><td></td><td>Đạt / Cần cố gắng</td></tr></table></section>
-  <section><h2>XI. Rubric đánh giá</h2>
-    <table><tr><th>Tiêu chí</th><th>Tốt</th><th>Đạt</th><th>Cần hỗ trợ</th></tr>
-    <tr><td>Hiểu nội dung bài</td><td>Nêu đúng, giải thích rõ</td><td>Nêu được ý chính</td><td>Cần gợi ý</td></tr>
-    <tr><td>Thực hiện nhiệm vụ</td><td>Hoàn thành chủ động</td><td>Hoàn thành cơ bản</td><td>Chưa hoàn thành</td></tr>
-    <tr><td>Hợp tác</td><td>Tích cực hỗ trợ bạn</td><td>Tham gia hoạt động</td><td>Còn thụ động</td></tr></table></section>
-  <section><h2>XII. Điều chỉnh sau tiết dạy</h2>
-    <p>............................................................................................................................</p>
-    <p>............................................................................................................................</p></section>
+
+  <section><h2>X. Sản phẩm học tập</h2>
+    <ul>
+      <li><strong>Sản phẩm trong giờ:</strong> câu trả lời nhanh, bài làm trên phiếu/vở, kết quả thảo luận nhóm.</li>
+      <li><strong>Sản phẩm cuối bài:</strong> bài luyện tập hoàn chỉnh, tóm tắt nội dung bài học bằng sơ đồ/bảng.</li>
+      <li><strong>Sản phẩm về nhà:</strong> bài tập vận dụng trong SGK KNTT, chuẩn bị nội dung bài học tiếp theo.</li>
+    </ul>
+  </section>
+
+  <section><h2>XI. Đánh giá thường xuyên</h2>
+    <ul>
+      <li><strong>Công cụ:</strong> quan sát, hỏi đáp, vở ghi, phiếu học tập, sản phẩm nhóm.</li>
+      <li><strong>Minh chứng:</strong> câu trả lời của HS, sản phẩm học tập, mức độ tham gia hoạt động.</li>
+      <li><strong>Câu hỏi kiểm tra nhanh:</strong> Em học được điều gì? Em còn băn khoăn điều gì? Em vận dụng được vào tình huống nào?</li>
+    </ul>
+  </section>
+
+  <section><h2>XII. Phân hóa và hỗ trợ học sinh</h2>
+    <ul>
+      <li><strong>HS cần hỗ trợ:</strong> giao nhiệm vụ ngắn, có gợi ý từng bước; GV theo sát hướng dẫn cá nhân.</li>
+      <li><strong>HS hoàn thành tốt:</strong> giao nhiệm vụ mở rộng, yêu cầu giải thích lập luận; khuyến khích hỗ trợ bạn.</li>
+      <li><strong>Lớp đông / thiếu thiết bị:</strong> tổ chức hoạt động nhóm/cặp, luân phiên dùng thiết bị, dùng học liệu in thay thế.</li>
+    </ul>
+  </section>
+
+  <section><h2>XIII. Phiếu học tập và Rubric đánh giá</h2>
+    <h3>A. Phiếu học tập</h3>
+    <table>
+      <tr><th>Nhiệm vụ</th><th>Kết quả của em</th><th>Tự đánh giá</th></tr>
+      <tr><td>1. Nêu nội dung trọng tâm em đã học</td><td></td><td>☐ Đạt &nbsp; ☐ Cần cố gắng</td></tr>
+      <tr><td>2. Vận dụng kiến thức vào 1 tình huống cụ thể</td><td></td><td>☐ Đạt &nbsp; ☐ Cần cố gắng</td></tr>
+      <tr><td>3. Điều em còn băn khoăn / muốn hỏi thêm</td><td></td><td></td></tr>
+    </table>
+    <h3>B. Rubric đánh giá (3 mức độ)</h3>
+    <table>
+      <tr><th>Tiêu chí</th><th>Tốt</th><th>Đạt</th><th>Cần hỗ trợ</th></tr>
+      <tr><td>Hiểu nội dung bài</td><td>Nêu đúng, giải thích rõ ràng, có ví dụ</td><td>Nêu được ý chính</td><td>Cần GV gợi ý mới nêu được</td></tr>
+      <tr><td>Thực hiện nhiệm vụ học tập</td><td>Hoàn thành chủ động, đúng thời gian</td><td>Hoàn thành cơ bản</td><td>Chưa hoàn thành / cần kéo dài</td></tr>
+      <tr><td>Hợp tác trong nhóm</td><td>Tích cực hỗ trợ bạn, đóng góp ý kiến</td><td>Tham gia hoạt động khi được mời</td><td>Còn thụ động, ít tham gia</td></tr>
+      <tr><td>Sử dụng năng lực số (nếu có)</td><td>Sử dụng đúng, hiệu quả, an toàn</td><td>Sử dụng đúng dưới hướng dẫn</td><td>Cần GV làm mẫu</td></tr>
+    </table>
+  </section>
+
+  <section><h2>XIV. Điều chỉnh sau bài dạy</h2>
+    <p>Sau khi dạy thực tế, GV ghi nhận:</p>
+    <p>• Hoạt động hiệu quả: ............................................................................................................................</p>
+    <p>• Cần điều chỉnh: ............................................................................................................................</p>
+    <p>• Gợi ý cho lần dạy sau: ............................................................................................................................</p>
+  </section>
 </article>
 """.strip()
