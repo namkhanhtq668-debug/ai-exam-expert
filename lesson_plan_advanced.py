@@ -43,9 +43,10 @@ import streamlit.components.v1 as components
 
 # Dependencies optional — module tự degrade nếu thiếu
 try:
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, NavigableString  # type: ignore[import-not-found]
 except Exception:
     BeautifulSoup = None
+    NavigableString = None
 
 try:
     from PIL import Image
@@ -53,12 +54,12 @@ except Exception:
     Image = None
 
 try:
-    from pypdf import PdfReader
+    from pypdf import PdfReader  # type: ignore[import-not-found]
 except Exception:
     PdfReader = None
 
 try:
-    import mammoth
+    import mammoth  # type: ignore[import-not-found]
 except Exception:
     mammoth = None
 
@@ -138,6 +139,90 @@ DIGITAL_COMPETENCIES = [
     "Sử dụng công cụ AI/học liệu số có trách nhiệm",
 ]
 
+# Năng lực đặc thù theo môn — chuẩn CTGDPT 2018 (Thông tư 32/2018/TT-BGDĐT)
+# Dùng để chèn cụ thể vào mục V, tránh GV viết "phù hợp với chuẩn đầu ra" chung chung
+SUBJECT_SPECIFIC_COMPETENCIES: Dict[str, List[str]] = {
+    "Toán": [
+        "Năng lực tư duy và lập luận toán học",
+        "Năng lực mô hình hóa toán học",
+        "Năng lực giải quyết vấn đề toán học",
+        "Năng lực giao tiếp toán học",
+        "Năng lực sử dụng công cụ, phương tiện học toán",
+    ],
+    "Tiếng Việt": [
+        "Năng lực ngôn ngữ: đọc",
+        "Năng lực ngôn ngữ: viết",
+        "Năng lực ngôn ngữ: nói",
+        "Năng lực ngôn ngữ: nghe",
+        "Năng lực văn học (cảm thụ, thưởng thức văn bản)",
+    ],
+    "Ngữ văn": [
+        "Năng lực ngôn ngữ (đọc, viết, nói và nghe)",
+        "Năng lực văn học",
+    ],
+    "Tin học": [
+        "Năng lực sử dụng và quản lí các phương tiện công nghệ thông tin và truyền thông (NLa)",
+        "Năng lực ứng xử phù hợp trong môi trường số (NLb)",
+        "Năng lực giải quyết vấn đề với sự hỗ trợ của công nghệ thông tin và truyền thông (NLc)",
+        "Năng lực ứng dụng công nghệ thông tin và truyền thông trong học và tự học (NLd)",
+        "Năng lực hợp tác trong môi trường số (NLe)",
+    ],
+    "Khoa học": [
+        "Năng lực nhận thức khoa học tự nhiên",
+        "Năng lực tìm hiểu môi trường tự nhiên xung quanh",
+        "Năng lực vận dụng kiến thức, kĩ năng đã học",
+    ],
+    "Khoa học tự nhiên": [
+        "Năng lực nhận thức khoa học tự nhiên",
+        "Năng lực tìm hiểu tự nhiên",
+        "Năng lực vận dụng kiến thức, kĩ năng đã học",
+    ],
+    "Tự nhiên và Xã hội": [
+        "Năng lực nhận thức khoa học",
+        "Năng lực tìm hiểu môi trường tự nhiên và xã hội xung quanh",
+        "Năng lực vận dụng kiến thức, kĩ năng đã học vào thực tiễn",
+    ],
+    "Lịch sử và Địa lí": [
+        "Năng lực nhận thức khoa học Lịch sử",
+        "Năng lực nhận thức khoa học Địa lí",
+        "Năng lực tìm hiểu Lịch sử / Địa lí",
+        "Năng lực vận dụng kiến thức, kĩ năng đã học",
+    ],
+    "Đạo đức": [
+        "Năng lực điều chỉnh hành vi đạo đức",
+        "Năng lực phát triển bản thân",
+        "Năng lực tìm hiểu và tham gia hoạt động kinh tế - xã hội",
+    ],
+    "Tiếng Anh": [
+        "Năng lực giao tiếp bằng tiếng Anh: nghe",
+        "Năng lực giao tiếp bằng tiếng Anh: nói",
+        "Năng lực giao tiếp bằng tiếng Anh: đọc",
+        "Năng lực giao tiếp bằng tiếng Anh: viết",
+    ],
+    "Mĩ thuật": [
+        "Năng lực quan sát và nhận thức thẩm mĩ",
+        "Năng lực sáng tạo và ứng dụng thẩm mĩ",
+        "Năng lực phân tích và đánh giá thẩm mĩ",
+    ],
+    "Âm nhạc": [
+        "Năng lực thể hiện âm nhạc",
+        "Năng lực cảm thụ và hiểu biết âm nhạc",
+        "Năng lực ứng dụng và sáng tạo âm nhạc",
+    ],
+    "Giáo dục thể chất": [
+        "Năng lực chăm sóc sức khỏe",
+        "Năng lực vận động cơ bản",
+        "Năng lực hoạt động thể dục thể thao",
+    ],
+    "Công nghệ": [
+        "Năng lực nhận thức công nghệ",
+        "Năng lực giao tiếp công nghệ",
+        "Năng lực sử dụng công nghệ",
+        "Năng lực đánh giá công nghệ",
+        "Năng lực thiết kế kĩ thuật",
+    ],
+}
+
 # 14 mục chuẩn CTGDPT 2018 — ánh xạ 1-1 với yêu cầu chuyên môn
 REQUIRED_SECTIONS = [
     "thông tin chung",          # 1
@@ -150,7 +235,7 @@ REQUIRED_SECTIONS = [
     "thiết bị",                  # 8
     "tiến trình dạy học",        # 9 (bảng GV-HS)
     "sản phẩm học tập",          # 10
-    "đánh giá thường xuyên",     # 11
+    "công cụ đánh giá",           # 11 (tổng thể; chi tiết per-hoạt động nằm trong IX)
     "phân hóa",                  # 12
     "phiếu học tập",             # 13 (gồm cả rubric)
     "điều chỉnh sau bài dạy",    # 14
@@ -428,11 +513,11 @@ def _call_gemini_text(api_key: str, prompt: str, model_name: str = DEFAULT_MODEL
         import google.generativeai as genai
     except Exception as e:
         raise RuntimeError("Chưa cài google-generativeai. Chạy: pip install google-generativeai") from e
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(model_name)
+    genai.configure(api_key=api_key)  # type: ignore[attr-defined]
+    model = genai.GenerativeModel(model_name)  # type: ignore[attr-defined]
     resp = model.generate_content(
         prompt,
-        generation_config={"temperature": temperature, "top_p": 0.9, "max_output_tokens": 12000},
+        generation_config={"temperature": temperature, "top_p": 0.9, "max_output_tokens": 12000},  # type: ignore[arg-type]
     )
     return getattr(resp, "text", "") or ""
 
@@ -560,13 +645,26 @@ def _determine_trust(b: _SourceBundle) -> _SourceBundle:
 # 4. Prompt + Sinh HTML
 # =============================================================================
 
-def _build_prompt(*, school, teacher, school_year, teaching_date, level, grade, class_name,
-                  subject, book_series, lesson_title, duration, period_note, digital_level,
-                  diff_level, bundle: _SourceBundle) -> str:
+def _build_prompt(*, phong_gd_dt, school, department, teacher, school_year, teaching_date, location,
+                  level, grade, class_name, subject, book_series, lesson_title, duration,
+                  period_note, sgk_pages, digital_level, diff_level, bundle: _SourceBundle) -> str:
     meta_json = _safe_json_dumps(bundle.metadata_matches[:3], 15000)
     # ÉP bộ sách = KNTT, năm học >= 2026-2027
     enforced_book = BOOK_SERIES_LOCKED
     enforced_year = school_year if school_year and school_year >= SCHOOL_YEAR_DEFAULT else SCHOOL_YEAR_DEFAULT
+
+    # Tín hiệu nguồn để AI biết phải bám gì
+    has_meta = bool(bundle.metadata_matches)
+    has_image = bool(bundle.image_context.strip())
+    has_upload = bool(bundle.uploaded_text.strip())
+    has_link = bool(bundle.link_context.strip())
+    source_signal = []
+    if has_image: source_signal.append("ẢNH SGK (ưu tiên cao nhất — đây là nội dung thật của bài)")
+    if has_upload: source_signal.append("FILE GV upload (ưu tiên cao)")
+    if has_meta: source_signal.append("METADATA KNTT (khung tham chiếu)")
+    if has_link: source_signal.append("LINK CHÍNH THỐNG")
+    source_priority = " > ".join(source_signal) if source_signal else "KHÔNG CÓ NGUỒN XÁC THỰC — phải ghi cảnh báo trong mục II"
+
     return textwrap.dedent(f"""
 Bạn là chuyên gia giáo dục Việt Nam, chuyên thiết kế giáo án theo định hướng phát triển phẩm chất, năng lực, tích hợp năng lực số.
 Hãy soạn GIÁO ÁN HOÀN CHỈNH bằng tiếng Việt, dùng ngay được cho giáo viên.
@@ -576,27 +674,48 @@ Hãy soạn GIÁO ÁN HOÀN CHỈNH bằng tiếng Việt, dùng ngay được c
    - NGHIÊM CẤM tham chiếu Cánh Diều, Chân trời sáng tạo, hoặc SGK chương trình cũ.
    - Nếu trong tài liệu nguồn có nội dung từ bộ sách khác, BỎ QUA và chỉ dùng KNTT.
 2. **NĂM HỌC ÁP DỤNG**: Từ năm học {enforced_year} trở đi. Không tham chiếu chương trình tiền 2026.
-3. Không bịa nội dung SGK. Chỉ khẳng định khi có căn cứ từ metadata, ảnh/file GV hoặc link chính thống của KNTT.
-4. Nếu thiếu nguồn xác thực, vẫn tạo giáo án theo khung chuẩn nhưng ghi rõ ở mục "Nguồn học liệu": cần GV kiểm tra lại SGK KNTT bản {enforced_year}.
-5. Không trích nguyên văn SGK quá 50 từ liên tục. Chỉ tóm tắt nội dung cần thiết.
-6. Giáo án phải thực tế, GV có thể tải Word và chỉnh sửa dùng ngay.
-7. Tích hợp năng lực số phải tự nhiên, đúng hoạt động, không hình thức.
-8. Tổng thời gian các hoạt động phải xấp xỉ {duration} phút.
-9. Trả về HTML sạch, KHÔNG dùng markdown, KHÔNG bọc ```html.
+3. **THỨ TỰ ƯU TIÊN NGUỒN**: {source_priority}.
+   - Khi các nguồn mâu thuẫn: ẢNH SGK / FILE GV THẮNG metadata. Metadata chỉ là khung tham chiếu phụ.
+   - Khi viết mục III (Yêu cầu cần đạt), V (Năng lực đặc thù), IX (Tiến trình): nếu nội dung lấy từ ảnh/file/metadata, thêm chú thích nguồn ngắn ở cuối câu, vd: "(theo ảnh SGK)", "(theo metadata KNTT)". Nếu suy luận sư phạm chung, không cần chú thích.
+4. Không bịa nội dung SGK. Chỉ khẳng định khi có căn cứ từ metadata, ảnh/file GV hoặc link chính thống của KNTT.
+   - Nếu không chắc chắn nội dung cụ thể của bài (vd tên nhân vật, số liệu, công thức), viết theo hướng tổng quát rồi đánh dấu [GV kiểm tra SGK] ngay tại chỗ.
+5. Nếu thiếu nguồn xác thực, vẫn tạo giáo án theo khung chuẩn nhưng ghi rõ ở mục "Nguồn học liệu": cần GV kiểm tra lại SGK KNTT bản {enforced_year}.
+6. Không trích nguyên văn SGK quá 50 từ liên tục. Chỉ tóm tắt nội dung cần thiết.
+7. Giáo án phải thực tế, GV có thể tải Word và chỉnh sửa dùng ngay.
+   - Câu lệnh GV phải cụ thể: "GV chiếu slide trang ..., hỏi: ..." chứ KHÔNG viết "GV giới thiệu bài học".
+   - Hoạt động HS phải quan sát được: "HS đọc thầm đoạn 1, gạch chân từ khóa" chứ KHÔNG viết "HS lắng nghe".
+8. Tích hợp năng lực số phải tự nhiên, đúng hoạt động, không hình thức.
+9. Tổng thời gian các hoạt động phải bằng đúng {duration} phút (sai số ±2 phút). Bảng tiến trình IX phải có cột "Thời gian" với số phút cụ thể từng hoạt động.
+10. Trả về HTML sạch, KHÔNG dùng markdown, KHÔNG bọc ```html.
+
+# VÍ DỤ ĐỊNH DẠNG MẪU (chỉ tham khảo cấu trúc, không copy nội dung)
+<section><h2>III. Yêu cầu cần đạt</h2>
+  <p><strong>Về kiến thức:</strong></p>
+  <ul><li>Nêu được vai trò của từ khóa khi tìm kiếm thông tin trên Internet (theo metadata KNTT).</li></ul>
+  <p><strong>Về kĩ năng:</strong></p>
+  <ul><li>Thực hiện được thao tác gõ từ khóa vào ô tìm kiếm và mở kết quả phù hợp.</li></ul>
+</section>
+
+Ví dụ 1 hàng trong bảng IX (tiến trình):
+<tr><td>Khởi động — Trò chơi "Đoán từ"</td><td style="text-align:center">5</td><td>HS huy động vốn từ liên quan đến bài học</td><td>GV chiếu 3 hình ảnh (sách, bản đồ, máy tính), hỏi: "Khi cần tìm thông tin về một loài chim, em sẽ làm gì?"</td><td>HS giơ tay trả lời cá nhân, mỗi em nêu 1 cách tìm thông tin</td><td>3-5 câu trả lời từ HS</td><td>GV quan sát, ghi nhận sự tham gia</td></tr>
 
 # THÔNG TIN BÀI DẠY
+- Phòng GD&ĐT: {phong_gd_dt or "GV bổ sung"}
 - Trường: {school or "Chưa nhập"}
-- Giáo viên: {teacher or "Chưa nhập"}
+- Tổ / khối chuyên môn: {department or "Chưa nhập"}
+- Địa danh (dùng cho chữ ký): {location or "GV bổ sung"}
+- Họ tên giáo viên: {teacher or "Chưa nhập"}
 - **Năm học: {enforced_year}** (ÁP DỤNG TỪ 2026-2027)
 - Ngày dạy: {teaching_date.strftime('%d/%m/%Y')}
 - Cấp học: {level}
 - Lớp: {class_name or grade}
-- Môn học: {subject}
+- Môn học / hoạt động giáo dục: {subject}
 - **Bộ sách: {enforced_book}** (KHÔNG dùng bộ khác)
 - NXB: {PUBLISHER}
 - Tên bài học: {lesson_title}
-- Thời lượng: {duration} phút
-- Tuần/tiết/PPCT: {period_note or "Không bắt buộc"}
+- Thời lượng / số tiết: {duration} phút
+- Tuần / tiết / PPCT: {period_note or "Không bắt buộc"}
+- Trang SGK / nguồn học liệu: {sgk_pages or "GV bổ sung sau"}
 - Mức tích hợp năng lực số: {digital_level}
 - Mức phân hóa: {diff_level}
 - Mức tin cậy nguồn: {bundle.trust_level} - {bundle.trust_explanation}
@@ -616,24 +735,53 @@ Hãy soạn GIÁO ÁN HOÀN CHỈNH bằng tiếng Việt, dùng ngay được c
 # GHI CHÚ GIÁO VIÊN
 {bundle.teacher_note or "Không có."}
 
-# KHUNG GIÁO ÁN 14 MỤC BẮT BUỘC (CHUẨN CTGDPT 2018 + CV 2345/BGDĐT-GDTH)
-Tạo HTML có cấu trúc CHÍNH XÁC 14 thẻ <section>:
+# KHUNG GIÁO ÁN CHUẨN CV 2345/BGDĐT-GDTH (KHBD nộp tổ chuyên môn)
+Tạo HTML có cấu trúc CHÍNH XÁC sau:
 <article class="lesson-plan">
-  <h1>GIÁO ÁN ... (BỘ SÁCH KẾT NỐI TRI THỨC - NĂM HỌC {enforced_year})</h1>
-  <section><h2>I. Thông tin chung bài dạy</h2>Bảng đầy đủ: trường, GV, năm học, ngày dạy, cấp/lớp, môn, thời lượng, bài học, bộ sách KNTT.</section>
-  <section><h2>II. Nguồn học liệu xác thực và mức tin cậy</h2>Liệt kê nguồn đã dùng (metadata/ảnh/file/link). Đánh giá mức tin cậy 4 mức. Cảnh báo nếu thiếu nguồn KNTT chính thống.</section>
-  <section><h2>III. Yêu cầu cần đạt</h2>Chia 3 nhóm: kiến thức / kĩ năng / vận dụng. Mỗi YCCĐ phải cụ thể, đo được, bám SGK KNTT.</section>
-  <section><h2>IV. Năng lực chung</h2>Liệt kê các năng lực chung CTGDPT 2018 phát triển trong bài: tự chủ và tự học; giao tiếp và hợp tác; giải quyết vấn đề và sáng tạo. Mỗi năng lực có biểu hiện cụ thể.</section>
-  <section><h2>V. Năng lực đặc thù môn học</h2>Liệt kê năng lực đặc thù theo môn (VD Toán: tư duy và lập luận, mô hình hóa, giao tiếp toán học, giải quyết vấn đề toán học; Văn: ngôn ngữ, văn học...). Có biểu hiện trong bài.</section>
-  <section><h2>VI. Phẩm chất</h2>Chọn từ 5 phẩm chất CTGDPT: yêu nước, nhân ái, chăm chỉ, trung thực, trách nhiệm. Nêu phẩm chất nào được hình thành qua hoạt động nào.</section>
-  <section><h2>VII. Năng lực số tích hợp</h2>Chọn từ: {', '.join(DIGITAL_COMPETENCIES)}. Nêu rõ tích hợp vào hoạt động nào.</section>
-  <section><h2>VIII. Thiết bị và học liệu</h2>Tách "Giáo viên chuẩn bị" / "Học sinh chuẩn bị". Liệt kê cụ thể: SGK KNTT, phiếu học tập, thiết bị số, đồ dùng dạy học.</section>
-  <section><h2>IX. Tiến trình dạy học (Hoạt động GV - HS)</h2>Bảng 7 cột: Hoạt động | Thời gian | Mục tiêu | Hoạt động của GV | Hoạt động của HS | Sản phẩm | Đánh giá. Bắt buộc đủ: Khởi động → Hình thành kiến thức → Luyện tập → Vận dụng → Củng cố/Dặn dò.</section>
-  <section><h2>X. Sản phẩm học tập</h2>Tổng hợp các sản phẩm HS tạo ra trong và sau bài học: sản phẩm trong giờ (bài làm, câu trả lời), sản phẩm cuối bài (bài luyện tập hoàn chỉnh), sản phẩm về nhà (bài tập vận dụng, chuẩn bị bài sau).</section>
-  <section><h2>XI. Đánh giá thường xuyên</h2>Tiêu chí đánh giá theo từng hoạt động, minh chứng, công cụ (quan sát, hỏi đáp, vở, phiếu), câu hỏi kiểm tra nhanh.</section>
-  <section><h2>XII. Phân hóa và hỗ trợ học sinh</h2>3 nhóm: HS cần hỗ trợ (gợi ý từng bước), HS hoàn thành tốt (mở rộng), điều chỉnh cho lớp đông/thiếu thiết bị.</section>
-  <section><h2>XIII. Phiếu học tập và Rubric đánh giá</h2>Phần A: Phiếu học tập (có nhiệm vụ cụ thể, ô để HS điền). Phần B: Rubric 3-4 mức độ (Tốt/Đạt/Cần hỗ trợ) theo các tiêu chí: hiểu nội dung, thực hiện nhiệm vụ, hợp tác.</section>
-  <section><h2>XIV. Điều chỉnh sau bài dạy</h2>Chừa 3-5 dòng kẻ chấm để GV ghi nhận sau khi dạy thực tế (điều gì hiệu quả, cần điều chỉnh, gợi ý cho lần sau).</section>
+  <!-- A. HEADER HÀNH CHÍNH: bảng 2 cột không viền -->
+  <!-- Trái: PHÒNG GD&ĐT ... / TRƯỜNG ... (in hoa, đậm) -->
+  <!-- Phải: CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM / Độc lập – Tự do – Hạnh phúc (đậm, gạch chân) -->
+
+  <!-- B. TIÊU ĐỀ -->
+  <h1>KẾ HOẠCH BÀI DẠY</h1>
+  <!-- KHÔNG được thêm năm học vào H1. Năm học chỉ xuất hiện ở header trường và mục I. -->
+  <p style="text-align:center;font-weight:700">Môn: ... · Lớp: ... · Tuần/Tiết: ... · Tên bài: ... · Thời lượng: ... phút · Bộ sách: Kết nối tri thức với cuộc sống — NXBGDVN</p>
+
+  <!-- C. 14 MỤC NỘI DUNG -->
+  <section><h2>I. Thông tin chung bài dạy</h2>Bảng BẮT BUỘC đủ các trường: Phòng GD&ĐT, Tên trường, Tổ/khối chuyên môn, Họ tên giáo viên, Năm học, Ngày dạy, Môn học/HĐGD, Lớp, Tuần/tiết/PPCT, Thời lượng/số tiết, Tên bài học, Trang SGK/nguồn học liệu, Bộ sách sử dụng. Trường trống ghi "GV bổ sung".</section>
+  <section><h2>II. Nguồn học liệu xác thực và mức tin cậy</h2>Liệt kê nguồn đã dùng. Đánh giá mức tin cậy 4 mức. KHÔNG được chèn cảnh báo "đây là bản demo" hay tương tự — đây là KHBD chính thức.</section>
+  <section><h2>III. Yêu cầu cần đạt</h2>Mở đầu bằng "<em>Sau bài học, học sinh:</em>". Chia 3 nhóm: kiến thức / kĩ năng / vận dụng. Mỗi YCCĐ dùng động từ Bloom đo được (nêu, mô tả, thực hiện, vận dụng, đánh giá...).</section>
+  <section><h2>IV. Năng lực chung</h2>Liệt kê 3 năng lực chung CTGDPT 2018: tự chủ và tự học; giao tiếp và hợp tác; giải quyết vấn đề và sáng tạo. Mỗi NL có biểu hiện cụ thể trong bài.</section>
+  <section><h2>V. Năng lực đặc thù môn {subject}</h2>BẮT BUỘC liệt kê đầy đủ các NLĐT theo Thông tư 32/2018/TT-BGDĐT cho môn này. KHÔNG viết "phù hợp chuẩn đầu ra" chung chung. Sau danh mục, thêm 1 câu liên hệ với hoạt động ở mục IX.</section>
+  <section><h2>VI. Phẩm chất</h2>Chọn 2-3 phẩm chất phù hợp từ: yêu nước, nhân ái, chăm chỉ, trung thực, trách nhiệm. Mỗi phẩm chất gắn với hoạt động/biểu hiện cụ thể.</section>
+  <section><h2>VII. Năng lực số tích hợp</h2>Chọn từ: {', '.join(DIGITAL_COMPETENCIES)}. Chỉ chọn NL được tích hợp THỰC SỰ qua hoạt động trong bài, không hình thức.</section>
+  <section><h2>VIII. Thiết bị và học liệu</h2>Tách "Giáo viên chuẩn bị" / "Học sinh chuẩn bị". Liệt kê cụ thể.</section>
+  <section><h2>IX. Tiến trình dạy học</h2>
+    BẮT BUỘC đúng 4 pha của CV 2345/BGDĐT-GDTH (KHÔNG được thêm "Củng cố/Dặn dò" làm pha thứ 5; phần dặn dò gộp vào pha 4):
+      1. Mở đầu
+      2. Hình thành kiến thức mới
+      3. Luyện tập, thực hành
+      4. Vận dụng, trải nghiệm
+    Với MỖI pha, dùng cấu trúc:
+      <h3>N. Tên pha (thời gian X phút)</h3>
+      <p><strong>Mục tiêu:</strong> ...</p>
+      <p><strong>Sản phẩm dự kiến:</strong> ...</p>
+      <p><strong>Phương án đánh giá:</strong> ...</p>
+      <table>
+        <tr><th>Hoạt động của giáo viên</th><th>Hoạt động của học sinh</th></tr>
+        <tr><td>...lệnh GV cụ thể, có câu nói/câu hỏi mẫu...</td><td>...hành động HS quan sát được...</td></tr>
+      </table>
+    KHÔNG dùng bảng 7 cột. Tổng thời gian 4 pha = {duration} phút (±2 phút).
+  </section>
+  <section><h2>X. Sản phẩm học tập</h2>Tổng hợp sản phẩm trong giờ / cuối bài / về nhà.</section>
+  <section><h2>XI. Phương pháp và công cụ đánh giá tổng thể</h2>NGẮN GỌN 3-4 dòng. Chi tiết đánh giá per-hoạt động ĐÃ NẰM trong IX, KHÔNG lặp lại. Chỉ nêu: phương pháp chung (đánh giá thường xuyên/quá trình) + danh mục công cụ + tham chiếu rubric mục XIII.</section>
+  <section><h2>XII. Phân hóa và hỗ trợ học sinh</h2>3 nhóm: HS cần hỗ trợ / HS hoàn thành tốt / điều chỉnh cho lớp đông/thiếu thiết bị.</section>
+  <section><h2>XIII. Phiếu học tập và Rubric đánh giá</h2>Phần A: Phiếu học tập (có nhiệm vụ cụ thể, ô để HS điền). Phần B: Rubric 3-4 mức độ.</section>
+  <section><h2>XIV. Điều chỉnh sau bài dạy</h2>Chừa 3-5 dòng kẻ chấm.</section>
+
+  <!-- D. CHỮ KÝ -->
+  <!-- Một dòng <p> căn phải: "<location>, ngày DD tháng MM năm YYYY" (lấy từ ngày dạy) -->
+  <!-- Bảng 2 cột không viền: TỔ TRƯỞNG CHUYÊN MÔN | GIÁO VIÊN, dưới mỗi cột "(Kí, ghi rõ họ tên)", chừa 60px trống, cột phải ghi tên giáo viên đậm. -->
 </article>
 
 # ĐỊNH DẠNG
@@ -679,28 +827,51 @@ def _wrap_a4(content_html: str, title: str = "GiaoAn") -> str:
 
 
 def _create_docx(full_html: str) -> bytes:
-    if Document is None or BeautifulSoup is None:
+    if Document is None or BeautifulSoup is None or NavigableString is None:
         raise RuntimeError("Cần cài python-docx và beautifulsoup4.")
+    NavStr = NavigableString  # alias để type checker narrow ra non-None
     soup = BeautifulSoup(full_html, "html.parser")
     page = soup.find("article") or soup.find("div", class_="page") or soup.body or soup
     doc = Document()
     sec = doc.sections[0]
     sec.top_margin = Inches(0.65); sec.bottom_margin = Inches(0.65)
     sec.left_margin = Inches(0.7); sec.right_margin = Inches(0.7)
-    doc.styles["Normal"].font.name = "Times New Roman"
-    doc.styles["Normal"].font.size = Pt(13)
+    doc.styles["Normal"].font.name = "Times New Roman"  # type: ignore[attr-defined]
+    doc.styles["Normal"].font.size = Pt(13)  # type: ignore[attr-defined]
 
-    def add_p(text: str, bold: bool = False, align=None):
+    def add_p(text: str, *, bold: bool = False, size: int = 13, align=None, indent_em: int = 0):
         text = re.sub(r"\s+", " ", text or "").strip()
         if not text:
             return
         p = doc.add_paragraph()
         if align is not None:
             p.alignment = align
+        if indent_em > 0:
+            p.paragraph_format.left_indent = Inches(0.25 * indent_em)
         run = p.add_run(text)
         run.bold = bold
         run.font.name = "Times New Roman"
-        run.font.size = Pt(13)
+        run.font.size = Pt(size)
+
+    def li_direct_text(li) -> str:
+        """Text của <li> nhưng bỏ qua <ul>/<ol> con (để không trùng với handle_list đệ quy)."""
+        parts = []
+        for ch in li.children:
+            if isinstance(ch, NavStr):
+                parts.append(str(ch))
+            elif ch.name in {"ul", "ol"}:
+                continue
+            else:
+                parts.append(ch.get_text(" ", strip=True))
+        return re.sub(r"\s+", " ", " ".join(parts)).strip()
+
+    def handle_list(node, depth: int = 0, ordered: bool = False):
+        lis = node.find_all("li", recursive=False)
+        for idx, li in enumerate(lis, 1):
+            marker = f"{idx}. " if ordered else "• "
+            add_p(marker + li_direct_text(li), indent_em=depth)
+            for nested in li.find_all(["ul", "ol"], recursive=False):
+                handle_list(nested, depth=depth + 1, ordered=(nested.name == "ol"))
 
     def handle_table(t):
         rows = t.find_all("tr")
@@ -717,31 +888,39 @@ def _create_docx(full_html: str) -> bytes:
             for j in range(max_cols):
                 c = tbl.cell(i, j)
                 c.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.TOP
-                c.text = cells[j].get_text(" ", strip=True) if j < len(cells) else ""
+                txt = cells[j].get_text(" ", strip=True) if j < len(cells) else ""
+                c.text = re.sub(r"\s+", " ", txt).strip()
+                is_header = j < len(cells) and cells[j].name == "th"
                 for p in c.paragraphs:
                     for run in p.runs:
                         run.font.name = "Times New Roman"
                         run.font.size = Pt(12)
-                        if j < len(cells) and cells[j].name == "th":
+                        if is_header:
                             run.bold = True
         doc.add_paragraph()
 
-    for node in page.descendants:
-        if getattr(node, "name", None) is None:
-            continue
-        if node.find_parent("table") and node.name != "table":
-            continue
-        if node.name == "h1":
-            add_p(node.get_text(" ", strip=True), bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
-        elif node.name in {"h2", "h3"}:
-            add_p(node.get_text(" ", strip=True), bold=True)
-        elif node.name == "p":
-            add_p(node.get_text(" ", strip=True))
-        elif node.name in {"ul", "ol"}:
-            for li in node.find_all("li", recursive=False):
-                add_p("• " + li.get_text(" ", strip=True))
-        elif node.name == "table":
-            handle_table(node)
+    def walk(node):
+        for child in node.children:
+            if isinstance(child, NavStr):
+                continue
+            name = child.name
+            if name == "h1":
+                add_p(child.get_text(" ", strip=True), bold=True, size=15, align=WD_ALIGN_PARAGRAPH.CENTER)
+            elif name == "h2":
+                add_p(child.get_text(" ", strip=True), bold=True, size=14)
+            elif name in {"h3", "h4"}:
+                add_p(child.get_text(" ", strip=True), bold=True, size=13)
+            elif name == "p":
+                add_p(child.get_text(" ", strip=True))
+            elif name in {"ul", "ol"}:
+                handle_list(child, ordered=(name == "ol"))
+            elif name == "table":
+                handle_table(child)
+            elif name in {"section", "article", "div"}:
+                walk(child)
+            # các tag inline khác (strong, em, span, br...) bỏ qua — đã được get_text gộp ở cha
+
+    walk(page)
 
     bio = io.BytesIO()
     doc.save(bio)
@@ -834,22 +1013,30 @@ def module_lesson_plan_advanced(
 
     with st.form(key=_k("form"), clear_on_submit=False):
         st.markdown("### 1) Thông tin bài dạy")
-        c1, c2, c3 = st.columns([1.2, 1.1, 1.1])
+        c1, c2 = st.columns([1.1, 1.1])
         with c1:
-            school = st.text_input("Tên trường (tùy chọn)", key=_k("school"))
+            phong_gd_dt = st.text_input("Phòng GD&ĐT (cấp trên)", placeholder="VD: Phòng GD&ĐT Quận Đống Đa", key=_k("phong"))
         with c2:
-            teacher = st.text_input("Giáo viên (tùy chọn)", key=_k("teacher"))
+            school = st.text_input("Tên trường", placeholder="VD: Tiểu học Đoàn Kết", key=_k("school"))
+
+        c1, c2, c3 = st.columns([1.2, 1.2, 1.0])
+        with c1:
+            department = st.text_input("Tổ / khối chuyên môn", placeholder="VD: Tổ Khoa học Tự nhiên / Khối 5", key=_k("department"))
+        with c2:
+            teacher = st.text_input("Họ tên giáo viên", key=_k("teacher"))
         with c3:
             school_year = st.selectbox("Năm học", school_years, index=min(1, len(school_years) - 1), key=_k("year"))
 
-        c1, c2, c3, c4 = st.columns([1.1, 1.0, 1.0, 1.25])
+        c1, c2, c3, c4, c5 = st.columns([1.1, 1.0, 0.9, 0.9, 1.1])
         with c1:
             teaching_date = st.date_input("Ngày dạy", value=dt.date.today(), key=_k("date"))
         with c2:
-            level = st.selectbox("Cấp học", list(SUBJECTS_BY_LEVEL.keys()), key=_k("level"))
+            location = st.text_input("Địa danh", placeholder="VD: Hà Nội", key=_k("location"), help="Dùng cho dòng '...., ngày ... tháng ... năm ...' phía trên chữ ký.")
         with c3:
-            grade = st.selectbox("Lớp", SUBJECTS_BY_LEVEL[level]["grades"], key=_k("grade"))
+            level = st.selectbox("Cấp học", list(SUBJECTS_BY_LEVEL.keys()), key=_k("level"))
         with c4:
+            grade = st.selectbox("Lớp", SUBJECTS_BY_LEVEL[level]["grades"], key=_k("grade"))
+        with c5:
             subject = st.selectbox("Môn học", SUBJECTS_BY_LEVEL[level]["subjects"], key=_k("subject"))
 
         c1, c2, c3 = st.columns([1.2, 2.2, 1.0])
@@ -861,7 +1048,7 @@ def module_lesson_plan_advanced(
             duration = st.number_input("Thời lượng (phút)", min_value=20, max_value=120,
                                        value=int(SUBJECTS_BY_LEVEL[level]["default_duration"]), step=5, key=_k("duration"))
 
-        c1, c2 = st.columns([1.0, 1.0])
+        c1, c2, c3 = st.columns([1.2, 1.0, 1.4])
         with c1:
             # Bộ sách bị khóa cứng — chỉ KNTT
             st.text_input(
@@ -873,7 +1060,9 @@ def module_lesson_plan_advanced(
             )
             book_series = BOOK_SERIES_LOCKED
         with c2:
-            period_note = st.text_input("Tuần/tiết/PPCT (tùy chọn)", placeholder="VD: Tuần 12 - Tiết 23", key=_k("period"))
+            period_note = st.text_input("Tuần / tiết / PPCT", placeholder="VD: Tuần 12 - Tiết 23", key=_k("period"))
+        with c3:
+            sgk_pages = st.text_input("Trang SGK / nguồn học liệu", placeholder="VD: SGK trang 45-47; vở bài tập trang 30", key=_k("sgk_pages"))
         st.caption(f"📚 **Bộ sách áp dụng:** {BOOK_SERIES_LOCKED} · 📅 **Năm học:** từ {SCHOOL_YEAR_DEFAULT} trở đi.")
 
         st.markdown("### 2) Nguồn học liệu")
@@ -957,11 +1146,12 @@ def module_lesson_plan_advanced(
                 st.error("Chưa có Gemini API key. Bạn có thể bấm 'Tạo bản demo' để xem cấu trúc.")
                 st.stop()
             prompt = _build_prompt(
-                school=school, teacher=teacher, school_year=school_year,
-                teaching_date=teaching_date, level=level, grade=grade, class_name=class_name,
+                phong_gd_dt=phong_gd_dt, school=school, department=department, teacher=teacher,
+                school_year=school_year, teaching_date=teaching_date, location=location,
+                level=level, grade=grade, class_name=class_name,
                 subject=subject, book_series=book_series, lesson_title=lesson_title.strip(),
-                duration=int(duration), period_note=period_note, digital_level=digital_level,
-                diff_level=diff_level, bundle=bundle,
+                duration=int(duration), period_note=period_note, sgk_pages=sgk_pages,
+                digital_level=digital_level, diff_level=diff_level, bundle=bundle,
             )
             with st.spinner("AI đang soạn giáo án..."):
                 try:
@@ -972,10 +1162,12 @@ def module_lesson_plan_advanced(
                     st.stop()
         else:
             content_html = _demo_html(
-                school=school, teacher=teacher, school_year=school_year,
-                teaching_date=teaching_date, level=level, grade=grade, class_name=class_name,
+                phong_gd_dt=phong_gd_dt, school=school, department=department, teacher=teacher,
+                school_year=school_year, teaching_date=teaching_date, location=location,
+                level=level, grade=grade, class_name=class_name,
                 subject=subject, book_series=book_series, lesson_title=lesson_title.strip(),
-                duration=int(duration), bundle=bundle,
+                duration=int(duration), period_note=period_note, sgk_pages=sgk_pages,
+                bundle=bundle,
             )
 
         full_html = _wrap_a4(content_html, title_slug)
@@ -1026,57 +1218,137 @@ def module_lesson_plan_advanced(
             st.code(content_html, language="html")
 
 
-def _demo_html(*, school, teacher, school_year, teaching_date, level, grade, class_name,
-               subject, book_series, lesson_title, duration, bundle: _SourceBundle) -> str:
+def _demo_html(*, phong_gd_dt, school, department, teacher, school_year, teaching_date, location,
+               level, grade, class_name, subject, book_series, lesson_title, duration,
+               period_note, sgk_pages, bundle: _SourceBundle) -> str:
     best = bundle.metadata_matches[0] if bundle.metadata_matches else {}
     objs = best.get("learning_objectives") or [
-        "Nhận biết được nội dung trọng tâm của bài học.",
-        "Thực hiện được nhiệm vụ học tập phù hợp.",
-        "Vận dụng kiến thức/kĩ năng vào tình huống đơn giản.",
+        "Nhận biết được nội dung trọng tâm của bài học (theo SGK KNTT).",
+        "Thực hiện được nhiệm vụ học tập phù hợp với yêu cầu cần đạt.",
+        "Vận dụng kiến thức/kĩ năng vào tình huống đơn giản gần gũi.",
     ]
     comps = best.get("digital_competencies") or DIGITAL_COMPETENCIES[:2]
-    summary = best.get("main_content_summary") or "Chưa có tóm tắt; giáo viên cần kiểm tra nội dung trong SGK."
+    summary = best.get("main_content_summary") or "Chưa có tóm tắt; giáo viên cần kiểm tra nội dung trong SGK KNTT."
 
-    times = [5, max(8, duration // 3), max(8, duration // 3), 7, max(3, duration - (5 + max(8, duration // 3) * 2 + 7))]
-    acts = [
-        ("Khởi động", times[0], "Tạo tình huống gắn bài học", "Nêu câu hỏi/tình huống", "Chia sẻ nhanh", "Câu trả lời ban đầu", "Quan sát, nhận xét"),
-        ("Hình thành kiến thức", times[1], "Khám phá nội dung chính", f"Tổ chức HS tìm hiểu: {html.escape(summary[:200])}", "Đọc/quan sát/thảo luận", "Bảng ý chính", "Câu hỏi gợi mở"),
-        ("Luyện tập", times[2], "Củng cố kiến thức", "Giao nhiệm vụ luyện tập theo mức độ", "Làm cá nhân/cặp đôi", "Sản phẩm luyện tập", "Đánh giá theo tiêu chí"),
-        ("Vận dụng", times[3], "Vận dụng thực tế", "Đưa tình huống gần gũi", "Trao đổi, trình bày", "Cách giải quyết", "Nhận xét, bổ sung"),
-        ("Củng cố - dặn dò", times[4], "Khái quát bài học", "Chốt kiến thức; giao nhiệm vụ chuẩn bị bài sau", "Nêu điều học được", "Phiếu tự đánh giá", "Tự đánh giá"),
+    # NLĐT theo môn (chuẩn CTGDPT 2018) — bỏ câu chung chung
+    subject_competencies = SUBJECT_SPECIFIC_COMPETENCIES.get(subject, [])
+    if subject_competencies:
+        sc_html = "".join(f"<li>{html.escape(x)}</li>" for x in subject_competencies)
+        sc_block = f"<ul>{sc_html}</ul><p><em>Biểu hiện cụ thể trong bài thể hiện qua các hoạt động ở mục IX.</em></p>"
+    else:
+        sc_block = f"<p>Năng lực đặc thù môn <strong>{html.escape(subject)}</strong> theo chuẩn đầu ra CTGDPT 2018 cấp {html.escape(level)}. <em>[GV bổ sung danh mục cụ thể theo Thông tư 32/2018/TT-BGDĐT]</em></p>"
+
+    # 4 pha CV 2345/BGDĐT-GDTH: Mở đầu / Hình thành KT mới / Luyện tập, thực hành / Vận dụng, trải nghiệm
+    t1 = max(3, round(duration * 0.10))
+    t2 = max(10, round(duration * 0.40))
+    t3 = max(8, round(duration * 0.30))
+    t4 = max(3, duration - t1 - t2 - t3)
+    phases = [
+        {
+            "title": "1. Mở đầu",
+            "time": t1,
+            "objective": "Tạo tâm thế, kết nối kinh nghiệm sẵn có của HS với bài học mới.",
+            "product": "Câu trả lời/chia sẻ ban đầu của HS.",
+            "assessment": "GV quan sát thái độ tham gia, ghi nhận câu trả lời.",
+            "gv": "GV nêu tình huống/câu hỏi gắn với thực tiễn liên quan đến bài. Mời 2-3 HS chia sẻ. GV dẫn dắt vào tên bài và viết tên bài lên bảng.",
+            "hs": "HS lắng nghe, suy nghĩ, xung phong trả lời. Ghi tên bài học vào vở.",
+        },
+        {
+            "title": "2. Hình thành kiến thức mới",
+            "time": t2,
+            "objective": f"HS khám phá và tiếp thu nội dung trọng tâm: {html.escape(summary[:180])}",
+            "product": "Ghi chép ý chính trong vở; câu trả lời các câu hỏi của GV.",
+            "assessment": "GV hỏi đáp trực tiếp, kiểm tra hiểu bài qua 2-3 câu hỏi chốt.",
+            "gv": "GV hướng dẫn HS đọc SGK KNTT phần kiến thức mới. Đặt câu hỏi gợi mở. Tổ chức thảo luận cặp đôi/nhóm 4. GV chốt kiến thức bằng sơ đồ/bảng.",
+            "hs": "HS đọc SGK, gạch chân từ khóa. Thảo luận theo cặp/nhóm. Đại diện nhóm trình bày. HS ghi kết luận vào vở.",
+        },
+        {
+            "title": "3. Luyện tập, thực hành",
+            "time": t3,
+            "objective": "Củng cố, vận dụng kiến thức vừa học qua bài tập có hướng dẫn.",
+            "product": "Bài làm trong vở / phiếu học tập đã hoàn thành.",
+            "assessment": "GV chấm nhanh/đối chiếu đáp án, đánh giá theo tiêu chí Đạt/Cần cố gắng.",
+            "gv": "GV giao 2-3 nhiệm vụ luyện tập theo mức độ tăng dần. Quan sát, hỗ trợ HS gặp khó khăn. Tổ chức báo cáo, đối chiếu kết quả.",
+            "hs": "HS làm bài cá nhân vào vở/phiếu. Đổi vở kiểm tra chéo theo cặp. Báo cáo kết quả khi GV gọi.",
+        },
+        {
+            "title": "4. Vận dụng, trải nghiệm",
+            "time": t4,
+            "objective": "HS vận dụng vào tình huống thực tiễn gần gũi và chuẩn bị bài sau.",
+            "product": "Lời giải / ý tưởng vận dụng do HS đề xuất; ghi chú nhiệm vụ về nhà.",
+            "assessment": "GV nhận xét sự sáng tạo, tính phù hợp; HS tự đánh giá theo phiếu.",
+            "gv": "GV đưa 1 tình huống thực tiễn gắn với bài học, yêu cầu HS đề xuất cách giải quyết. Chốt bài học. Giao nhiệm vụ về nhà & chuẩn bị bài tiếp theo.",
+            "hs": "HS suy nghĩ, trình bày cách vận dụng. Tự đánh giá vào phiếu cuối bài. Ghi nhiệm vụ về nhà vào vở.",
+        },
     ]
-    rows = "".join(
-        f"<tr><td>{a}</td><td style='text-align:center'>{t} phút</td><td>{m}</td><td>{gv}</td><td>{hs}</td><td>{sp}</td><td>{dg}</td></tr>"
-        for a, t, m, gv, hs, sp, dg in acts
-    )
+
+    def render_phase(p):
+        return f"""
+    <h3>{html.escape(p['title'])} <span style="font-weight:normal;font-size:.9em;color:#475569">(khoảng {p['time']} phút)</span></h3>
+    <p><strong>Mục tiêu:</strong> {p['objective']}</p>
+    <p><strong>Sản phẩm dự kiến:</strong> {p['product']}</p>
+    <p><strong>Phương án đánh giá:</strong> {p['assessment']}</p>
+    <table>
+      <tr><th style="width:50%">Hoạt động của giáo viên</th><th style="width:50%">Hoạt động của học sinh</th></tr>
+      <tr><td>{p['gv']}</td><td>{p['hs']}</td></tr>
+    </table>"""
+
+    phases_html = "".join(render_phase(p) for p in phases)
     obj_html = "".join(f"<li>{html.escape(x)}</li>" for x in objs)
     comp_html = "".join(f"<li>{html.escape(x)}</li>" for x in comps)
+    total_time = t1 + t2 + t3 + t4
 
-    # Ép bộ sách = KNTT và năm học >= 2026-2027
     enforced_book = BOOK_SERIES_LOCKED
     enforced_year = school_year if school_year and school_year >= SCHOOL_YEAR_DEFAULT else SCHOOL_YEAR_DEFAULT
+    day_str = teaching_date.strftime("%d")
+    month_str = teaching_date.strftime("%m")
+    year_str = teaching_date.strftime("%Y")
     return f"""
 <article class="lesson-plan">
-  <h1>GIÁO ÁN {html.escape(subject).upper()} — BỘ SÁCH KẾT NỐI TRI THỨC (Năm học {html.escape(enforced_year)})</h1>
+  <table class="hdr" style="border:none;margin-bottom:8px">
+    <tr style="border:none">
+      <td style="border:none;width:50%;text-align:center;font-weight:700;text-transform:uppercase">
+        {html.escape(phong_gd_dt or 'PHÒNG GD&ĐT [GV bổ sung]')}<br>
+        <span style="font-weight:700">{html.escape(school or 'TRƯỜNG [GV bổ sung]').upper()}</span><br>
+        <span style="display:inline-block;width:60px;border-top:1px solid #111;margin-top:2px"></span>
+      </td>
+      <td style="border:none;width:50%;text-align:center;font-weight:700">
+        CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br>
+        <span style="text-decoration:underline">Độc lập – Tự do – Hạnh phúc</span><br>
+        <span style="display:inline-block;width:60px;border-top:1px solid #111;margin-top:2px"></span>
+      </td>
+    </tr>
+  </table>
+
+  <h1>KẾ HOẠCH BÀI DẠY</h1>
+  <p style="text-align:center;font-weight:700;margin-top:0">
+    Môn: {html.escape(subject)} &nbsp;·&nbsp; Lớp: {html.escape(class_name or grade)} &nbsp;·&nbsp; {html.escape(period_note or 'Tuần/Tiết: GV bổ sung')}<br>
+    Tên bài: <span style="text-transform:uppercase">{html.escape(lesson_title)}</span><br>
+    Thời lượng: {duration} phút &nbsp;·&nbsp; Bộ sách: {html.escape(enforced_book)} — {PUBLISHER}
+  </p>
 
   <section><h2>I. Thông tin chung bài dạy</h2>
     <table>
-      <tr><th>Trường</th><td>{html.escape(school or 'Chưa nhập')}</td><th>Giáo viên</th><td>{html.escape(teacher or 'Chưa nhập')}</td></tr>
+      <tr><th>Phòng GD&amp;ĐT</th><td>{html.escape(phong_gd_dt or 'GV bổ sung')}</td><th>Tên trường</th><td>{html.escape(school or 'GV bổ sung')}</td></tr>
+      <tr><th>Tổ / khối chuyên môn</th><td>{html.escape(department or 'GV bổ sung')}</td><th>Họ tên giáo viên</th><td>{html.escape(teacher or 'GV bổ sung')}</td></tr>
       <tr><th>Năm học</th><td><strong>{html.escape(enforced_year)}</strong></td><th>Ngày dạy</th><td>{teaching_date.strftime('%d/%m/%Y')}</td></tr>
-      <tr><th>Cấp học</th><td>{html.escape(level)}</td><th>Lớp</th><td>{html.escape(class_name or grade)}</td></tr>
-      <tr><th>Môn học</th><td>{html.escape(subject)}</td><th>Thời lượng</th><td>{duration} phút</td></tr>
-      <tr><th>Tên bài</th><td colspan="3"><strong>{html.escape(lesson_title)}</strong></td></tr>
-      <tr><th>Bộ sách</th><td colspan="3"><strong>{html.escape(enforced_book)}</strong> — {PUBLISHER}</td></tr>
+      <tr><th>Môn học / HĐGD</th><td>{html.escape(subject)}</td><th>Lớp</th><td>{html.escape(class_name or grade)} ({html.escape(level)})</td></tr>
+      <tr><th>Tuần / tiết / PPCT</th><td>{html.escape(period_note or 'GV bổ sung')}</td><th>Thời lượng / số tiết</th><td>{duration} phút</td></tr>
+      <tr><th>Tên bài học</th><td colspan="3"><strong>{html.escape(lesson_title)}</strong></td></tr>
+      <tr><th>Trang SGK / nguồn học liệu</th><td colspan="3">{html.escape(sgk_pages or 'GV bổ sung')}</td></tr>
+      <tr><th>Bộ sách sử dụng</th><td colspan="3"><strong>{html.escape(enforced_book)}</strong> — {PUBLISHER}</td></tr>
     </table>
   </section>
 
   <section><h2>II. Nguồn học liệu xác thực và mức tin cậy</h2>
     <p><strong>Mức tin cậy:</strong> {html.escape(bundle.trust_level)}. {html.escape(bundle.trust_explanation)}</p>
-    <p><strong>Bộ sách áp dụng:</strong> CHỈ "Kết nối tri thức với cuộc sống" — NXB Giáo dục Việt Nam, năm học {html.escape(enforced_year)} trở đi.</p>
-    <p class="source-warning">⚠️ Bản này là bản demo không dùng AI. Khi tạo bằng AI, hệ thống sẽ bám sát SGK KNTT theo nguồn đã cung cấp.</p>
+    <p><strong>Bộ sách áp dụng:</strong> Kết nối tri thức với cuộc sống — NXB Giáo dục Việt Nam, năm học {html.escape(enforced_year)} trở đi.</p>
   </section>
 
-  <section><h2>III. Yêu cầu cần đạt</h2><ul>{obj_html}</ul></section>
+  <section><h2>III. Yêu cầu cần đạt</h2>
+    <p><em>Sau bài học, học sinh:</em></p>
+    <ul>{obj_html}</ul>
+  </section>
 
   <section><h2>IV. Năng lực chung</h2>
     <ul>
@@ -1086,11 +1358,8 @@ def _demo_html(*, school, teacher, school_year, teaching_date, level, grade, cla
     </ul>
   </section>
 
-  <section><h2>V. Năng lực đặc thù môn học</h2>
-    <ul>
-      <li><strong>Năng lực đặc thù môn {html.escape(subject)}:</strong> phù hợp với chuẩn đầu ra CTGDPT 2018 cho cấp {html.escape(level)}.</li>
-      <li>Biểu hiện cụ thể trong bài: thể hiện qua các hoạt động khám phá và luyện tập ở mục IX.</li>
-    </ul>
+  <section><h2>V. Năng lực đặc thù môn {html.escape(subject)}</h2>
+    {sc_block}
   </section>
 
   <section><h2>VI. Phẩm chất</h2>
@@ -1117,8 +1386,9 @@ def _demo_html(*, school, teacher, school_year, teaching_date, level, grade, cla
     </ul>
   </section>
 
-  <section><h2>IX. Tiến trình dạy học (Hoạt động GV – HS)</h2>
-    <table><tr><th>Hoạt động</th><th>Thời gian</th><th>Mục tiêu</th><th>Hoạt động của giáo viên</th><th>Hoạt động của học sinh</th><th>Sản phẩm</th><th>Đánh giá</th></tr>{rows}</table>
+  <section><h2>IX. Tiến trình dạy học</h2>
+    <p><em>Cấu trúc theo CV 2345/BGDĐT-GDTH với 4 pha. Tổng thời gian dự kiến: <strong>{total_time} phút</strong>.</em></p>
+    {phases_html}
   </section>
 
   <section><h2>X. Sản phẩm học tập</h2>
@@ -1129,11 +1399,11 @@ def _demo_html(*, school, teacher, school_year, teaching_date, level, grade, cla
     </ul>
   </section>
 
-  <section><h2>XI. Đánh giá thường xuyên</h2>
+  <section><h2>XI. Phương pháp và công cụ đánh giá tổng thể</h2>
+    <p><em>Chi tiết đánh giá theo từng pha được mô tả ngay trong mục IX. Phần này tổng kết phương pháp và công cụ chung của bài.</em></p>
     <ul>
-      <li><strong>Công cụ:</strong> quan sát, hỏi đáp, vở ghi, phiếu học tập, sản phẩm nhóm.</li>
-      <li><strong>Minh chứng:</strong> câu trả lời của HS, sản phẩm học tập, mức độ tham gia hoạt động.</li>
-      <li><strong>Câu hỏi kiểm tra nhanh:</strong> Em học được điều gì? Em còn băn khoăn điều gì? Em vận dụng được vào tình huống nào?</li>
+      <li><strong>Phương pháp:</strong> đánh giá thường xuyên, đánh giá quá trình; kết hợp đánh giá của GV và tự đánh giá của HS.</li>
+      <li><strong>Công cụ:</strong> quan sát, hỏi đáp, vở ghi, phiếu học tập, sản phẩm nhóm, rubric (xem mục XIII).</li>
     </ul>
   </section>
 
@@ -1169,5 +1439,27 @@ def _demo_html(*, school, teacher, school_year, teaching_date, level, grade, cla
     <p>• Cần điều chỉnh: ............................................................................................................................</p>
     <p>• Gợi ý cho lần dạy sau: ............................................................................................................................</p>
   </section>
+
+  <p style="text-align:right;margin-top:14px;font-style:italic">
+    {html.escape(location or '[Địa danh]')}, ngày {day_str} tháng {month_str} năm {year_str}
+  </p>
+  <table style="border:none;margin-top:6px">
+    <tr style="border:none">
+      <td style="border:none;width:50%;text-align:center;font-weight:700;text-transform:uppercase">Tổ trưởng chuyên môn</td>
+      <td style="border:none;width:50%;text-align:center;font-weight:700;text-transform:uppercase">Giáo viên</td>
+    </tr>
+    <tr style="border:none">
+      <td style="border:none;text-align:center;font-style:italic">(Kí, ghi rõ họ tên)</td>
+      <td style="border:none;text-align:center;font-style:italic">(Kí, ghi rõ họ tên)</td>
+    </tr>
+    <tr style="border:none">
+      <td style="border:none;height:60px"></td>
+      <td style="border:none;height:60px"></td>
+    </tr>
+    <tr style="border:none">
+      <td style="border:none;text-align:center;font-weight:700">&nbsp;</td>
+      <td style="border:none;text-align:center;font-weight:700">{html.escape(teacher or '')}</td>
+    </tr>
+  </table>
 </article>
 """.strip()
