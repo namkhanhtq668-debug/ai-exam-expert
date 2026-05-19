@@ -887,6 +887,47 @@ def _create_docx(full_html: str) -> bytes:
     normal.paragraph_format.space_after = Pt(6)  # type: ignore[attr-defined]
     normal.paragraph_format.space_before = Pt(0)  # type: ignore[attr-defined]
 
+    # ----- HEADER: AIEXAM -----
+    header_p = sec.header.paragraphs[0]
+    header_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    h_run = header_p.add_run("AIEXAM")
+    h_run.font.name = "Times New Roman"
+    h_run.font.size = Pt(10)
+    h_run.bold = True
+
+    # ----- FOOTER: thương hiệu + số trang "Trang X / Y" -----
+    # Dùng raw XML cho field PAGE và NUMPAGES (python-docx không có API trực tiếp)
+    from docx.oxml.ns import qn as _qn
+    from docx.oxml import OxmlElement as _OxmlElement
+
+    footer_p = sec.footer.paragraphs[0]
+    footer_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    f_run = footer_p.add_run("AIEXAM | Nền tảng AI cho giáo viên  —  Trang ")
+    f_run.font.name = "Times New Roman"
+    f_run.font.size = Pt(9)
+
+    def _add_page_field(paragraph, field_code: str):
+        """Chèn field Word (PAGE hoặc NUMPAGES) vào paragraph để Word tự tính số trang."""
+        run = paragraph.add_run()
+        run.font.name = "Times New Roman"
+        run.font.size = Pt(9)
+        fld_begin = _OxmlElement("w:fldChar")
+        fld_begin.set(_qn("w:fldCharType"), "begin")
+        instr = _OxmlElement("w:instrText")
+        instr.set(_qn("xml:space"), "preserve")
+        instr.text = f" {field_code} "
+        fld_end = _OxmlElement("w:fldChar")
+        fld_end.set(_qn("w:fldCharType"), "end")
+        run._r.append(fld_begin)
+        run._r.append(instr)
+        run._r.append(fld_end)
+
+    _add_page_field(footer_p, "PAGE")
+    sep_run = footer_p.add_run(" / ")
+    sep_run.font.name = "Times New Roman"
+    sep_run.font.size = Pt(9)
+    _add_page_field(footer_p, "NUMPAGES")
+
     def add_p(text: str, *, bold: bool = False, size: int = 13, align=None, indent_em: int = 0):
         text = re.sub(r"\s+", " ", text or "").strip()
         if not text:
