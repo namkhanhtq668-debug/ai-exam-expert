@@ -38,12 +38,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import streamlit as st
-import streamlit.components.v1 as components
-
 # Dependencies optional — module tự degrade nếu thiếu.
 # Lưu lý do import fail vào _IMPORT_ERRORS để hiển thị/log rõ ràng, tránh "nuốt" lỗi.
 _IMPORT_ERRORS: dict[str, str] = {}
+
+# streamlit là hard dependency — app không chạy được nếu thiếu nên không wrap try/except.
+import streamlit as st
+import streamlit.components.v1 as components
 
 try:
     from bs4 import BeautifulSoup, NavigableString  # type: ignore[import-not-found]
@@ -71,12 +72,31 @@ except Exception as _e:
     _IMPORT_ERRORS["mammoth"] = f"{type(_e).__name__}: {_e}"
 
 try:
-    from docx import Document
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
-    from docx.shared import Inches, Mm, Pt
+    from docx import Document as _RealDocument
+    from docx.enum.text import WD_ALIGN_PARAGRAPH as _RealWDAlign
+    from docx.enum.table import (
+        WD_TABLE_ALIGNMENT as _RealWDTableAlign,
+        WD_CELL_VERTICAL_ALIGNMENT as _RealWDVAlign,
+    )
+    from docx.shared import Inches as _RealInches, Mm as _RealMm, Pt as _RealPt
+
+    # Re-export về tên gốc với kiểu Any để Pylance không cảnh báo Optional
+    # khi runtime guard ở _create_docx đã đảm bảo không None.
+    Document: Any = _RealDocument
+    WD_ALIGN_PARAGRAPH: Any = _RealWDAlign
+    WD_TABLE_ALIGNMENT: Any = _RealWDTableAlign
+    WD_CELL_VERTICAL_ALIGNMENT: Any = _RealWDVAlign
+    Inches: Any = _RealInches
+    Mm: Any = _RealMm
+    Pt: Any = _RealPt
 except Exception as _e:
     Document = None
+    WD_ALIGN_PARAGRAPH = None
+    WD_TABLE_ALIGNMENT = None
+    WD_CELL_VERTICAL_ALIGNMENT = None
+    Inches = None
+    Mm = None
+    Pt = None
     _IMPORT_ERRORS["python-docx"] = f"{type(_e).__name__}: {_e}"
 
 
