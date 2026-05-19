@@ -1104,6 +1104,7 @@ def module_lesson_plan_advanced(
     point_check: Optional[Callable[[int, str], bool]] = None,
     point_cost: int = 35,
     model_name: str = DEFAULT_MODEL,
+    docx_renderer: Optional[Callable[[str, str], bytes]] = None,
 ) -> None:
     """Module soạn giáo án AI nâng cao — chỉ Pro/Admin được vào.
     Caller phải tự kiểm tra role trước khi gọi.
@@ -1316,14 +1317,30 @@ def module_lesson_plan_advanced(
         st.markdown("## ⬇️ Tải giáo án")
         d1, d2 = st.columns(2)
         with d1:
-            try:
-                docx_bytes = _create_docx(full_html)
+            # Chiến lược 3 lớp đảm bảo giáo viên LUÔN tải được:
+            # 1) docx_renderer (truyền từ app.py — create_docx_from_html, chỉ cần python-docx)
+            # 2) _create_docx nội bộ (cần python-docx + beautifulsoup4)
+            # 3) _create_doc_html_fallback (.doc HTML — zero dependency)
+            docx_bytes: Optional[bytes] = None
+            last_err: Optional[str] = None
+            if docx_renderer is not None:
+                try:
+                    docx_bytes = docx_renderer(full_html, title_slug)
+                except Exception as e:
+                    last_err = f"renderer chính: {type(e).__name__}: {e}"
+            if docx_bytes is None:
+                try:
+                    docx_bytes = _create_docx(full_html)
+                except Exception as e:
+                    last_err = (last_err + " | " if last_err else "") + f"_create_docx: {e}"
+
+            if docx_bytes is not None:
                 st.download_button("Tải Word .docx", data=docx_bytes,
                                    file_name=f"{title_slug}.docx",
                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                    type="primary", use_container_width=True, key=_k("dl_docx"))
-            except Exception as e:
-                # Fallback: xuất .doc dạng HTML — Word mở được, không cần python-docx
+            else:
+                # Fallback cuối: .doc HTML — không cần thư viện nào
                 doc_bytes = _create_doc_html_fallback(full_html, title_slug)
                 st.download_button("Tải Word .doc (dự phòng)", data=doc_bytes,
                                    file_name=f"{title_slug}.doc",
@@ -1331,9 +1348,9 @@ def module_lesson_plan_advanced(
                                    type="primary", use_container_width=True, key=_k("dl_doc_fb"))
                 with st.expander("Vì sao là .doc thay vì .docx?", expanded=False):
                     st.caption(
-                        "Môi trường chạy hiện thiếu thư viện để tạo .docx chuẩn (python-docx/beautifulsoup4). "
-                        "App đã tự chuyển sang xuất .doc (HTML) — Microsoft Word/WPS/LibreOffice mở được bình thường. "
-                        f"Chi tiết kỹ thuật: {e}"
+                        "Môi trường chạy hiện thiếu thư viện để tạo .docx chuẩn. "
+                        "App đã tự chuyển sang .doc (HTML) — Microsoft Word/WPS/LibreOffice mở được bình thường. "
+                        f"Chi tiết kỹ thuật: {last_err}"
                     )
                     if _IMPORT_ERRORS:
                         st.code("\n".join(f"{k}: {v}" for k, v in _IMPORT_ERRORS.items()))

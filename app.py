@@ -6383,6 +6383,7 @@ def render_lesson_plan_advanced_gate():
                 point_check=require_points_or_block,
                 point_cost=POINT_COST_LESSON_PLAN_ADVANCED,
                 model_name="gemini-2.0-flash",
+                docx_renderer=create_docx_from_html,
             )
         else:
             st.error("⚠️ Module 'lesson_plan_advanced' chưa load được. Vui lòng kiểm tra file `lesson_plan_advanced.py` cùng thư mục.")
