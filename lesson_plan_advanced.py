@@ -41,35 +41,43 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import streamlit as st
 import streamlit.components.v1 as components
 
-# Dependencies optional — module tự degrade nếu thiếu
+# Dependencies optional — module tự degrade nếu thiếu.
+# Lưu lý do import fail vào _IMPORT_ERRORS để hiển thị/log rõ ràng, tránh "nuốt" lỗi.
+_IMPORT_ERRORS: dict[str, str] = {}
+
 try:
     from bs4 import BeautifulSoup, NavigableString  # type: ignore[import-not-found]
-except Exception:
+except Exception as _e:
     BeautifulSoup = None
     NavigableString = None
+    _IMPORT_ERRORS["beautifulsoup4"] = f"{type(_e).__name__}: {_e}"
 
 try:
     from PIL import Image
-except Exception:
+except Exception as _e:
     Image = None
+    _IMPORT_ERRORS["Pillow"] = f"{type(_e).__name__}: {_e}"
 
 try:
     from pypdf import PdfReader  # type: ignore[import-not-found]
-except Exception:
+except Exception as _e:
     PdfReader = None
+    _IMPORT_ERRORS["pypdf"] = f"{type(_e).__name__}: {_e}"
 
 try:
     import mammoth  # type: ignore[import-not-found]
-except Exception:
+except Exception as _e:
     mammoth = None
+    _IMPORT_ERRORS["mammoth"] = f"{type(_e).__name__}: {_e}"
 
 try:
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
     from docx.shared import Inches, Mm, Pt
-except Exception:
+except Exception as _e:
     Document = None
+    _IMPORT_ERRORS["python-docx"] = f"{type(_e).__name__}: {_e}"
 
 
 # =============================================================================
@@ -949,6 +957,44 @@ def _create_docx(full_html: str) -> bytes:
     return bio.getvalue()
 
 
+def _create_doc_html_fallback(full_html: str, title: str) -> bytes:
+    """Fallback khi thiếu python-docx/bs4: bọc HTML thành file .doc mà Word/WPS/LibreOffice mở được.
+
+    Kỹ thuật: Word từ Office 97 trở đi nhận diện HTML có namespace `xmlns:w="urn:schemas-microsoft-com:office:word"`
+    và mở dưới dạng document có thể chỉnh sửa. Đây là chuẩn 'Word HTML Document' chính thức của Microsoft.
+    Lề A4 + Times New Roman 13pt được set qua CSS @page và body để khớp định dạng giáo án.
+    """
+    safe_title = (title or "GiaoAn").replace('"', "'")
+    word_css = """
+    <style>
+      @page WordSection1 { size: 21cm 29.7cm; margin: 2cm 2cm 2cm 3cm; }
+      div.WordSection1 { page: WordSection1; }
+      body { font-family: 'Times New Roman', serif; font-size: 13pt; line-height: 1.5; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #000; padding: 6px; vertical-align: top; }
+      th { background: #eef4ff; font-weight: bold; text-align: center; }
+      h1 { font-size: 15pt; text-align: center; }
+      h2 { font-size: 14pt; }
+      h3, h4 { font-size: 13pt; }
+    </style>
+    """
+    # Tách body ra khỏi full_html để nhúng vào WordSection1 đúng cách
+    m = re.search(r"<body[^>]*>(.*)</body>", full_html, flags=re.DOTALL | re.IGNORECASE)
+    body_inner = m.group(1) if m else full_html
+    doc_html = (
+        "<html xmlns:o='urn:schemas-microsoft-com:office:office' "
+        "xmlns:w='urn:schemas-microsoft-com:office:word' "
+        "xmlns='http://www.w3.org/TR/REC-html40'>"
+        "<head><meta charset='utf-8'>"
+        f"<title>{html.escape(safe_title)}</title>"
+        + word_css +
+        "</head><body><div class='WordSection1'>"
+        + body_inner +
+        "</div></body></html>"
+    )
+    return doc_html.encode("utf-8")
+
+
 def _validate(content_html: str, lesson_title: str, trust_level: str) -> Dict[str, Any]:
     if BeautifulSoup:
         text = _norm(BeautifulSoup(content_html, "html.parser").get_text(" "))
@@ -1216,7 +1262,20 @@ def module_lesson_plan_advanced(
                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                    type="primary", use_container_width=True, key=_k("dl_docx"))
             except Exception as e:
-                st.warning(f"Chưa xuất được DOCX: {e}")
+                # Fallback: xuất .doc dạng HTML — Word mở được, không cần python-docx
+                doc_bytes = _create_doc_html_fallback(full_html, title_slug)
+                st.download_button("Tải Word .doc (dự phòng)", data=doc_bytes,
+                                   file_name=f"{title_slug}.doc",
+                                   mime="application/msword",
+                                   type="primary", use_container_width=True, key=_k("dl_doc_fb"))
+                with st.expander("Vì sao là .doc thay vì .docx?", expanded=False):
+                    st.caption(
+                        "Môi trường chạy hiện thiếu thư viện để tạo .docx chuẩn (python-docx/beautifulsoup4). "
+                        "App đã tự chuyển sang xuất .doc (HTML) — Microsoft Word/WPS/LibreOffice mở được bình thường. "
+                        f"Chi tiết kỹ thuật: {e}"
+                    )
+                    if _IMPORT_ERRORS:
+                        st.code("\n".join(f"{k}: {v}" for k, v in _IMPORT_ERRORS.items()))
         with d2:
             st.download_button("Tải HTML", data=full_html.encode("utf-8"),
                                file_name=f"{title_slug}.html", mime="text/html",
