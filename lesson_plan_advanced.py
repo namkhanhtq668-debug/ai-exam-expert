@@ -1464,6 +1464,135 @@ def module_lesson_plan_advanced(
         with st.expander("Xem HTML giáo án (kỹ thuật)", expanded=False):
             st.code(content_html, language="html")
 
+        # ====================================================================
+        # 🆕 MẪU CHUẨN 2025-2026 (JSON pipeline) — kiến trúc mới, code 100%
+        # quyết định layout, AI chỉ tạo nội dung. Khớp PDF mẫu KHBD tiểu học.
+        # ====================================================================
+        st.markdown("---")
+        st.markdown("### 🆕 Tải theo mẫu chuẩn 2025-2026")
+        st.caption(
+            "Bản render mới theo mẫu KHBD tiểu học chuẩn 2025-2026 (7 mục I-VII, "
+            "bảng 3 cột GV/HS/Sản phẩm-Đánh giá, header chỉ trang 1, không có 'AIEXAM'). "
+            "Code quyết định 100% bố cục — AI chỉ sinh nội dung JSON."
+        )
+        if st.button("⚡ Tạo & tải theo mẫu chuẩn 2025-2026",
+                     key=_k("btn_v2"), use_container_width=True):
+            _run_v2_pipeline(
+                api_key=api_key, point_check=point_check, point_cost=point_cost,
+                model_name=model_name,
+                # Lấy giá trị từ session_state (form đã submit ở trên)
+                subject=st.session_state.get(_k("subject"), ""),
+                grade=st.session_state.get(_k("grade"), ""),
+                lesson_title=st.session_state.get(_k("title"), title_slug),
+                school=st.session_state.get(_k("school"), ""),
+                department=st.session_state.get(_k("department"), ""),
+                teacher=st.session_state.get(_k("teacher"), ""),
+                school_year=st.session_state.get(_k("school_year"), "2025 - 2026"),
+                teaching_date=st.session_state.get(_k("teaching_date"), ""),
+                duration_minutes=int(st.session_state.get(_k("duration"), 35) or 35),
+                week=st.session_state.get(_k("period_note"), ""),
+                sgk_pages=st.session_state.get(_k("sgk_pages"), ""),
+                source_text=content_html[:8000],  # cung cấp ngữ cảnh từ HTML đã có
+            )
+
+
+def _run_v2_pipeline(
+    *,
+    api_key: str,
+    point_check: Optional[Callable[[int, str], bool]],
+    point_cost: int,
+    model_name: str,
+    subject: str,
+    grade: str,
+    lesson_title: str,
+    school: str,
+    department: str,
+    teacher: str,
+    school_year: str,
+    teaching_date: Any,
+    duration_minutes: int,
+    week: str,
+    sgk_pages: str,
+    source_text: str = "",
+) -> None:
+    """Wrapper gọi lesson_docx pipeline + nút tải. Tách riêng để dễ test."""
+    try:
+        from lesson_docx.pipeline import LessonContext, generate_docx_from_ai_response
+    except Exception as e:
+        st.error(f"❌ Không import được lesson_docx: {e}")
+        return
+
+    # Tính phí trước khi gọi AI (tránh tốn điểm khi pipeline lỗi parse)
+    if point_check is not None:
+        if not point_check(point_cost, "lesson_plan_advanced_v2"):
+            return
+
+    # Convert teaching_date dt → str
+    if hasattr(teaching_date, "strftime"):
+        teaching_date = teaching_date.strftime("%d/%m/%Y")
+
+    ctx = LessonContext(
+        subject=subject,
+        grade=str(grade),
+        lesson_title=lesson_title,
+        textbook_series=BOOK_SERIES_LOCKED,
+        duration_minutes=duration_minutes,
+        school=school,
+        department=department,
+        teacher_name=teacher,
+        school_year=school_year,
+        teaching_date=str(teaching_date) if teaching_date else "",
+        week=week,
+        period="",
+        sgk_pages=sgk_pages,
+        source_text=source_text or "",
+    )
+
+    with st.spinner("Đang sinh JSON từ AI và render DOCX theo mẫu chuẩn..."):
+        try:
+            from .pipeline import build_prompt  # type: ignore
+        except Exception:
+            from lesson_docx.pipeline import build_prompt
+        prompt = build_prompt(ctx)
+        try:
+            raw = _call_gemini_text(api_key, prompt, model_name=model_name, temperature=0.2)
+        except Exception as e:
+            st.error(f"❌ Lỗi gọi AI: {e}")
+            return
+
+        result = generate_docx_from_ai_response(ctx, raw)
+
+    if not result.ok:
+        st.error(f"❌ Pipeline fail tại stage '{result.stage}':")
+        for err in result.errors:
+            st.write(f"- {err}")
+        with st.expander("Xem JSON AI trả về (kỹ thuật)", expanded=False):
+            st.code(raw[:5000], language="json")
+        return
+
+    # Thành công — show download
+    st.success(result.summary())
+    if result.warnings:
+        for w in result.warnings:
+            st.caption(f"⚠️ {w}")
+    if result.replaced_phrases:
+        st.caption(f"🧹 Đã thay phrase cấm: {', '.join(result.replaced_phrases)}")
+
+    safe_title = re.sub(r"[^a-zA-Z0-9_\-]+", "_", lesson_title) or "GiaoAn"
+    assert result.docx_bytes is not None
+    st.download_button(
+        "⬇️ Tải file .docx (mẫu chuẩn 2025-2026)",
+        data=result.docx_bytes,
+        file_name=f"{safe_title}_mau_chuan.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        type="primary",
+        use_container_width=True,
+        key=f"dl_v2_{safe_title}",
+    )
+    with st.expander("Xem JSON đã chuẩn hoá (kỹ thuật)", expanded=False):
+        import json as _json
+        st.code(_json.dumps(result.json_data, ensure_ascii=False, indent=2), language="json")
+
 
 def _demo_html(*, phong_gd_dt, school, department, teacher, school_year, teaching_date, location,
                level, grade, class_name, subject, book_series, lesson_title, duration,

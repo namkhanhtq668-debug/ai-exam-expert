@@ -1,0 +1,159 @@
+{
+  "documentInfo": {
+    "department": "Huyện Hoài Đức",
+    "school": "Tiểu học Hồng Thái",
+    "schoolYear": "2025 - 2026"
+  },
+  "lessonInfo": {
+    "subject": "Toán",
+    "grade": "4",
+    "lessonNumber": "Bài 1",
+    "lessonTitle": "ÔN TẬP CÁC SỐ ĐẾN 100 000",
+    "textbookSeries": "Kết nối tri thức với cuộc sống",
+    "duration": "01 tiết (35 phút)",
+    "week": "1",
+    "period": "1",
+    "teachingDate": "20/05/2026",
+    "teacherName": "Nguyễn Văn Tuấn",
+    "sgkPages": "Trang 6 - 9"
+  },
+  "objectives": {
+    "intro": "Sau bài học, học sinh đạt được các yêu cầu sau:",
+    "specificCompetencies": [
+      "Đọc, viết được các số trong phạm vi 100 000; nhận biết được cấu tạo thập phân của số.",
+      "Xác định được giá trị của chữ số theo vị trí; tìm được số liền trước, số liền sau của một số.",
+      "So sánh, sắp xếp được các số trong phạm vi 100 000 theo thứ tự; bước đầu biết ước lượng và làm tròn số trong tình huống phù hợp.",
+      "Trình bày được cách làm, biết trao đổi, nhận xét kết quả học tập của bản thân và bạn."
+    ],
+    "generalCompetencies": [
+      "Tự chủ và tự học: tự giác thực hiện nhiệm vụ cá nhân, hoàn thành bài tập được giao.",
+      "Giao tiếp và hợp tác: trao đổi với bạn khi làm việc cặp đôi/nhóm, biết lắng nghe và chia sẻ cách làm.",
+      "Giải quyết vấn đề và sáng tạo: lựa chọn cách làm phù hợp khi đọc, viết, phân tích, so sánh số."
+    ],
+    "qualities": [
+      "Chăm chỉ: tích cực luyện tập, cẩn thận khi viết số và tính toán.",
+      "Trung thực: tự đánh giá kết quả học tập, sửa sai sau khi được góp ý.",
+      "Trách nhiệm: giữ gìn đồ dùng học tập, thực hiện nghiêm túc yêu cầu của tiết học."
+    ]
+  },
+  "teachingMaterials": {
+    "teacher": [
+      "SGK Toán 4 bộ Kết nối tri thức với cuộc sống; kế hoạch bài dạy; bảng phụ/phiếu học tập; thẻ số hoặc bảng con.",
+      "Máy chiếu hoặc ti vi (nếu có) để trình chiếu nhiệm vụ luyện tập; bảng kiểm quan sát học sinh."
+    ],
+    "students": [
+      "SGK, vở Toán, bảng con, bút viết; chuẩn bị tâm thế tham gia hoạt động cá nhân, cặp đôi và nhóm."
+    ]
+  },
+  "teachingProcess": [
+    {
+      "title": "Mở đầu - Khởi động",
+      "duration": "5 phút",
+      "objective": "Tạo hứng thú, kết nối kiến thức về các số đến 100 000.",
+      "rows": [
+        {
+          "teacherActivities": "Tổ chức trò chơi 'Ai nhanh hơn': GV nêu các câu hỏi ngắn, ví dụ: 'Số lớn hơn 99 998 và bé hơn 100 000 là số nào?'; 'Đọc số 45 678'. Nhận xét, tuyên dương, dẫn dắt vào bài: Ôn tập các số đến 100 000.",
+          "studentActivities": "Tham gia trả lời cá nhân hoặc theo nhóm; nêu cách suy nghĩ ngắn gọn; chuẩn bị sách vở vào bài học.",
+          "productAndAssessment": "HS trả lời được một số câu hỏi khởi động. Đánh giá bằng quan sát, hỏi đáp nhanh, tuyên dương kịp thời."
+        }
+      ]
+    },
+    {
+      "title": "Luyện tập, thực hành - Ôn đọc, viết và cấu tạo số",
+      "duration": "10 phút",
+      "objective": "Củng cố đọc, viết số; phân tích cấu tạo số theo hàng.",
+      "rows": [
+        {
+          "teacherActivities": "Giao nhiệm vụ trong SGK/phiếu học tập: đọc số, viết số, phân tích số theo chục nghìn, nghìn, trăm, chục, đơn vị. Gợi ý HS yếu bằng bảng hàng: chục nghìn - nghìn - trăm - chục - đơn vị. Gọi HS trình bày, nhận xét và chốt cách đọc, viết, phân tích số.",
+          "studentActivities": "Làm bài cá nhân, sau đó trao đổi cặp đôi để kiểm tra. Một số HS đọc kết quả, giải thích vì sao viết/đọc như vậy. Sửa bài vào vở nếu còn sai.",
+          "productAndAssessment": "HS đọc, viết và phân tích đúng phần lớn các số. GV dùng bảng kiểm: đọc đúng, viết đúng, xác định đúng giá trị chữ số."
+        }
+      ]
+    },
+    {
+      "title": "Luyện tập, thực hành - Số liền trước, số liền sau; so sánh số",
+      "duration": "10 phút",
+      "objective": "Tìm số liền trước, liền sau; so sánh và sắp xếp số trong phạm vi 100 000.",
+      "rows": [
+        {
+          "teacherActivities": "Nêu các bài tập trong SGK: tìm số liền trước/liền sau; điền dấu >, <, =; sắp xếp các số. Hướng dẫn HS nhắc lại quy tắc: so sánh số chữ số, nếu bằng nhau thì so sánh lần lượt từ hàng cao đến hàng thấp. Tổ chức chữa bài trên bảng, yêu cầu HS giải thích cách làm.",
+          "studentActivities": "Thực hiện bài tập vào vở/bảng con. Trao đổi với bạn khi có kết quả khác nhau. Trình bày cách so sánh, nhận xét bài làm của bạn.",
+          "productAndAssessment": "HS xác định đúng số liền trước/liền sau và so sánh được các số. Đánh giá qua bảng con, vở bài tập, câu trả lời miệng."
+        }
+      ]
+    },
+    {
+      "title": "Vận dụng",
+      "duration": "7 phút",
+      "objective": "Vận dụng kiến thức về số đến 100 000 vào tình huống gần gũi.",
+      "rows": [
+        {
+          "teacherActivities": "Đưa tình huống: 'Một thư viện có khoảng 23 800 quyển sách. Hãy đọc số đó, cho biết số này gần 24 000 hay 23 000 hơn, và nêu một tình huống thực tế có dùng số đến 100 000.' Khuyến khích HS liên hệ số dân, số tiền, số lượng đồ vật, quãng đường, mã số.",
+          "studentActivities": "Suy nghĩ cá nhân, chia sẻ trước lớp. Nêu ví dụ thực tế và giải thích ngắn gọn. Lắng nghe, bổ sung cho bạn.",
+          "productAndAssessment": "HS nêu được ví dụ đúng, biết đọc và làm tròn/ước lượng đơn giản. Đánh giá bằng nhận xét trực tiếp."
+        }
+      ]
+    },
+    {
+      "title": "Củng cố, dặn dò",
+      "duration": "3 phút",
+      "objective": "Khắc sâu nội dung bài học, định hướng chuẩn bị bài sau.",
+      "rows": [
+        {
+          "teacherActivities": "Yêu cầu HS nêu lại 3 nội dung trọng tâm: đọc - viết số; cấu tạo số; so sánh/số liền trước, liền sau. Dặn HS hoàn thiện bài còn thiếu, chuẩn bị bài học tiếp theo theo phân phối chương trình.",
+          "studentActivities": "Nêu điều em đã học được và điều còn cần luyện thêm. Ghi nhớ nhiệm vụ về nhà.",
+          "productAndAssessment": "HS tự đánh giá mức độ hoàn thành. GV ghi nhận những HS cần hỗ trợ thêm trong tiết sau."
+        }
+      ]
+    }
+  ],
+  "differentiation": {
+    "weakerStudents": "Cho dùng bảng hàng, thẻ số, ví dụ nhỏ hơn; GV kèm trực tiếp khi đọc, viết hoặc so sánh số.",
+    "advancedStudents": "Giao thêm nhiệm vụ tạo số theo điều kiện, sắp xếp dãy số, giải thích nhiều cách so sánh.",
+    "limitedResources": "Thay trình chiếu bằng bảng phụ, bảng con và phiếu học tập; ưu tiên hoạt động cặp đôi để tăng cơ hội luyện tập."
+  },
+  "assessment": [
+    {
+      "content": "Đọc, viết số đến 100 000",
+      "criteria": "Đọc, viết đúng; không nhầm hàng",
+      "method": "Hỏi đáp, quan sát",
+      "tool": "Bảng con, vở bài tập"
+    },
+    {
+      "content": "Phân tích cấu tạo số",
+      "criteria": "Nêu đúng giá trị các chữ số theo hàng",
+      "method": "Thực hành, vấn đáp",
+      "tool": "Phiếu học tập, bài trình bày"
+    },
+    {
+      "content": "Số liền trước, liền sau; so sánh số",
+      "criteria": "Làm đúng phần lớn bài tập; giải thích được cách làm",
+      "method": "Quan sát, kiểm tra sản phẩm",
+      "tool": "Vở, bảng kiểm"
+    },
+    {
+      "content": "Thái độ học tập",
+      "criteria": "Tích cực, cẩn thận, hợp tác",
+      "method": "Quan sát",
+      "tool": "Nhận xét trong giờ học"
+    }
+  ],
+  "worksheet": [
+    {
+      "title": "Bài 1. Viết số thích hợp vào chỗ chấm:",
+      "body": "34 567 = ... chục nghìn + ... nghìn + ... trăm + ... chục + ... đơn vị\nSố gồm 6 chục nghìn, 2 nghìn, 5 trăm, 0 chục, 8 đơn vị viết là: ..."
+    },
+    {
+      "title": "Bài 2. Điền số liền trước, số liền sau:",
+      "body": "... ; 78 900 ; ...\n... ; 100 000 ; ..."
+    },
+    {
+      "title": "Bài 3. Điền dấu >, <, =:",
+      "body": "45 678 ... 45 768\n90 005 ... 89 999"
+    },
+    {
+      "title": "Bài 4. Sắp xếp các số sau theo thứ tự từ bé đến lớn:",
+      "body": "56 700; 56 070; 57 600; 50 760."
+    }
+  ]
+}
