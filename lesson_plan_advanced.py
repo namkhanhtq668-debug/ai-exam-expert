@@ -38,38 +38,66 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+# Dependencies optional — module tự degrade nếu thiếu.
+# Lưu lý do import fail vào _IMPORT_ERRORS để hiển thị/log rõ ràng, tránh "nuốt" lỗi.
+_IMPORT_ERRORS: dict[str, str] = {}
+
+# streamlit là hard dependency — app không chạy được nếu thiếu nên không wrap try/except.
 import streamlit as st
 import streamlit.components.v1 as components
 
-# Dependencies optional — module tự degrade nếu thiếu
 try:
     from bs4 import BeautifulSoup, NavigableString  # type: ignore[import-not-found]
-except Exception:
+except Exception as _e:
     BeautifulSoup = None
     NavigableString = None
+    _IMPORT_ERRORS["beautifulsoup4"] = f"{type(_e).__name__}: {_e}"
 
 try:
     from PIL import Image
-except Exception:
+except Exception as _e:
     Image = None
+    _IMPORT_ERRORS["Pillow"] = f"{type(_e).__name__}: {_e}"
 
 try:
     from pypdf import PdfReader  # type: ignore[import-not-found]
-except Exception:
+except Exception as _e:
     PdfReader = None
+    _IMPORT_ERRORS["pypdf"] = f"{type(_e).__name__}: {_e}"
 
 try:
     import mammoth  # type: ignore[import-not-found]
-except Exception:
+except Exception as _e:
     mammoth = None
+    _IMPORT_ERRORS["mammoth"] = f"{type(_e).__name__}: {_e}"
 
 try:
-    from docx import Document
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
-    from docx.shared import Inches, Mm, Pt
-except Exception:
+    from docx import Document as _RealDocument
+    from docx.enum.text import WD_ALIGN_PARAGRAPH as _RealWDAlign
+    from docx.enum.table import (
+        WD_TABLE_ALIGNMENT as _RealWDTableAlign,
+        WD_CELL_VERTICAL_ALIGNMENT as _RealWDVAlign,
+    )
+    from docx.shared import Inches as _RealInches, Mm as _RealMm, Pt as _RealPt
+
+    # Re-export về tên gốc với kiểu Any để Pylance không cảnh báo Optional
+    # khi runtime guard ở _create_docx đã đảm bảo không None.
+    Document: Any = _RealDocument
+    WD_ALIGN_PARAGRAPH: Any = _RealWDAlign
+    WD_TABLE_ALIGNMENT: Any = _RealWDTableAlign
+    WD_CELL_VERTICAL_ALIGNMENT: Any = _RealWDVAlign
+    Inches: Any = _RealInches
+    Mm: Any = _RealMm
+    Pt: Any = _RealPt
+except Exception as _e:
     Document = None
+    WD_ALIGN_PARAGRAPH = None
+    WD_TABLE_ALIGNMENT = None
+    WD_CELL_VERTICAL_ALIGNMENT = None
+    Inches = None
+    Mm = None
+    Pt = None
+    _IMPORT_ERRORS["python-docx"] = f"{type(_e).__name__}: {_e}"
 
 
 # =============================================================================
@@ -555,8 +583,8 @@ def _extract_image_context(image_files, api_key: str, model_name: str) -> Tuple[
         Trả lời bằng tiếng Việt, dạng gạch đầu dòng rõ ràng.
     """).strip()
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_name)
+        genai.configure(api_key=api_key)  # type: ignore[attr-defined]
+        model = genai.GenerativeModel(model_name)  # type: ignore[attr-defined]
         resp = model.generate_content([prompt, *pil_imgs])
         text = getattr(resp, "text", "") or ""
         notes.append("Đã OCR ảnh bằng AI." if text.strip() else "AI không trả về nội dung.")
@@ -828,7 +856,17 @@ def _wrap_a4(content_html: str, title: str = "GiaoAn") -> str:
 
 def _create_docx(full_html: str) -> bytes:
     if Document is None or BeautifulSoup is None or NavigableString is None:
-        raise RuntimeError("Cần cài python-docx và beautifulsoup4.")
+        import sys
+        missing = []
+        if Document is None:
+            missing.append("python-docx")
+        if BeautifulSoup is None or NavigableString is None:
+            missing.append("beautifulsoup4")
+        raise RuntimeError(
+            f"Thiếu thư viện: {', '.join(missing)}. "
+            f"Cài bằng: \"{sys.executable}\" -m pip install {' '.join(missing)} — "
+            f"rồi RESTART streamlit."
+        )
     NavStr = NavigableString  # alias để type checker narrow ra non-None
     soup = BeautifulSoup(full_html, "html.parser")
     page = soup.find("article") or soup.find("div", class_="page") or soup.body or soup
@@ -848,6 +886,47 @@ def _create_docx(full_html: str) -> bytes:
     normal.paragraph_format.line_spacing = 1.5  # type: ignore[attr-defined]
     normal.paragraph_format.space_after = Pt(6)  # type: ignore[attr-defined]
     normal.paragraph_format.space_before = Pt(0)  # type: ignore[attr-defined]
+
+    # ----- HEADER: AIEXAM -----
+    header_p = sec.header.paragraphs[0]
+    header_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    h_run = header_p.add_run("AIEXAM")
+    h_run.font.name = "Times New Roman"
+    h_run.font.size = Pt(10)
+    h_run.bold = True
+
+    # ----- FOOTER: thương hiệu + số trang "Trang X / Y" -----
+    # Dùng raw XML cho field PAGE và NUMPAGES (python-docx không có API trực tiếp)
+    from docx.oxml.ns import qn as _qn
+    from docx.oxml import OxmlElement as _OxmlElement
+
+    footer_p = sec.footer.paragraphs[0]
+    footer_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    f_run = footer_p.add_run("AIEXAM | Nền tảng AI cho giáo viên  —  Trang ")
+    f_run.font.name = "Times New Roman"
+    f_run.font.size = Pt(9)
+
+    def _add_page_field(paragraph, field_code: str):
+        """Chèn field Word (PAGE hoặc NUMPAGES) vào paragraph để Word tự tính số trang."""
+        run = paragraph.add_run()
+        run.font.name = "Times New Roman"
+        run.font.size = Pt(9)
+        fld_begin = _OxmlElement("w:fldChar")
+        fld_begin.set(_qn("w:fldCharType"), "begin")
+        instr = _OxmlElement("w:instrText")
+        instr.set(_qn("xml:space"), "preserve")
+        instr.text = f" {field_code} "
+        fld_end = _OxmlElement("w:fldChar")
+        fld_end.set(_qn("w:fldCharType"), "end")
+        run._r.append(fld_begin)
+        run._r.append(instr)
+        run._r.append(fld_end)
+
+    _add_page_field(footer_p, "PAGE")
+    sep_run = footer_p.add_run(" / ")
+    sep_run.font.name = "Times New Roman"
+    sep_run.font.size = Pt(9)
+    _add_page_field(footer_p, "NUMPAGES")
 
     def add_p(text: str, *, bold: bool = False, size: int = 13, align=None, indent_em: int = 0):
         text = re.sub(r"\s+", " ", text or "").strip()
@@ -939,6 +1018,44 @@ def _create_docx(full_html: str) -> bytes:
     return bio.getvalue()
 
 
+def _create_doc_html_fallback(full_html: str, title: str) -> bytes:
+    """Fallback khi thiếu python-docx/bs4: bọc HTML thành file .doc mà Word/WPS/LibreOffice mở được.
+
+    Kỹ thuật: Word từ Office 97 trở đi nhận diện HTML có namespace `xmlns:w="urn:schemas-microsoft-com:office:word"`
+    và mở dưới dạng document có thể chỉnh sửa. Đây là chuẩn 'Word HTML Document' chính thức của Microsoft.
+    Lề A4 + Times New Roman 13pt được set qua CSS @page và body để khớp định dạng giáo án.
+    """
+    safe_title = (title or "GiaoAn").replace('"', "'")
+    word_css = """
+    <style>
+      @page WordSection1 { size: 21cm 29.7cm; margin: 2cm 2cm 2cm 3cm; }
+      div.WordSection1 { page: WordSection1; }
+      body { font-family: 'Times New Roman', serif; font-size: 13pt; line-height: 1.5; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #000; padding: 6px; vertical-align: top; }
+      th { background: #eef4ff; font-weight: bold; text-align: center; }
+      h1 { font-size: 15pt; text-align: center; }
+      h2 { font-size: 14pt; }
+      h3, h4 { font-size: 13pt; }
+    </style>
+    """
+    # Tách body ra khỏi full_html để nhúng vào WordSection1 đúng cách
+    m = re.search(r"<body[^>]*>(.*)</body>", full_html, flags=re.DOTALL | re.IGNORECASE)
+    body_inner = m.group(1) if m else full_html
+    doc_html = (
+        "<html xmlns:o='urn:schemas-microsoft-com:office:office' "
+        "xmlns:w='urn:schemas-microsoft-com:office:word' "
+        "xmlns='http://www.w3.org/TR/REC-html40'>"
+        "<head><meta charset='utf-8'>"
+        f"<title>{html.escape(safe_title)}</title>"
+        + word_css +
+        "</head><body><div class='WordSection1'>"
+        + body_inner +
+        "</div></body></html>"
+    )
+    return doc_html.encode("utf-8")
+
+
 def _validate(content_html: str, lesson_title: str, trust_level: str) -> Dict[str, Any]:
     if BeautifulSoup:
         text = _norm(BeautifulSoup(content_html, "html.parser").get_text(" "))
@@ -987,6 +1104,7 @@ def module_lesson_plan_advanced(
     point_check: Optional[Callable[[int, str], bool]] = None,
     point_cost: int = 35,
     model_name: str = DEFAULT_MODEL,
+    docx_renderer: Optional[Callable[[str, str], bytes]] = None,
 ) -> None:
     """Module soạn giáo án AI nâng cao — chỉ Pro/Admin được vào.
     Caller phải tự kiểm tra role trước khi gọi.
@@ -1199,14 +1317,43 @@ def module_lesson_plan_advanced(
         st.markdown("## ⬇️ Tải giáo án")
         d1, d2 = st.columns(2)
         with d1:
-            try:
-                docx_bytes = _create_docx(full_html)
+            # Chiến lược 3 lớp đảm bảo giáo viên LUÔN tải được:
+            # 1) docx_renderer (truyền từ app.py — create_docx_from_html, chỉ cần python-docx)
+            # 2) _create_docx nội bộ (cần python-docx + beautifulsoup4)
+            # 3) _create_doc_html_fallback (.doc HTML — zero dependency)
+            docx_bytes: Optional[bytes] = None
+            last_err: Optional[str] = None
+            if docx_renderer is not None:
+                try:
+                    docx_bytes = docx_renderer(full_html, title_slug)
+                except Exception as e:
+                    last_err = f"renderer chính: {type(e).__name__}: {e}"
+            if docx_bytes is None:
+                try:
+                    docx_bytes = _create_docx(full_html)
+                except Exception as e:
+                    last_err = (last_err + " | " if last_err else "") + f"_create_docx: {e}"
+
+            if docx_bytes is not None:
                 st.download_button("Tải Word .docx", data=docx_bytes,
                                    file_name=f"{title_slug}.docx",
                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                    type="primary", use_container_width=True, key=_k("dl_docx"))
-            except Exception as e:
-                st.warning(f"Chưa xuất được DOCX: {e}")
+            else:
+                # Fallback cuối: .doc HTML — không cần thư viện nào
+                doc_bytes = _create_doc_html_fallback(full_html, title_slug)
+                st.download_button("Tải Word .doc (dự phòng)", data=doc_bytes,
+                                   file_name=f"{title_slug}.doc",
+                                   mime="application/msword",
+                                   type="primary", use_container_width=True, key=_k("dl_doc_fb"))
+                with st.expander("Vì sao là .doc thay vì .docx?", expanded=False):
+                    st.caption(
+                        "Môi trường chạy hiện thiếu thư viện để tạo .docx chuẩn. "
+                        "App đã tự chuyển sang .doc (HTML) — Microsoft Word/WPS/LibreOffice mở được bình thường. "
+                        f"Chi tiết kỹ thuật: {last_err}"
+                    )
+                    if _IMPORT_ERRORS:
+                        st.code("\n".join(f"{k}: {v}" for k, v in _IMPORT_ERRORS.items()))
         with d2:
             st.download_button("Tải HTML", data=full_html.encode("utf-8"),
                                file_name=f"{title_slug}.html", mime="text/html",

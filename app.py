@@ -1,5 +1,5 @@
-import streamlit as st
-import streamlit.components.v1 as components
+import streamlit as st  # pyright: ignore[reportMissingImports]
+import streamlit.components.v1 as components  # pyright: ignore[reportMissingImports]
 import google.generativeai as genai
 from supabase import create_client, Client
 import base64
@@ -1283,13 +1283,14 @@ def init_supabase():
         return None
 def read_file_content(uploaded_file, file_type):
     if not uploaded_file: return ""
+    content = ""
     try:
         if uploaded_file.name.endswith('.docx'):
             doc = docx.Document(io.BytesIO(uploaded_file.getvalue()))
             return "\n".join([p.text for p in doc.paragraphs])
         elif uploaded_file.name.endswith('.xlsx'):
             content = pd.read_excel(uploaded_file).to_string()
-        
+
         # Gắn nhãn chuẩn Logic React
         if file_type == 'matrix': return f"\n[DỮ LIỆU MA TRẬN TỪ NGƯỜI DÙNG]:\n{content}\n"
         if file_type == 'spec': return f"\n[DỮ LIỆU ĐẶC TẢ TỪ NGƯỜI DÙNG]:\n{content}\n"
@@ -1663,7 +1664,7 @@ def _render_ul(items) -> str:
         return "<ul><li>...</li></ul>"
     lis = "".join([f"<li>{_html_escape(x)}</li>" for x in items if str(x).strip()])
     return f"<ul>{lis or '<li>...</li>'}</ul>"
-def _configure_docx_branding(document: docx.Document, title: str) -> None:
+def _configure_docx_branding(document: Any, title: str) -> None:
     try:
         section = document.sections[0]
         section.page_width = Cm(21)
@@ -3279,7 +3280,14 @@ def main_app():
     # --- TAB 3: ĐÁP ÁN ---
     with tabs[2]:
         if st.session_state['dossier']:
-            curr = st.session_state['dossier'][sel]
+            all_e = st.session_state['dossier']
+            sel = st.selectbox(
+                "Chọn mã đề:",
+                range(len(all_e)),
+                format_func=lambda x: f"[{all_e[x]['id']}] {all_e[x]['title']}",
+                key="answers_tab_sel",
+            )
+            curr = all_e[sel]
             if is_admin or user.get('role') == 'pro':
                 st.markdown(f"""<div class="paper-view">{curr.get('answers','Chưa có đáp án')}</div>""", unsafe_allow_html=True)
                 st.download_button("⬇️ Tải Đáp án (.docx)", create_docx_from_html(curr.get('answers',''), "DapAn"), f"DA_{curr['id']}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
@@ -3793,6 +3801,7 @@ def login_screen():
                         )
                         rows = _as_dict_rows(res.data)
                         login_ok = False
+                        user_data: dict = {}
                         if rows:
                             user_data = rows[0]
                             if verify_password_compat(user_data.get("password"), p):
@@ -6374,6 +6383,7 @@ def render_lesson_plan_advanced_gate():
                 point_check=require_points_or_block,
                 point_cost=POINT_COST_LESSON_PLAN_ADVANCED,
                 model_name="gemini-2.0-flash",
+                docx_renderer=create_docx_from_html,
             )
         else:
             st.error("⚠️ Module 'lesson_plan_advanced' chưa load được. Vui lòng kiểm tra file `lesson_plan_advanced.py` cùng thư mục.")
@@ -6438,7 +6448,7 @@ elif page == "lesson_plan":
             BOOKS_LIST=BOOKS_LIST,
             EDUCATION_DATA=EDUCATION_DATA,
             FULL_SCOPE_LIST=FULL_SCOPE_LIST,
-            create_word_doc_func=create_word_doc,
+            create_word_doc_func=create_docx_from_html,
             model_name="gemini-2.0-flash"
         )
     else:
@@ -6543,7 +6553,8 @@ def _footer_get_param(name: str, default: str | None = None) -> str | None:
         return value
     except Exception:
         try:
-            value = st.experimental_get_query_params().get(name)
+            # Fallback cho Streamlit < 1.30 (đã deprecated nhưng vẫn dùng được)
+            value = st.experimental_get_query_params().get(name)  # type: ignore[attr-defined]
             if isinstance(value, list):
                 return value[0] if value else default
             return value if value is not None else default
@@ -6555,7 +6566,7 @@ def _footer_set_param(action: str) -> None:
         st.query_params["footer"] = action
     except Exception:
         try:
-            st.experimental_set_query_params(footer=action)
+            st.experimental_set_query_params(footer=action)  # type: ignore[attr-defined]
         except Exception:
             pass
 
