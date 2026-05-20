@@ -821,7 +821,7 @@ Tạo HTML có cấu trúc CHÍNH XÁC sau:
           <th>Hoạt động của giáo viên</th>
           <th>Hoạt động của học sinh</th>
           <th>Sản phẩm học tập</th>
-          <th>Phương án đánh giá</th>
+          <th>Đánh giá</th>
         </tr>
         <tr>
           <td>Lệnh GV cụ thể, có câu nói/câu hỏi mẫu trong dấu ngoặc kép.</td>
@@ -957,7 +957,7 @@ def _create_docx(full_html: str) -> bytes:
     sep_run.font.size = Pt(9)
     _add_page_field(footer_p, "NUMPAGES")
 
-    def add_p(text: str, *, bold: bool = False, size: int = 13, align=None, indent_em: int = 0):
+    def add_p(text: str, *, bold: bool = False, size: int = 13, align=None, indent_em: int = 0, keep_with_next: bool = False):
         text = re.sub(r"\s+", " ", text or "").strip()
         if not text:
             return
@@ -968,6 +968,9 @@ def _create_docx(full_html: str) -> bytes:
             p.paragraph_format.left_indent = Inches(0.25 * indent_em)
         p.paragraph_format.line_spacing = 1.15
         p.paragraph_format.space_after = Pt(6)
+        if keep_with_next:
+            # Anti-orphan: tiêu đề không nằm cuối trang một mình, luôn đi cùng đoạn ngay sau
+            p.paragraph_format.keep_with_next = True
         run = p.add_run(text)
         run.bold = bold
         run.font.name = "Times New Roman"
@@ -1005,6 +1008,15 @@ def _create_docx(full_html: str) -> bytes:
         tbl.style = "Table Grid"
         for i, row in enumerate(rows):
             cells = row.find_all(["th", "td"])
+            # cantSplit: cấm 1 ô trong row bị tách sang trang khác → bảng không vỡ giữa chừng
+            tr_pr = tbl.rows[i]._tr.get_or_add_trPr()
+            cant_split = _OxmlElement("w:cantSplit")
+            tr_pr.append(cant_split)
+            # Row đầu tiên là header → tblHeader để Word lặp lại header khi bảng tràn trang
+            is_header_row = all((cells[j].name == "th") for j in range(min(len(cells), max_cols)) if cells)
+            if i == 0 and is_header_row:
+                tbl_header = _OxmlElement("w:tblHeader")
+                tr_pr.append(tbl_header)
             for j in range(max_cols):
                 c = tbl.cell(i, j)
                 c.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.TOP
@@ -1025,11 +1037,13 @@ def _create_docx(full_html: str) -> bytes:
                 continue
             name = child.name
             if name == "h1":
-                add_p(child.get_text(" ", strip=True), bold=True, size=15, align=WD_ALIGN_PARAGRAPH.CENTER)
+                # Tiêu đề chính "KẾ HOẠCH BÀI DẠY": cỡ 16, in hoa-đậm, căn giữa (theo spec)
+                add_p(child.get_text(" ", strip=True), bold=True, size=16, align=WD_ALIGN_PARAGRAPH.CENTER, keep_with_next=True)
             elif name == "h2":
-                add_p(child.get_text(" ", strip=True), bold=True, size=14)
+                # I/II/III/IV: cỡ 14, đậm + anti-orphan
+                add_p(child.get_text(" ", strip=True), bold=True, size=14, keep_with_next=True)
             elif name in {"h3", "h4"}:
-                add_p(child.get_text(" ", strip=True), bold=True, size=13)
+                add_p(child.get_text(" ", strip=True), bold=True, size=13, keep_with_next=True)
             elif name == "p":
                 add_p(child.get_text(" ", strip=True))
             elif name in {"ul", "ol"}:
@@ -1473,43 +1487,35 @@ def _demo_html(*, phong_gd_dt, school, department, teacher, school_year, teachin
 
     # 4 pha CV 2345/BGDĐT-GDTH: Mở đầu / Hình thành KT mới / Luyện tập, thực hành / Vận dụng, trải nghiệm
     t1 = max(3, round(duration * 0.10))
-    t2 = max(10, round(duration * 0.40))
-    t3 = max(8, round(duration * 0.30))
-    t4 = max(3, duration - t1 - t2 - t3)
+    # Spec: 3 hoạt động — Mở đầu / (LT-thực hành HOẶC HTKT, tuỳ kiểu bài) / Vận dụng.
+    # Fallback dùng "Hình thành kiến thức mới / Luyện tập, thực hành" — phù hợp cả 2 kiểu bài.
+    t2 = max(15, round(duration * 0.60))  # hoạt động giữa chiếm ~60% thời gian
+    t3 = max(5, duration - t1 - t2)        # vận dụng = phần còn lại
     phases = [
         {
-            "title": "1. Mở đầu",
+            "title": "1. Hoạt động Mở đầu",
             "time": t1,
             "objective": "Tạo tâm thế, kết nối kinh nghiệm sẵn có của HS với bài học mới.",
-            "product": "Câu trả lời/chia sẻ ban đầu của HS.",
-            "assessment": "GV quan sát thái độ tham gia, ghi nhận câu trả lời.",
+            "product": "Câu trả lời/chia sẻ ban đầu của HS được nói trước lớp.",
+            "assessment": "GV quan sát thái độ tham gia, nhận xét miệng, ghi nhận câu trả lời.",
             "gv": "GV nêu tình huống/câu hỏi gắn với thực tiễn liên quan đến bài. Mời 2-3 HS chia sẻ. GV dẫn dắt vào tên bài và viết tên bài lên bảng.",
             "hs": "HS lắng nghe, suy nghĩ, xung phong trả lời. Ghi tên bài học vào vở.",
         },
         {
-            "title": "2. Hình thành kiến thức mới",
+            "title": "2. Hoạt động Hình thành kiến thức mới / Luyện tập, thực hành",
             "time": t2,
-            "objective": f"HS khám phá và tiếp thu nội dung trọng tâm: {html.escape(summary[:180])}",
-            "product": "Ghi chép ý chính trong vở; câu trả lời các câu hỏi của GV.",
-            "assessment": "GV hỏi đáp trực tiếp, kiểm tra hiểu bài qua 2-3 câu hỏi chốt.",
-            "gv": "GV hướng dẫn HS đọc SGK KNTT phần kiến thức mới. Đặt câu hỏi gợi mở. Tổ chức thảo luận cặp đôi/nhóm 4. GV chốt kiến thức bằng sơ đồ/bảng.",
-            "hs": "HS đọc SGK, gạch chân từ khóa. Thảo luận theo cặp/nhóm. Đại diện nhóm trình bày. HS ghi kết luận vào vở.",
+            "objective": f"HS khám phá và tiếp thu (hoặc củng cố) nội dung trọng tâm: {html.escape(summary[:180])}",
+            "product": "Bài làm trong vở / phiếu học tập đã hoàn thành; câu trả lời các câu hỏi của GV.",
+            "assessment": "GV hỏi đáp trực tiếp, chấm nhanh / đối chiếu đáp án, đánh giá theo tiêu chí Đạt / Cần cố gắng.",
+            "gv": "GV hướng dẫn HS đọc SGK KNTT, đặt câu hỏi gợi mở; tổ chức thảo luận cặp đôi/nhóm 4; giao 2-3 nhiệm vụ luyện tập theo mức độ tăng dần; quan sát, hỗ trợ HS gặp khó khăn; tổ chức báo cáo, chốt kiến thức bằng sơ đồ/bảng.",
+            "hs": "HS đọc SGK, gạch chân từ khóa; thảo luận theo cặp/nhóm; làm bài cá nhân vào vở/phiếu; đổi vở kiểm tra chéo; đại diện nhóm trình bày; ghi kết luận vào vở.",
         },
         {
-            "title": "3. Luyện tập, thực hành",
+            "title": "3. Hoạt động Vận dụng, trải nghiệm",
             "time": t3,
-            "objective": "Củng cố, vận dụng kiến thức vừa học qua bài tập có hướng dẫn.",
-            "product": "Bài làm trong vở / phiếu học tập đã hoàn thành.",
-            "assessment": "GV chấm nhanh/đối chiếu đáp án, đánh giá theo tiêu chí Đạt/Cần cố gắng.",
-            "gv": "GV giao 2-3 nhiệm vụ luyện tập theo mức độ tăng dần. Quan sát, hỗ trợ HS gặp khó khăn. Tổ chức báo cáo, đối chiếu kết quả.",
-            "hs": "HS làm bài cá nhân vào vở/phiếu. Đổi vở kiểm tra chéo theo cặp. Báo cáo kết quả khi GV gọi.",
-        },
-        {
-            "title": "4. Vận dụng, trải nghiệm",
-            "time": t4,
-            "objective": "HS vận dụng vào tình huống thực tiễn gần gũi và chuẩn bị bài sau.",
+            "objective": "HS vận dụng kiến thức vào tình huống thực tiễn gần gũi và chuẩn bị bài sau.",
             "product": "Lời giải / ý tưởng vận dụng do HS đề xuất; ghi chú nhiệm vụ về nhà.",
-            "assessment": "GV nhận xét sự sáng tạo, tính phù hợp; HS tự đánh giá theo phiếu.",
+            "assessment": "GV nhận xét sự sáng tạo, tính phù hợp; HS tự đánh giá vào phiếu cuối bài.",
             "gv": "GV đưa 1 tình huống thực tiễn gắn với bài học, yêu cầu HS đề xuất cách giải quyết. Chốt bài học. Giao nhiệm vụ về nhà & chuẩn bị bài tiếp theo.",
             "hs": "HS suy nghĩ, trình bày cách vận dụng. Tự đánh giá vào phiếu cuối bài. Ghi nhiệm vụ về nhà vào vở.",
         },
@@ -1524,7 +1530,7 @@ def _demo_html(*, phong_gd_dt, school, department, teacher, school_year, teachin
         <th style="width:30%">Hoạt động của giáo viên</th>
         <th style="width:30%">Hoạt động của học sinh</th>
         <th style="width:20%">Sản phẩm học tập</th>
-        <th style="width:20%">Phương án đánh giá</th>
+        <th style="width:20%">Đánh giá</th>
       </tr>
       <tr>
         <td>{p['gv']}</td>
@@ -1537,7 +1543,7 @@ def _demo_html(*, phong_gd_dt, school, department, teacher, school_year, teachin
     phases_html = "".join(render_phase(p) for p in phases)
     obj_html = "".join(f"<li>{html.escape(x)}</li>" for x in objs)
     comp_html = "".join(f"<li>{html.escape(x)}</li>" for x in comps)
-    total_time = t1 + t2 + t3 + t4
+    total_time = t1 + t2 + t3
 
     enforced_book = BOOK_SERIES_LOCKED
     enforced_year = school_year if school_year and school_year >= SCHOOL_YEAR_DEFAULT else SCHOOL_YEAR_DEFAULT
