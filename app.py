@@ -23,8 +23,8 @@ try:
 except Exception:  # pragma: no cover
     bcrypt = None
 import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
-from docx.oxml.ns import qn  # pyright: ignore[reportMissingImports]
-import docx.shared  # pyright: ignore[reportMissingImports]
+from docx.oxml.ns import qn
+from docx.shared import Pt, Cm
 # === Brand logo (SVG, transparent) ===
 # ===== Brand logo (PNG) =====
 # Keep helper name `logo_svg()` for compatibility across the app.
@@ -1507,7 +1507,7 @@ class _SimpleHTMLToDocxParser(HTMLParser):
                     run = paragraph.add_run(piece)
                     run.bold = bool(bold)
                     run.font.name = "Times New Roman"
-                    run.font.size = docx.shared.Pt(13)
+                    run.font.size = Pt(13)
                     try:
                         run._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
                     except Exception:
@@ -1667,19 +1667,19 @@ def _render_ul(items) -> str:
 def _configure_docx_branding(document: Any, title: str) -> None:
     try:
         section = document.sections[0]
-        section.page_width = docx.shared.Cm(21)
-        section.page_height = docx.shared.Cm(29.7)
-        section.top_margin = docx.shared.Cm(2)
-        section.bottom_margin = docx.shared.Cm(2)
-        section.left_margin = docx.shared.Cm(2.5)
-        section.right_margin = docx.shared.Cm(2)
+        section.page_width = Cm(21)
+        section.page_height = Cm(29.7)
+        section.top_margin = Cm(2)
+        section.bottom_margin = Cm(2)
+        section.left_margin = Cm(2.5)
+        section.right_margin = Cm(2)
         header = section.header
         header_p = header.paragraphs[0]
         header_p.text = "AIEXAM"
         header_p.alignment = 1
         for run in header_p.runs:
             run.font.name = "Times New Roman"
-            run.font.size = docx.shared.Pt(9)
+            run.font.size = Pt(9)
             run.bold = True
             try:
                 run._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
@@ -1691,7 +1691,7 @@ def _configure_docx_branding(document: Any, title: str) -> None:
         footer_p.alignment = 1
         for run in footer_p.runs:
             run.font.name = "Times New Roman"
-            run.font.size = docx.shared.Pt(9)
+            run.font.size = Pt(9)
             try:
                 run._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
             except Exception:
@@ -1709,7 +1709,7 @@ def _configure_docx_branding(document: Any, title: str) -> None:
         try:
             style = document.styles[style_name]
             style.font.name = "Times New Roman"
-            style.font.size = docx.shared.Pt(size)
+            style.font.size = Pt(size)
             try:
                 style._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
             except Exception:
