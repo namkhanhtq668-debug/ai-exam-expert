@@ -1135,22 +1135,82 @@ def smart_capitalize_title(s: str) -> str:
 
 
 # Heuristic phát hiện môn/lớp lệch với tên bài.
-# Key = (grade, subject), value = list các keyword đặc trưng (lowercase).
+# Key = (grade, subject), value = list keyword đặc trưng (lowercase).
+# Nguyên tắc: chỉ thêm keyword RẤT đặc trưng cho cặp (grade, subject) đó,
+# tránh từ chung như "kể chuyện" vì xuất hiện nhiều cấp. Match dùng word boundary.
 _GRADE_SUBJECT_KEYWORDS: dict[tuple[str, str], list[str]] = {
+    # ===== TIẾNG VIỆT =====
     ("1", "Tiếng Việt"): [
-        "a a", "b b", "c c", "âm", "vần", "tập đọc", "đánh vần",
+        "a a", "b b", "c c", "âm", "vần", "đánh vần",
         "chữ a", "chữ b", "chữ c", "nhận biết chữ",
     ],
+    ("2", "Tiếng Việt"): ["mở rộng vốn từ", "từ chỉ sự vật", "từ chỉ hoạt động"],
+    ("3", "Tiếng Việt"): ["so sánh", "nhân hoá", "câu kể", "câu hỏi", "ôn tập giữa học kì"],
+    ("4", "Tiếng Việt"): ["danh từ", "động từ", "tính từ", "câu kể ai làm gì", "đoạn văn miêu tả"],
+    ("5", "Tiếng Việt"): ["đại từ", "quan hệ từ", "bài văn tả người", "bài văn tả cảnh", "tả người thân"],
+
+    # ===== TOÁN =====
     ("1", "Toán"): ["đến 10", "trong phạm vi 10", "phép cộng trong phạm vi 10"],
     ("2", "Toán"): ["đến 20", "đến 100", "trong phạm vi 100"],
     ("3", "Toán"): ["đến 1 000", "đến 10 000", "bảng nhân", "bảng chia"],
-    ("4", "Toán"): [
-        "100 000", "đến 100 000", "đến 1 000 000", "phân số",
-        "hàng nghìn", "chục nghìn",
-    ],
+    ("4", "Toán"): ["100 000", "đến 100 000", "đến 1 000 000", "phân số", "hàng nghìn", "chục nghìn"],
     ("5", "Toán"): [
         "số thập phân", "tỉ số", "phần trăm", "đến 1 tỉ",
-        "tỉ lệ bản đồ", "hình tam giác", "hình thang",
+        "tỉ lệ bản đồ", "hình tam giác", "hình thang", "diện tích hình thang",
+    ],
+
+    # ===== ĐẠO ĐỨC =====
+    ("1", "Đạo đức"): ["em là học sinh", "ngồi học đúng tư thế", "lễ phép với người lớn"],
+    ("2", "Đạo đức"): ["quý trọng thời gian", "bảo vệ của công", "nhận lỗi và sửa lỗi"],
+    ("3", "Đạo đức"): ["tự lập", "kính trọng người lao động", "tự hào về tổ quốc", "ham học hỏi"],
+    ("4", "Đạo đức"): [
+        "hiếu thảo với ông bà cha mẹ", "tôn trọng tài sản", "bảo vệ môi trường",
+        "biết ơn người lao động",
+    ],
+    ("5", "Đạo đức"): ["em yêu tổ quốc", "hợp tác với những người xung quanh", "kính già yêu trẻ"],
+
+    # ===== TỰ NHIÊN VÀ XÃ HỘI (lớp 1-3) =====
+    ("1", "Tự nhiên và Xã hội"): ["gia đình em", "trường học của em", "lớp học của em", "an toàn khi ở nhà"],
+    ("2", "Tự nhiên và Xã hội"): ["nghề nghiệp", "cộng đồng địa phương", "cây cối quanh em", "con vật quanh em"],
+    ("3", "Tự nhiên và Xã hội"): ["lá cây", "rễ cây", "thân cây", "hoạt động của tim", "hoạt động hô hấp"],
+
+    # ===== KHOA HỌC (lớp 4-5) =====
+    ("4", "Khoa học"): [
+        "trao đổi chất", "vật chất và năng lượng", "ánh sáng", "âm thanh",
+        "nhiệt độ", "vai trò của nước", "ba thể của nước",
+    ],
+    ("5", "Khoa học"): [
+        "sự sinh sản", "vệ sinh tuổi dậy thì", "tre mây song",
+        "sự biến đổi hoá học", "cao su", "chất dẻo",
+    ],
+
+    # ===== LỊCH SỬ VÀ ĐỊA LÍ (lớp 4-5) =====
+    ("4", "Lịch sử và Địa lí"): [
+        "hai bà trưng", "ngô quyền", "đinh bộ lĩnh", "lê lợi",
+        "sông hồng", "đồng bằng bắc bộ", "đồng bằng nam bộ", "vùng duyên hải",
+    ],
+    ("5", "Lịch sử và Địa lí"): [
+        "cách mạng tháng tám", "chiến dịch điện biên phủ", "bác hồ ra đi tìm đường cứu nước",
+        "khí hậu việt nam", "dân cư việt nam", "asean",
+    ],
+
+    # ===== TIN HỌC (lớp 3-5) =====
+    ("3", "Tin học"): ["máy tính và em", "phần mềm paint", "vẽ trên máy tính"],
+    ("4", "Tin học"): ["soạn thảo văn bản", "trình bày văn bản đơn giản"],
+    ("5", "Tin học"): ["tìm kiếm thông tin trên internet", "từ khoá tìm kiếm", "trình chiếu", "thư điện tử"],
+
+    # ===== TIẾNG ANH (lớp 3-5) =====
+    ("3", "Tiếng Anh"): [
+        "unit 1: hello", "what's your name", "how old are you",
+        "my school", "my classroom", "colours",
+    ],
+    ("4", "Tiếng Anh"): [
+        "my hobbies", "my birthday", "my day", "my new friends",
+        "where are you from",
+    ],
+    ("5", "Tiếng Anh"): [
+        "what did you do", "past simple", "school subjects",
+        "future plans", "my future job",
     ],
 }
 
