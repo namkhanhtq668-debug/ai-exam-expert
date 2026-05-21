@@ -1099,6 +1099,100 @@ def _create_doc_html_fallback(full_html: str, title: str) -> bytes:
     return doc_html.encode("utf-8")
 
 
+# =============================================================================
+# Helpers cho Phase B — smart validation tên bài và phát hiện môn/lớp lệch
+# =============================================================================
+
+def smart_capitalize_title(s: str) -> str:
+    """Chuẩn hoá tên bài: viết hoa chữ đầu của câu/phụ-câu, giữ phần còn lại nguyên.
+
+    Quy tắc:
+    - Chữ đầu tiên của chuỗi → viết hoa
+    - Sau dấu chấm/hai chấm/chấm phẩy + khoảng trắng → viết hoa
+    - Không động vào dấu tiếng Việt sẵn có (giữ nguyên ă/â/ơ/ư/đ...)
+
+    Ví dụ:
+        "bài 1: ôn tập các số đến 100 000" → "Bài 1: Ôn tập các số đến 100 000"
+        "TIẾT 1. nhận biết a a"             → "TIẾT 1. Nhận biết a a"
+    """
+    s = (s or "").strip()
+    if not s:
+        return ""
+    out: list[str] = []
+    capitalize_next = True
+    for ch in s:
+        if capitalize_next and ch.isalpha():
+            out.append(ch.upper())
+            capitalize_next = False
+        else:
+            out.append(ch)
+        if ch in ".:;":
+            capitalize_next = True
+        elif not ch.isspace() and ch not in ".:;":
+            # Đã gặp ký tự non-space sau dấu → tắt cờ
+            pass
+    return "".join(out)
+
+
+# Heuristic phát hiện môn/lớp lệch với tên bài.
+# Key = (grade, subject), value = list các keyword đặc trưng (lowercase).
+_GRADE_SUBJECT_KEYWORDS: dict[tuple[str, str], list[str]] = {
+    ("1", "Tiếng Việt"): [
+        "a a", "b b", "c c", "âm", "vần", "tập đọc", "đánh vần",
+        "chữ a", "chữ b", "chữ c", "nhận biết chữ",
+    ],
+    ("1", "Toán"): ["đến 10", "trong phạm vi 10", "phép cộng trong phạm vi 10"],
+    ("2", "Toán"): ["đến 20", "đến 100", "trong phạm vi 100"],
+    ("3", "Toán"): ["đến 1 000", "đến 10 000", "bảng nhân", "bảng chia"],
+    ("4", "Toán"): [
+        "100 000", "đến 100 000", "đến 1 000 000", "phân số",
+        "hàng nghìn", "chục nghìn",
+    ],
+    ("5", "Toán"): [
+        "số thập phân", "tỉ số", "phần trăm", "đến 1 tỉ",
+        "tỉ lệ bản đồ", "hình tam giác", "hình thang",
+    ],
+}
+
+
+def _phrase_match(needle: str, haystack: str) -> bool:
+    """So khớp keyword với word boundary để 'đến 10' KHÔNG match 'đến 100 000'."""
+    pattern = r"(?<!\w)" + re.escape(needle) + r"(?!\w)"
+    return bool(re.search(pattern, haystack, flags=re.IGNORECASE))
+
+
+def detect_grade_subject_mismatch(
+    title: str, grade: str, subject: str
+) -> Optional[str]:
+    """Phát hiện môn/lớp đang chọn có khớp tên bài hay không.
+
+    Returns:
+        None nếu OK (không phát hiện lệch hoặc khớp với lựa chọn hiện tại).
+        Chuỗi cảnh báo nếu phát hiện lệch.
+    """
+    if not title:
+        return None
+    t = title.lower()
+    matches: list[tuple[str, str, str]] = []
+    for (g, s), kws in _GRADE_SUBJECT_KEYWORDS.items():
+        for kw in kws:
+            if _phrase_match(kw, t):
+                matches.append((g, s, kw))
+                break
+    if not matches:
+        return None
+    # Nếu tổ hợp (grade, subject) hiện tại có trong matches → OK
+    current = (str(grade), subject)
+    if current in [(g, s) for g, s, _ in matches]:
+        return None
+    g, s, kw = matches[0]
+    return (
+        f"Tên bài chứa từ khoá '{kw}' — thường thuộc **{s} lớp {g}**, "
+        f"không khớp với lựa chọn hiện tại (**{subject} lớp {grade}**). "
+        "Kiểm tra lại tên bài / lớp / môn?"
+    )
+
+
 # Phrase cấm trong file giáo án nộp tổ chuyên môn (theo spec).
 # Các cụm này nếu AI sinh ra phải được phát hiện và thay thế trước khi xuất DOCX.
 _BANNED_PHRASES = (
@@ -1221,108 +1315,134 @@ def module_lesson_plan_advanced(
         unsafe_allow_html=True,
     )
 
-    # CHỈ cho phép năm học từ 2026-2027 trở đi (theo yêu cầu chuyên môn)
-    current_year = max(dt.date.today().year, SCHOOL_YEAR_MIN)
-    school_years = [f"{y}-{y+1}" for y in range(SCHOOL_YEAR_MIN, current_year + 4)]
+    # Năm học giờ auto-suy từ ngày dạy → không cần list dropdown nữa.
 
     # Map lớp → cấp học (tự suy ra, không cần ô riêng)
     grade_to_level = {g: lv for lv, info in SUBJECTS_BY_LEVEL.items() for g in info["grades"]}
     all_grades_flat = [g for lv in SUBJECTS_BY_LEVEL for g in SUBJECTS_BY_LEVEL[lv]["grades"]]
 
+    # =========================================================================
+    # FORM RÚT GỌN — chỉ giữ field thực sự xuất hiện trong file KHBD chuẩn.
+    # Đã bỏ 11 field thừa: Tổ/khối CM, Lớp cụ thể (4A), Địa danh, Năm học (auto),
+    # Mức NL số, Mức phân hóa, Ghi chú riêng, Link chính thống, Checkbox metadata,
+    # nút Demo và nút Xóa. Default an toàn cho các biến downstream còn dùng.
+    # =========================================================================
     with st.form(key=_k("form"), clear_on_submit=False):
-        # === Phần thiết yếu — luôn hiện ===
-        c1, c2 = st.columns(2)
-        with c1:
-            school = st.text_input("Tên trường", placeholder="VD: Tiểu học Đoàn Kết", key=_k("school"))
-        with c2:
-            teacher = st.text_input("Họ tên giáo viên", key=_k("teacher"))
+
+        # === Phần 1: Cốt lõi — luôn hiện (chỉ 4 dropdown + 1 ô) ===
+        lesson_title = st.text_input(
+            "🎯 Tên bài học",
+            placeholder="VD: Ôn tập các số đến 100 000",
+            key=_k("title"),
+        )
 
         c1, c2, c3, c4 = st.columns([0.7, 1.8, 1.0, 1.1])
         with c1:
             grade = str(st.selectbox("Lớp", all_grades_flat, key=_k("grade")) or all_grades_flat[0])
             level = grade_to_level[grade]
         with c2:
-            subject = str(st.selectbox("Môn học", SUBJECTS_BY_LEVEL[level]["subjects"], key=_k("subject")) or SUBJECTS_BY_LEVEL[level]["subjects"][0])
+            subject = str(
+                st.selectbox("Môn học", SUBJECTS_BY_LEVEL[level]["subjects"], key=_k("subject"))
+                or SUBJECTS_BY_LEVEL[level]["subjects"][0]
+            )
         with c3:
-            duration = st.number_input("Thời lượng (phút)", min_value=20, max_value=120,
-                                       value=int(SUBJECTS_BY_LEVEL[level]["default_duration"]), step=5, key=_k("duration"))
+            duration = st.number_input(
+                "Thời lượng (phút)", min_value=20, max_value=120,
+                value=int(SUBJECTS_BY_LEVEL[level]["default_duration"]),
+                step=5, key=_k("duration"),
+            )
         with c4:
             teaching_date = st.date_input("Ngày dạy", value=dt.date.today(), key=_k("date"))
 
-        lesson_title = st.text_input("Tên bài học", placeholder="VD: Tìm kiếm thông tin trên Internet", key=_k("title"))
-
-        # === Nguồn học liệu ===
-        st.markdown("**📚 Nguồn học liệu KNTT** — *khuyến khích upload để AI bám đúng SGK*")
-        s1, s2 = st.columns(2)
-        with s1:
-            image_files = st.file_uploader("Ảnh trang SGK (JPG/PNG/WEBP)",
-                                           type=["jpg", "jpeg", "png", "webp"],
-                                           accept_multiple_files=True, key=_k("images"))
-            uploaded_files = st.file_uploader("File bài học (PDF/DOCX/TXT)",
-                                              type=["pdf", "docx", "doc", "txt"],
-                                              accept_multiple_files=True, key=_k("files"))
-        with s2:
-            official_links = st.text_area("Link chính thống (hoclieuso.nxbgd.vn, moet.gov.vn…)",
-                                          placeholder="VD: https://hoclieuso.nxbgd.vn/...",
-                                          height=110, key=_k("links"))
-            use_metadata = st.checkbox("Tự tìm trong kho metadata SGK nội bộ", value=True, key=_k("use_meta"))
-
-        # === Chi tiết hành chính — ẩn mặc định ===
-        with st.expander("📋 Chi tiết hành chính (mở khi cần in nộp tổ chuyên môn)", expanded=False):
+        # === Phần 2: Thông tin in nộp tổ (mặc định ẩn — chỉ mở khi cần) ===
+        with st.expander("📋 Thông tin in nộp tổ chuyên môn (tuỳ chọn)", expanded=False):
             c1, c2 = st.columns(2)
             with c1:
-                phong_gd_dt = st.text_input("Phòng GD&ĐT", placeholder="VD: Phòng GD&ĐT Quận Đống Đa", key=_k("phong"))
+                school = st.text_input(
+                    "Tên trường", placeholder="VD: Tiểu học Hồng Thái", key=_k("school"),
+                )
+                phong_gd_dt = st.text_input(
+                    "UBND / Phòng GD&ĐT",
+                    placeholder="VD: Huyện Hoài Đức",
+                    key=_k("phong"),
+                )
             with c2:
-                department = st.text_input("Tổ / khối chuyên môn", placeholder="VD: Tổ Khoa học Tự nhiên / Khối 5", key=_k("department"))
+                teacher = st.text_input("Họ tên giáo viên", key=_k("teacher"))
+                period_note = st.text_input(
+                    "Tuần / Tiết PPCT", placeholder="VD: Tuần 1 - Tiết 1", key=_k("period"),
+                )
+            sgk_pages = st.text_input(
+                "Trang SGK (nếu có)", placeholder="VD: Trang 6 - 9", key=_k("sgk_pages"),
+            )
 
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                class_name = st.text_input("Lớp cụ thể (VD: 5A)", key=_k("class"))
-            with c2:
-                period_note = st.text_input("Tuần / tiết / PPCT", placeholder="VD: Tuần 12 - Tiết 23", key=_k("period"))
-            with c3:
-                sgk_pages = st.text_input("Trang SGK", placeholder="VD: trang 45-47", key=_k("sgk_pages"))
+        # === Phần 3: Đính kèm tài liệu SGK (giúp AI bám sát nội dung) ===
+        with st.expander("📚 Đính kèm tài liệu SGK (giúp AI bám sát, tuỳ chọn)", expanded=False):
+            image_files = st.file_uploader(
+                "Ảnh trang SGK (JPG/PNG/WEBP)",
+                type=["jpg", "jpeg", "png", "webp"],
+                accept_multiple_files=True, key=_k("images"),
+            )
+            uploaded_files = st.file_uploader(
+                "File bài học (PDF/DOCX/TXT)",
+                type=["pdf", "docx", "doc", "txt"],
+                accept_multiple_files=True, key=_k("files"),
+            )
 
-            c1, c2 = st.columns(2)
-            with c1:
-                location = st.text_input("Địa danh (cho chữ ký)", placeholder="VD: Hà Nội", key=_k("location"))
-            with c2:
-                school_year = st.selectbox("Năm học", school_years, index=min(1, len(school_years) - 1), key=_k("year"))
+        # === Default ngầm cho các biến downstream còn dùng (không hiện UI) ===
+        # Năm học auto-suy từ ngày dạy: tháng 1-7 → "Y-1/Y", tháng 8-12 → "Y/Y+1".
+        _y = teaching_date.year
+        _school_year_start = _y - 1 if teaching_date.month <= 7 else _y
+        # Tôn trọng ràng buộc SCHOOL_YEAR_MIN của module
+        _school_year_start = max(SCHOOL_YEAR_MIN, _school_year_start)
+        school_year = f"{_school_year_start}-{_school_year_start + 1}"
 
-        # === Tùy chỉnh chuyên môn — ẩn mặc định, default đã ổn ===
-        with st.expander("⚙️ Tùy chỉnh chuyên môn (mặc định đã đủ dùng)", expanded=False):
-            c1, c2 = st.columns(2)
-            with c1:
-                digital_level = st.selectbox("Mức tích hợp năng lực số",
-                                             ["Vừa đủ, tự nhiên", "Tăng cường hoạt động số", "Tối giản"], key=_k("dlevel"))
-            with c2:
-                diff_level = st.selectbox("Mức phân hóa",
-                                          ["Cơ bản", "Chi tiết theo 3 nhóm", "Lớp đông/thiếu thiết bị"], key=_k("diff"))
-            teacher_note = st.text_area("Ghi chú riêng của giáo viên",
-                                        placeholder="VD: lớp có nhiều HS yếu; cần thêm trò chơi khởi động...",
-                                        height=70, key=_k("note"))
+        # Các field đã bỏ khỏi UI — gán default an toàn để code downstream không vỡ
+        department = ""           # tổ/khối chuyên môn — không in trong template
+        class_name = ""           # lớp cụ thể — fallback dùng grade
+        location = ""             # địa danh — không in trong template
+        digital_level = "Vừa đủ, tự nhiên"
+        diff_level = "Chi tiết theo 3 nhóm"
+        teacher_note = ""
+        official_links = ""
+        use_metadata = True       # luôn ON
+        book_series = BOOK_SERIES_LOCKED
 
-        book_series = BOOK_SERIES_LOCKED  # khóa cứng, không cho UI sửa
-
+        # === Nút duy nhất — gộp AI + demo, demo logic xử lý ở callback nếu cần ===
         st.markdown("")
-        c1, c2, c3 = st.columns([2, 2, 1])
-        with c1:
-            submit_ai = st.form_submit_button(f"⚡ Tạo giáo án bằng AI ({point_cost} điểm)", type="primary", use_container_width=True)
-        with c2:
-            submit_demo = st.form_submit_button("🧪 Bản demo (miễn phí)", use_container_width=True)
-        with c3:
-            reset = st.form_submit_button("🗑️ Xóa", use_container_width=True)
-
-    if reset:
-        for key in [_k("html_content"), _k("full_html"), _k("title_slug"), _k("validation")]:
-            st.session_state.pop(key, None)
-        st.success("Đã xóa kết quả.")
-        return
+        submit_ai = st.form_submit_button(
+            f"⚡ Tạo giáo án ({point_cost} điểm)",
+            type="primary", use_container_width=True,
+        )
+        submit_demo = False  # nút demo đã bỏ — biến giữ để khớp signature downstream
 
     if submit_ai or submit_demo:
         if not lesson_title.strip():
             st.error("Vui lòng nhập tên bài học.")
             st.stop()
+
+        # === Phase B: smart validation ===
+        # 1) Auto-capitalize tên bài (giữ thông tin sạch cho prompt + file)
+        original_title = lesson_title.strip()
+        lesson_title = smart_capitalize_title(original_title)
+        if lesson_title != original_title:
+            st.info(f"🔤 Đã chuẩn hoá tên bài: **{lesson_title}**")
+
+        # 2) Phát hiện môn/lớp/tên bài lệch nhau — cảnh báo nhưng không chặn
+        mismatch_msg = detect_grade_subject_mismatch(lesson_title, str(grade), subject)
+        if mismatch_msg:
+            confirm_key = _k("confirm_mismatch")
+            st.warning("⚠️ " + mismatch_msg)
+            # Yêu cầu giáo viên xác nhận thay vì tự động chạy → tiết kiệm điểm AI
+            already_confirmed = st.session_state.get(confirm_key) == lesson_title.lower()
+            if not already_confirmed:
+                if st.button(
+                    f"✅ Tôi đã kiểm tra, đúng là {subject} lớp {grade} — tiếp tục",
+                    key=_k("btn_confirm_mismatch"), type="primary",
+                ):
+                    st.session_state[confirm_key] = lesson_title.lower()
+                    st.rerun()
+                st.info("👆 Nhấn nút trên để xác nhận trước khi tốn điểm AI.")
+                st.stop()
 
         # Kiểm tra điểm trước khi gọi AI
         if submit_ai and point_check is not None:
