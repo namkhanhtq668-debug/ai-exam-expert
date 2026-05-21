@@ -17,7 +17,7 @@ from datetime import datetime, timezone, timedelta
 import requests
 import random
 from html.parser import HTMLParser
-from typing import Any, cast
+from typing import Any, Callable, cast
 try:
     import bcrypt  # pyright: ignore[reportMissingImports]
 except Exception:  # pragma: no cover
@@ -121,14 +121,14 @@ Tạo đề kiểm tra/đề thi theo chuẩn đánh giá (NB/TH/VD/VDC hoặc M
 4) Xem trước → chỉnh → **Xuất file** (nếu có)
         """)
         st.divider()
-        st.markdown("### 5. 📘 Trợ lý Soạn bài")
+        st.markdown("### 5. 📑 Soạn giáo án chuẩn KHBD 2025-2026")
         st.markdown(f"""
-**Dùng khi nào?**  
-Soạn giáo án nhanh theo môn/lớp/bộ sách, có mục tiêu, hoạt động GV–HS, luyện tập, vận dụng, đánh giá.
+**Dùng khi nào?**
+Soạn KHBD chuẩn 7 mục I-VII (Yêu cầu cần đạt / Đồ dùng / Hoạt động / Điều chỉnh / Đánh giá / Phiếu HT / Điều chỉnh sau bài) — mở Word chỉnh tên cá nhân là nộp tổ chuyên môn ngay.
 **Cách dùng:**
-1) Chọn môn – lớp – bài – bộ sách  
-2) Nhập yêu cầu (thời lượng, phương pháp, thiết bị)  
-3) Bấm tạo → chỉnh theo lớp dạy → xuất/lưu (nếu có)
+1) Nhập tên bài → chọn Lớp / Môn / Thời lượng
+2) (Tuỳ chọn) Đính kèm ảnh trang SGK hoặc file PDF/DOCX bài học
+3) Bấm **Tạo giáo án** → tải file `.docx`
         """)
         st.divider()
         st.markdown("### 6. 💻 Năng lực số")
@@ -178,9 +178,9 @@ DASHBOARD_HTML = """
   <div class="wrap">
     <div class="grid">
       <div class="card">
-        <p class="title">📘 Trợ lý Soạn bài</p>
-        <p class="sub">Tạo giáo án chuẩn CTGDPT 2018 theo môn/lớp/bộ sách.</p>
-        <span class="badge">Soạn giáo án</span>
+        <p class="title">📑 Soạn giáo án chuẩn KHBD 2025-2026</p>
+        <p class="sub">7 mục I-VII chuẩn nộp tổ chuyên môn — mở Word chỉnh tên là nộp ngay.</p>
+        <span class="badge">KHBD chuẩn</span>
       </div>
       <div class="card">
         <p class="title">🧩 Soạn bài Năng lực số</p>
@@ -3940,7 +3940,7 @@ def dashboard_screen():
                 if any(k in txt for k in ["đề", "ma trận", "ktđg", "trắc nghiệm", "tự luận"]):
                     go("exam")
                 elif any(k in txt for k in ["giáo án", "bài dạy", "kế hoạch bài dạy", "ppct"]):
-                    go("lesson_plan")
+                    go("lesson_plan_advanced")
                 elif any(k in txt for k in ["năng lực số", "digital", "nls"]):
                     go("digital")
                 else:
@@ -3949,7 +3949,7 @@ def dashboard_screen():
         quick_pills = [
             ("💬 Chat/Tư vấn", "chat"),
             ("📝 Ra đề – KTĐG", "exam"),
-            ("📘 Soạn giáo án", "lesson_plan"),
+            ("📘 Soạn giáo án", "lesson_plan_advanced"),
             ("💻 Năng lực số", "digital"),
         ]
         pill_cols = st.columns(4, gap="small")
@@ -4073,7 +4073,7 @@ def dashboard_screen():
         return icons.get(kind, icons["exam"]).format(style=style)
     quick = [
         ("exam", "Ra đề – KTĐG", "exam", "ic1"),
-        ("lesson", "Soạn giáo án", "lesson_plan", "ic2"),
+        ("lesson", "Soạn giáo án", "lesson_plan_advanced", "ic2"),
         ("digital", "Năng lực số", "digital", "ic3"),
         ("advisor", "Nhận xét/Tư vấn", "advisor", "ic4"),
         ("library", "Kho học liệu", "dashboard", "ic5"),
@@ -4830,7 +4830,7 @@ def module_lesson_plan():
 # - Demo 1 câu hỏi AI thật ở Home/Chat (guest)
 # - Chỉ khi dùng tiếp hoặc dùng module nâng cao mới yêu cầu đăng nhập
 # ==============================================================================
-PROTECTED_PAGES = {"exam", "lesson_plan", "digital", "advisor", "doc_ai", "mindmap", "profile", "evidence", "lesson_plan_advanced"}
+PROTECTED_PAGES = {"exam", "digital", "advisor", "doc_ai", "mindmap", "profile", "evidence", "lesson_plan_advanced"}
 DEMO_ALLOWED_PAGES = {"dashboard", "chat"}  # guest được xem + demo 1 câu
 def _get_api_key_effective() -> str:
     # Ưu tiên key user nhập, fallback key hệ thống
@@ -4865,7 +4865,7 @@ def _handle_global_search(search_text: str | None = None):
         (("doc", "doc ai", "tài liệu", "tai lieu"), "doc_ai"),
         (("mindmap",), "mindmap"),
         (("ra đề", "ra de", "ktdg", "đề", "de"), "exam"),
-        (("soạn bài", "soan bai", "lesson"), "lesson_plan"),
+        (("soạn bài", "soan bai", "lesson", "soạn giáo án", "soan giao an", "giáo án", "khbd"), "lesson_plan_advanced"),
         (("năng lực số", "nang luc so", "digital"), "digital"),
         (("nhận xét", "nhan xet", "tư vấn", "tu van", "advisor"), "advisor"),
         (("hướng dẫn", "huong dan", "help"), "help"),
@@ -5230,9 +5230,9 @@ def _detect_chat_module_intent(text: str) -> dict | None:
             ("ra đề", "đề thi", "kiểm tra", "ma trận", "đáp án", "trắc nghiệm", "tự luận", "đặc tả", "exam"),
         ),
         (
-            "lesson_plan",
-            "Trợ lý Soạn bài",
-            ("soạn giáo án", "soạn bài", "kế hoạch bài dạy", "giáo án", "bài dạy", "ppct", "lesson plan"),
+            "lesson_plan_advanced",
+            "Soạn giáo án chuẩn KHBD 2025-2026",
+            ("soạn giáo án", "soạn bài", "kế hoạch bài dạy", "giáo án", "bài dạy", "ppct", "lesson plan", "khbd"),
         ),
         (
             "doc_ai",
@@ -6042,16 +6042,16 @@ Tạo đề kiểm tra/đề thi theo chuẩn đánh giá (NB/TH/VD/VDC hoặc M
             """
         )
         st.divider()
-        st.markdown("### 5. 📘 Trợ lý Soạn bài (tạo giáo án tự động)")
+        st.markdown("### 5. 📑 Soạn giáo án chuẩn KHBD 2025-2026")
         st.markdown(f"""
-**Dùng khi nào?**  
-Soạn giáo án nhanh theo môn/lớp/bộ sách, có mục tiêu, hoạt động GV–HS, luyện tập, vận dụng, đánh giá.
+**Dùng khi nào?**
+Soạn KHBD chuẩn 7 mục I-VII đúng mẫu nộp tổ chuyên môn — mở Word chỉnh tên cá nhân là nộp ngay.
 **Cách dùng:**
-1) Chọn môn – lớp – bài – bộ sách  
-2) Nhập yêu cầu (thời lượng, phương pháp, thiết bị)  
-3) Bấm tạo → chỉnh theo lớp dạy → xuất/lưu (nếu có)
-**Mẹo hay:**  
-Dán 1 đoạn mẫu giáo án của trường và yêu cầu: *“viết theo đúng format này”*.
+1) Nhập tên bài → chọn Lớp / Môn / Thời lượng (5 ô trong form chính)
+2) (Tuỳ chọn) Mở expander "Thông tin in nộp tổ" hoặc "Đính kèm SGK" để bổ sung dữ liệu
+3) Bấm **Tạo giáo án** → AI sinh JSON → code chỉnh sửa tự động → tải file `.docx`
+**Mẹo hay:**
+Upload ảnh trang SGK ở expander "Đính kèm SGK" để AI bám sát chính xác nội dung bài học.
             """
         )
         st.divider()
@@ -6246,8 +6246,8 @@ with st.sidebar:
         "📑 Doc AI": "doc_ai",
         "🧠 Mindmap": "mindmap",
         "🧾 Ra đề – KTĐG": "exam",
-        "📚 Trợ lý Soạn bài": "lesson_plan",
-        **({"✨ Soạn giáo án AI nâng cao": "lesson_plan_advanced"} if ENABLE_LESSON_PLAN_ADVANCED else {}),
+        # "Trợ lý Soạn bài" (free, deprecated) — đã gộp vào "Soạn giáo án chuẩn KHBD".
+        **({"📑 Soạn giáo án chuẩn KHBD 2025-2026": "lesson_plan_advanced"} if ENABLE_LESSON_PLAN_ADVANCED else {}),
         "🖥️ Năng lực số": "digital",
         "🧭 Nhận xét – Tư vấn": "advisor",
         "📘 Hướng dẫn": "help",
@@ -6320,6 +6320,72 @@ with st.sidebar:
 # Pro/Admin -> màn hình "Sắp ra mắt" + danh sách tính năng
 # Free user -> màn hình upgrade kèm preview
 # ==============================================================================
+# =============================================================================
+# 🎁 DEMO MIỄN PHÍ — free user được dùng 1 lần thử Pro module
+# =============================================================================
+
+_LPA_DEMO_ACTION_NAME = "lpa_demo_used"
+
+
+def _lpa_has_used_demo(username: str) -> bool:
+    """Kiểm tra: user này đã dùng lượt demo miễn phí chưa?
+
+    Source of truth: bảng `usage_events` trên Supabase (persistent qua thiết bị/session).
+    Fallback: nếu Supabase lỗi → return False (cho dùng demo) — fail-open có lợi cho user.
+    """
+    if not username:
+        return False
+    try:
+        client = init_supabase()
+        if client is None:
+            return False
+        res = (
+            client.table("usage_events")
+            .select("id")
+            .eq("username", username)
+            .eq("action_name", _LPA_DEMO_ACTION_NAME)
+            .limit(1)
+            .execute()
+        )
+        rows = _as_dict_rows(res.data)
+        return len(rows) > 0
+    except Exception:
+        return False
+
+
+def _lpa_mark_demo_used(username: str) -> None:
+    """Ghi nhận user đã dùng lượt demo (log event vĩnh viễn vào Supabase)."""
+    if not username:
+        return
+    try:
+        client = init_supabase()
+        log_usage_event(
+            module_name="lesson_plan_advanced",
+            action_name=_LPA_DEMO_ACTION_NAME,
+            username=username,
+            success=True,
+            client=client,
+        )
+    except Exception:
+        pass  # log fail không được phép chặn user — họ vẫn nhận file giáo án
+
+
+def _make_demo_point_check(username: str) -> Callable[[int, str], bool]:
+    """Trả về point_check thay thế: KHÔNG trừ điểm, chỉ mark demo đã dùng.
+
+    Chống abuse: nếu session đã consume demo, các lần click sau bị chặn cho đến
+    khi page reload (lúc đó gate re-check DB và sẽ thấy demo_used=True → block hẳn).
+    """
+    def _check(cost: int, action: str) -> bool:
+        if st.session_state.get("_lpa_demo_consumed_session"):
+            st.error("❌ Bạn đã dùng lượt demo miễn phí. Nâng cấp **PRO** để tiếp tục soạn giáo án.")
+            return False
+        _lpa_mark_demo_used(username)
+        st.session_state["_lpa_demo_consumed_session"] = True
+        return True
+    return _check
+
+
 def render_lesson_plan_advanced_gate():
     user = st.session_state.get("user") or {}
     role = (user.get("role") or "free").lower()
@@ -6390,10 +6456,31 @@ def render_lesson_plan_advanced_gate():
             if _lesson_plan_advanced_error:
                 with st.expander("Chi tiết lỗi import", expanded=False):
                     st.code(_lesson_plan_advanced_error)
-            st.info("Trong lúc chờ, mời thầy/cô dùng tab **📚 Trợ lý Soạn bài** ở menu bên trái.")
-            if st.button("📚 Sang Trợ lý Soạn bài hiện tại", type="primary", key="lpa_goto_lesson"):
-                go("lesson_plan")
+            # Module Trợ lý Soạn bài (free) đã bị deprecate — không còn fallback nữa.
+            st.caption("Hãy thử reload trang hoặc liên hệ admin nếu lỗi tiếp tục.")
     else:
+        # === Free user — kiểm tra eligibility cho lượt demo MIỄN PHÍ ===
+        username = user.get("email", "")
+        demo_used = _lpa_has_used_demo(username) if username else True  # guest không có demo
+
+        if not demo_used and module_lesson_plan_advanced is not None:
+            # 🎁 Demo miễn phí lần đầu — vào module với cost=0
+            st.success(
+                "🎁 **LƯỢT DÙNG THỬ MIỄN PHÍ** — Bạn được dùng module này **1 lần duy nhất** không mất điểm. "
+                "Khi soạn xong giáo án đầu tiên, lượt demo sẽ kết thúc và bạn cần nâng cấp PRO để tiếp tục."
+            )
+            module_lesson_plan_advanced(
+                api_key=_get_api_key_effective(),
+                point_check=_make_demo_point_check(username),
+                point_cost=0,  # demo: hiển thị "0 điểm" trên nút "Tạo giáo án"
+                model_name="gemini-2.0-flash",
+                docx_renderer=create_docx_from_html,
+            )
+            return  # hết block, không hiện banner Pro
+
+        # === Đã dùng demo HOẶC guest chưa login HOẶC module không load được ===
+        if demo_used:
+            st.info("ℹ️ Bạn đã sử dụng **lượt demo miễn phí**. Nâng cấp PRO để tiếp tục soạn giáo án.")
         st.warning("🔒 **Tính năng dành cho thành viên PRO.** Nâng cấp để mở khóa toàn bộ công cụ soạn giáo án AI nâng cao.")
         col1, col2 = st.columns([1, 1])
         with col1:
@@ -6442,17 +6529,11 @@ elif page == "help":
 elif page == "profile":
     module_profile()
 elif page == "lesson_plan":
-    if module_lesson_plan_B:
-        module_lesson_plan_B(
-            SYSTEM_GOOGLE_KEY=SYSTEM_GOOGLE_KEY,
-            BOOKS_LIST=BOOKS_LIST,
-            EDUCATION_DATA=EDUCATION_DATA,
-            FULL_SCOPE_LIST=FULL_SCOPE_LIST,
-            create_word_doc_func=create_docx_from_html,
-            model_name="gemini-2.0-flash"
-        )
-    else:
-        module_lesson_plan()
+    # Module "Trợ lý Soạn bài" (free) đã bị deprecate.
+    # Tự redirect sang module mới "Soạn giáo án AI nâng cao" — chuẩn KHBD 2025-2026.
+    st.info("📑 Module **Trợ lý Soạn bài** đã được nâng cấp thành **Soạn giáo án chuẩn KHBD 2025-2026**. Đang chuyển hướng…")
+    go("lesson_plan_advanced")
+    st.rerun()
 elif page == "lesson_plan_advanced":
     render_lesson_plan_advanced_gate()
 elif page == "digital":
