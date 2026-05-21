@@ -29,6 +29,7 @@ from typing import Any, Dict, List, Optional
 from .normalizer import normalize_lesson_plan
 from .prompt_builder import LessonContext, build_lesson_prompt, parse_json_response
 from .renderer import render_lesson_docx
+from .reviewer import review_lesson_plan
 from .validator import validate_lesson_plan
 
 
@@ -36,11 +37,12 @@ from .validator import validate_lesson_plan
 class PipelineResult:
     ok: bool = False
     docx_bytes: Optional[bytes] = None
-    json_data: Optional[Dict[str, Any]] = None       # JSON đã normalize (truyền vào renderer)
+    json_data: Optional[Dict[str, Any]] = None       # JSON sau review (truyền vào renderer)
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     replaced_phrases: List[str] = field(default_factory=list)
-    stage: str = ""                                   # stage cuối cùng đã chạy (parse/validate/normalize/render)
+    review_fixes: List[str] = field(default_factory=list)   # 🆕 các sửa từ reviewer
+    stage: str = ""                                   # parse/validate/normalize/review/render
 
     def summary(self) -> str:
         if self.ok:
@@ -49,7 +51,9 @@ class PipelineResult:
             if self.warnings:
                 extras.append(f"⚠️ {len(self.warnings)} cảnh báo")
             if self.replaced_phrases:
-                extras.append(f"🧹 đã thay {len(self.replaced_phrases)} phrase cấm")
+                extras.append(f"🧹 thay {len(self.replaced_phrases)} phrase cấm (normalize)")
+            if self.review_fixes:
+                extras.append(f"🔧 {len(self.review_fixes)} chỉnh sửa (review)")
             return base + (" — " + ", ".join(extras) if extras else "")
         return f"❌ Fail ở stage '{self.stage}': " + "; ".join(self.errors[:3])
 
@@ -112,17 +116,23 @@ def generate_docx_from_ai_response(
         )
         return result
 
-    # 5. Render
+    # 5. 🆕 Review — kiểm + chỉnh trước khi render (deterministic heuristic)
+    result.stage = "review"
+    rev = review_lesson_plan(cleaned)
+    result.review_fixes = rev.fixes_applied
+    polished = rev.data
+
+    # 6. Render
     result.stage = "render"
     try:
-        docx_bytes = render_lesson_docx(cleaned)
+        docx_bytes = render_lesson_docx(polished)
     except Exception as e:
         result.errors.append(f"Renderer fail: {type(e).__name__}: {e}")
         return result
 
     result.ok = True
     result.docx_bytes = docx_bytes
-    result.json_data = cleaned
+    result.json_data = polished
     return result
 
 
@@ -132,7 +142,7 @@ def generate_docx_from_data(
 ) -> PipelineResult:
     """Bỏ qua AI — dùng JSON có sẵn (cho fixture/test).
 
-    Vẫn chạy qua validate + normalize để đảm bảo output sạch.
+    Vẫn chạy qua validate → normalize → review để đảm bảo output sạch.
     """
     result = PipelineResult()
 
@@ -148,16 +158,21 @@ def generate_docx_from_data(
     norm = normalize_lesson_plan(data)
     result.replaced_phrases = norm.replaced_phrases
 
+    # 🆕 Review
+    result.stage = "review"
+    rev = review_lesson_plan(norm.data)
+    result.review_fixes = rev.fixes_applied
+
     result.stage = "render"
     try:
-        docx_bytes = render_lesson_docx(norm.data)
+        docx_bytes = render_lesson_docx(rev.data)
     except Exception as e:
         result.errors.append(f"Renderer fail: {type(e).__name__}: {e}")
         return result
 
     result.ok = True
     result.docx_bytes = docx_bytes
-    result.json_data = norm.data
+    result.json_data = rev.data
     return result
 
 

@@ -1757,6 +1757,10 @@ def _run_v2_pipeline(
             st.caption(f"⚠️ {w}")
     if result.replaced_phrases:
         st.caption(f"🧹 Đã thay phrase cấm: {', '.join(result.replaced_phrases)}")
+    if result.review_fixes:
+        with st.expander(f"🔧 {len(result.review_fixes)} chỉnh sửa tự động trước khi xuất file", expanded=False):
+            for fix in result.review_fixes:
+                st.write(f"- {fix}")
 
     safe_title = re.sub(r"[^a-zA-Z0-9_\-]+", "_", lesson_title) or "GiaoAn"
     assert result.docx_bytes is not None

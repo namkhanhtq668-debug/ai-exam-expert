@@ -144,8 +144,10 @@ REQUIRED_TOP_LEVEL_KEYS: tuple[str, ...] = (
 )
 
 REQUIRED_DOCUMENT_INFO: tuple[str, ...] = ("school", "schoolYear")
+# Chỉ yêu cầu các field NỘI DUNG bài học. Các field cá nhân (teachingDate, teacherName,
+# week, period, sgkPages) cho phép rỗng — reviewer sẽ fill '......' để GV tự điền.
 REQUIRED_LESSON_INFO: tuple[str, ...] = (
-    "subject", "grade", "lessonTitle", "textbookSeries", "duration", "teachingDate", "teacherName"
+    "subject", "grade", "lessonTitle", "textbookSeries", "duration",
 )
 
 # Số lượng hoạt động cho phép trong mục III (linh hoạt theo kiểu bài)
