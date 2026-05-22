@@ -29,7 +29,7 @@ class LessonContext:
     school: str = ""
     department: str = ""        # Tổ chuyên môn / Phòng GD&ĐT (tuỳ ngữ cảnh)
     teacher_name: str = ""
-    school_year: str = "2025 - 2026"
+    school_year: str = "2026 - 2027"
     teaching_date: str = ""     # "DD/MM/YYYY"
     week: str = ""
     period: str = ""

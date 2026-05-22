@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Module: lesson_docx
-Tạo file DOCX Kế hoạch bài dạy (KHBD) cho tiểu học theo mẫu chuẩn 2025-2026.
+Tạo file DOCX Kế hoạch bài dạy (KHBD) cho tiểu học theo mẫu chuẩn 2026-2027.
 
 Nguyên tắc kiến trúc:
     AI → JSON data thuần (chỉ nội dung)
