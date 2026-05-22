@@ -17,7 +17,7 @@ from datetime import datetime, timezone, timedelta
 import requests
 import random
 from html.parser import HTMLParser
-from typing import Any, Callable, cast
+from typing import Any, Callable, Optional, cast
 try:
     import bcrypt  # pyright: ignore[reportMissingImports]
 except Exception:  # pragma: no cover
@@ -1632,7 +1632,7 @@ class _SimpleHTMLToDocxParser(HTMLParser):
 
 def create_docx_from_html(html: str, title: str) -> bytes:
     doc = docx.Document()
-    doc.core_properties.title = title or ""
+    doc.core_properties.title = title or ""  # type: ignore[assignment]
     _configure_docx_branding(doc, title)
     parser = _SimpleHTMLToDocxParser(doc)
     parser.feed(html or "")
@@ -3746,6 +3746,202 @@ def _gen_math_captcha():
     st.session_state["captcha_answer"] = ans
 
 
+def _render_signup_with_email_otp(client) -> None:
+    """Flow đăng ký 2 bước có email OTP để chống multi-account abuse.
+
+    Step 1: Email + Password + Họ tên → validate format/disposable/trùng → gửi OTP
+    Step 2: Nhập OTP (6 số) → verify → INSERT user vào users_pro
+
+    State được lưu trong st.session_state (persist qua các rerun của Streamlit).
+    """
+    import datetime as _dt
+    import hashlib as _hashlib
+    from email_otp import (
+        generate_otp,
+        is_smtp_configured,
+        send_otp_email,
+        validate_email_for_registration,
+    )
+
+    # Session keys
+    K_STEP = "_signup_step"            # "input" hoặc "verify"
+    K_EMAIL = "_signup_email"
+    K_PWD = "_signup_pwd_hash"          # đã bcrypt-hash, KHÔNG lưu plain text
+    K_NAME = "_signup_name"
+    K_OTP_HASH = "_signup_otp_hash"     # SHA-256 của OTP
+    K_OTP_EXPIRES = "_signup_otp_expires"  # ISO datetime
+    K_RESEND_COUNT = "_signup_resend_count"
+
+    step = st.session_state.get(K_STEP, "input")
+
+    # ===== Step 1: nhập thông tin + gửi OTP =====
+    if step == "input":
+        st.markdown("##### Bước 1/2 — Nhập thông tin")
+        email = st.text_input(
+            "Email *",
+            placeholder="vd: tencua_ban@gmail.com",
+            key="signup_email_step1",
+        )
+        new_p = st.text_input(
+            "Mật khẩu * (tối thiểu 6 ký tự)",
+            type="password",
+            key="signup_password_step1",
+        )
+        new_name = st.text_input("Họ và tên *", key="signup_fullname_step1")
+
+        if not is_smtp_configured():
+            st.warning(
+                "⚠️ Hệ thống chưa cấu hình SMTP để gửi OTP. "
+                "Tạm thời OTP sẽ hiện trên màn hình cho dev. "
+                "Liên hệ admin để thiết lập Gmail SMTP."
+            )
+
+        if st.button("📧 GỬI MÃ XÁC NHẬN QUA EMAIL", type="primary", key="signup_send_otp_btn"):
+            email = (email or "").strip().lower()
+            new_p = (new_p or "").strip()
+            new_name = (new_name or "").strip()
+
+            # Validate inputs
+            if not (email and new_p and new_name):
+                st.error("Vui lòng điền đầy đủ Email, Mật khẩu và Họ tên.")
+                return
+            if len(new_p) < 6:
+                st.error("Mật khẩu tối thiểu 6 ký tự.")
+                return
+            ok, err = validate_email_for_registration(email)
+            if not ok:
+                st.error(f"❌ {err}")
+                return
+            if bcrypt is None:
+                st.error("Thiếu thư viện bcrypt, không thể tạo mật khẩu an toàn.")
+                return
+            if client is None:
+                st.error("Không kết nối được Supabase.")
+                return
+
+            # Check duplicate
+            try:
+                check = client.table("users_pro").select("username").eq("username", email).limit(1).execute()
+                if _as_dict_rows(check.data):
+                    st.warning("Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác.")
+                    return
+            except Exception as e:
+                st.error(f"Lỗi kiểm tra DB: {e}")
+                return
+
+            # Generate + send OTP
+            otp = generate_otp(6)
+            otp_hash = _hashlib.sha256(otp.encode("utf-8")).hexdigest()
+            expires_at = (_dt.datetime.now() + _dt.timedelta(minutes=10)).isoformat()
+
+            sent_ok, msg = send_otp_email(email, otp)
+            if not sent_ok and not is_smtp_configured():
+                # Dev mode: hiển thị OTP trên màn hình
+                st.info(f"🔧 DEV MODE — OTP của bạn: **{otp}** (hết hạn sau 10 phút)")
+            elif not sent_ok:
+                st.error(f"❌ {msg}")
+                return
+            else:
+                st.success(f"✅ {msg}. Kiểm tra hộp thư (cả mục Spam).")
+
+            # Save pending state
+            st.session_state[K_STEP] = "verify"
+            st.session_state[K_EMAIL] = email
+            st.session_state[K_PWD] = hash_password(new_p)
+            st.session_state[K_NAME] = new_name
+            st.session_state[K_OTP_HASH] = otp_hash
+            st.session_state[K_OTP_EXPIRES] = expires_at
+            st.session_state[K_RESEND_COUNT] = 0
+            st.rerun()
+        return
+
+    # ===== Step 2: nhập OTP để xác nhận =====
+    pending_email = st.session_state.get(K_EMAIL, "")
+    st.markdown(f"##### Bước 2/2 — Nhập mã xác nhận")
+    st.caption(f"Đã gửi mã 6 số đến **{pending_email}**. Mã hiệu lực 10 phút.")
+
+    otp_input = st.text_input("Mã OTP (6 số)", max_chars=6, key="signup_otp_input")
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        do_verify = st.button("✅ XÁC NHẬN & TẠO TÀI KHOẢN", type="primary", key="signup_verify_btn")
+    with c2:
+        do_resend = st.button("🔄 Gửi lại mã", key="signup_resend_btn")
+
+    if st.button("← Quay lại nhập lại email", key="signup_back_btn"):
+        for k in (K_STEP, K_EMAIL, K_PWD, K_NAME, K_OTP_HASH, K_OTP_EXPIRES):
+            st.session_state.pop(k, None)
+        st.rerun()
+
+    if do_resend:
+        resends = int(st.session_state.get(K_RESEND_COUNT, 0))
+        if resends >= 3:
+            st.error("Bạn đã gửi lại quá 3 lần. Vui lòng đợi 10 phút rồi thử lại.")
+            return
+        otp = generate_otp(6)
+        otp_hash = _hashlib.sha256(otp.encode("utf-8")).hexdigest()
+        expires_at = (_dt.datetime.now() + _dt.timedelta(minutes=10)).isoformat()
+        sent_ok, msg = send_otp_email(pending_email, otp)
+        if not sent_ok and not is_smtp_configured():
+            st.info(f"🔧 DEV MODE — OTP mới: **{otp}**")
+        elif not sent_ok:
+            st.error(f"❌ {msg}")
+            return
+        else:
+            st.success(f"✅ Đã gửi lại mã đến {pending_email}.")
+        st.session_state[K_OTP_HASH] = otp_hash
+        st.session_state[K_OTP_EXPIRES] = expires_at
+        st.session_state[K_RESEND_COUNT] = resends + 1
+        return
+
+    if do_verify:
+        otp_input = (otp_input or "").strip()
+        if not otp_input or not otp_input.isdigit() or len(otp_input) != 6:
+            st.error("Mã OTP phải là 6 chữ số.")
+            return
+        # Check expiry
+        expires_iso = st.session_state.get(K_OTP_EXPIRES, "")
+        try:
+            expires_at = _dt.datetime.fromisoformat(expires_iso)
+        except Exception:
+            st.error("Phiên xác nhận hết hạn. Vui lòng đăng ký lại.")
+            for k in (K_STEP, K_EMAIL, K_PWD, K_NAME, K_OTP_HASH, K_OTP_EXPIRES):
+                st.session_state.pop(k, None)
+            st.rerun()
+            return
+        if _dt.datetime.now() > expires_at:
+            st.error("Mã OTP đã hết hạn. Bấm 'Gửi lại mã' để nhận mã mới.")
+            return
+        # Verify hash
+        expected_hash = st.session_state.get(K_OTP_HASH, "")
+        actual_hash = _hashlib.sha256(otp_input.encode("utf-8")).hexdigest()
+        if actual_hash != expected_hash:
+            st.error("Mã OTP không đúng. Vui lòng kiểm tra lại email và nhập đúng 6 số.")
+            return
+
+        # OK → INSERT user
+        if client is None:
+            st.error("Không kết nối được Supabase.")
+            return
+        try:
+            client.table("users_pro").insert({
+                "username": pending_email,
+                "password": st.session_state.get(K_PWD, ""),
+                "fullname": st.session_state.get(K_NAME, ""),
+                "role": "free",
+                "usage_count": 0,
+                "points": 0,
+            }).execute()
+        except Exception as e:
+            st.error(f"Lỗi tạo tài khoản: {e}")
+            return
+
+        # Clear pending state
+        for k in (K_STEP, K_EMAIL, K_PWD, K_NAME, K_OTP_HASH, K_OTP_EXPIRES, K_RESEND_COUNT):
+            st.session_state.pop(k, None)
+        st.success("🎉 Đăng ký thành công! Vui lòng đăng nhập bằng email vừa xác nhận.")
+        st.balloons()
+
+
 def login_screen():
     st.session_state.setdefault("show_forgot", False)
     st.session_state.setdefault("login_fail_count", 0)
@@ -3831,40 +4027,10 @@ def login_screen():
             if st.button("Quên mật khẩu", key="forgot_password_toggle"):
                 st.session_state["show_forgot"] = True
         # ======================
-        # TAB ĐĂNG KÝ
+        # TAB ĐĂNG KÝ — Flow 2 bước có Email OTP (chống multi-account abuse)
         # ======================
         with tab_signup:
-            new_u = st.text_input("Tên đăng nhập mới", key="signup_username")
-            new_p = st.text_input("Mật khẩu mới", type="password", key="signup_password")
-            new_name = st.text_input("Họ và tên", key="signup_fullname")
-            if st.button("TẠO TÀI KHOẢN", key="signup_btn"):
-                if client and new_u and new_p:
-                    try:
-                        check = (
-                            client.table("users_pro")
-                            .select("*")
-                            .eq("username", new_u)
-                            .execute()
-                        )
-                        if check.data:
-                            st.warning("Tên đăng nhập đã tồn tại!")
-                        else:
-                            if bcrypt is None:
-                                st.error("Thiếu thư viện bcrypt, không thể tạo mật khẩu an toàn.")
-                                return
-                            client.table("users_pro").insert(
-                                {
-                                    "username": new_u,
-                                    "password": hash_password(new_p),
-                                    "fullname": new_name,
-                                    "role": "free",
-                                    "usage_count": 0,
-                                    "points": 0,
-                                }
-                            ).execute()
-                            st.success("Đăng ký thành công! Mời đăng nhập.")
-                    except Exception as e:
-                        st.error(f"Lỗi đăng ký: {e}")
+            _render_signup_with_email_otp(client)
         if st.session_state.get("show_forgot"):
             st.write("")
             forgot_password_ui(client)
@@ -6327,6 +6493,61 @@ with st.sidebar:
 _LPA_DEMO_ACTION_NAME = "lpa_demo_used"
 
 
+def _lpa_account_age_hours(username: str) -> Optional[float]:
+    """Tuổi tài khoản tính bằng giờ (theo `created_at` trên users_pro).
+
+    Trả về None nếu không lấy được — caller xử lý fail-open (không chặn user).
+    """
+    if not username:
+        return None
+    try:
+        client = init_supabase()
+        if client is None:
+            return None
+        res = (
+            client.table("users_pro")
+            .select("created_at")
+            .eq("username", username)
+            .limit(1)
+            .execute()
+        )
+        rows = _as_dict_rows(res.data)
+        if not rows:
+            return None
+        created_iso = rows[0].get("created_at")
+        if not created_iso:
+            return None
+        # Supabase trả ISO 8601 với 'Z' hoặc '+00:00'
+        import datetime as _dt
+        created_str = str(created_iso).replace("Z", "+00:00")
+        try:
+            created = _dt.datetime.fromisoformat(created_str)
+        except Exception:
+            return None
+        # Chuyển về timezone-aware UTC để so sánh chính xác
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=_dt.timezone.utc)
+        now_utc = _dt.datetime.now(_dt.timezone.utc)
+        delta = (now_utc - created).total_seconds() / 3600.0
+        return max(0.0, delta)
+    except Exception:
+        return None
+
+
+_LPA_DEMO_COOLDOWN_HOURS = 24  # tài khoản mới phải đợi 24h trước khi claim demo
+
+
+def _lpa_demo_cooldown_remaining(username: str) -> float:
+    """Số giờ còn lại trước khi demo unlock. <=0 nghĩa là đã đủ 24h.
+
+    Trả 0 nếu không xác định được tuổi account (fail-open).
+    """
+    age = _lpa_account_age_hours(username)
+    if age is None:
+        return 0.0
+    return max(0.0, _LPA_DEMO_COOLDOWN_HOURS - age)
+
+
 def _lpa_has_used_demo(username: str) -> bool:
     """Kiểm tra: user này đã dùng lượt demo miễn phí chưa?
 
@@ -6462,6 +6683,23 @@ def render_lesson_plan_advanced_gate():
         # === Free user — kiểm tra eligibility cho lượt demo MIỄN PHÍ ===
         username = user.get("email", "")
         demo_used = _lpa_has_used_demo(username) if username else True  # guest không có demo
+        # Cooldown 24h: account mới tạo phải đợi đủ giờ trước khi claim demo (chống abuse).
+        cooldown_left = _lpa_demo_cooldown_remaining(username) if username and not demo_used else 0.0
+
+        if cooldown_left > 0:
+            st.info(
+                f"⏳ **Tài khoản vừa được tạo** — bạn cần đợi thêm "
+                f"**{cooldown_left:.1f} giờ** nữa mới được dùng lượt demo miễn phí. "
+                "Cơ chế này giúp chống tạo email rác để lạm dụng tính năng."
+            )
+            st.warning("🔒 **Tính năng dành cho thành viên PRO.** Hoặc đợi hết cooldown để dùng demo.")
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                if st.button("🚀 Nâng cấp lên PRO ngay", type="primary", use_container_width=True, key="lpa_upgrade_cd"):
+                    go("help")
+            with col2:
+                st.link_button("📞 Tư vấn qua Zalo", "https://zalo.me/g/thsstj332", use_container_width=True)
+            return
 
         if not demo_used and module_lesson_plan_advanced is not None:
             # 🎁 Demo miễn phí lần đầu — vào module với cost=0
