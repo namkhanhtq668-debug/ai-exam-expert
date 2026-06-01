@@ -9,6 +9,21 @@ import json
 import html as html_lib
 import re
 import hashlib
+
+# Minimal early helper: returns API key from session or environment; can be overridden later
+def _get_api_key_effective() -> str:
+    try:
+        k = (st.session_state.get("api_key") or "").strip()
+    except Exception:
+        k = ""
+    if not k:
+        try:
+            import os
+            k = globals().get("SYSTEM_GOOGLE_KEY", "") or os.environ.get("GEMINI_API_KEY", "")
+        except Exception:
+            k = ""
+    return k
+
 def module_help_intro():
     st.markdown("## 📘 Hướng dẫn sử dụng")
     st.caption("Tài liệu hướng dẫn nhanh dành cho thầy/cô – dễ hiểu – dùng được ngay.")
