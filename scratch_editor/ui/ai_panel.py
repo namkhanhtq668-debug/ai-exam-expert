@@ -53,7 +53,7 @@ class AIPanel(ttk.Frame):
         ttk.Label(f, text="Model:").grid(row=2, column=0, sticky="w", padx=6, pady=4)
         self.var_model = tk.StringVar(value="gemini-3.1-flash-lite")
         cmb = ttk.Combobox(f, textvariable=self.var_model, width=30,
-                   values=["gemini-3.1-flash-lite", "gemini-3.1-flash",
+                   values=["gemini-3.1-flash-lite",
                        "gemini-3.5-flash", "gemini-3.5-flash-lite",
                        "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"])
         cmb.grid(row=2, column=1, padx=4, sticky="w")

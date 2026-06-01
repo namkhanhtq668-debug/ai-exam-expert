@@ -10,90 +10,97 @@ except Exception as e:
 
 def _genai_list_models(api_key: str) -> list:
     """Try multiple strategies to enumerate available models for the provided API key.
-    Returns a list of model names (strings)."""
+    Returns a list of model names (strings).
+    Uses guarded getattr calls so static analyzers (Pylance) don't flag missing exports.
+    """
     if not genai:
         return []
 
-    names = []
+    names: list[str] = []
 
-    # Try configuring the client if available
+    # Attempt to configure the client if a configure function exists (guarded)
     try:
-        # some versions expose configure or configure(api_key=...)
-        if hasattr(genai, "configure"):
+        cfg = getattr(genai, "configure", None)
+        if callable(cfg):
             try:
-                genai.configure(api_key=api_key)
-            except TypeError:
-                # older signature
-                genai.configure(api_key)
+                # try calling with keyword first, fall back to single-arg
+                try:
+                    cfg(api_key=api_key)
+                except TypeError:
+                    try:
+                        cfg(api_key)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
     except Exception:
         pass
 
-    # Strategy 1: genai.list_models()
+    # Helper to normalize response items
+    def _push_from_response(res):
+        if res is None:
+            return
+        if isinstance(res, (list, tuple)):
+            for m in res:
+                if isinstance(m, dict) and "name" in m:
+                    names.append(m["name"])
+                else:
+                    names.append(getattr(m, "name", str(m)))
+        else:
+            for m in getattr(res, "models", []) or []:
+                names.append(getattr(m, "name", str(m)))
+
+    # Strategy 1: call list_models if present (via getattr)
     try:
-        if hasattr(genai, "list_models"):
-            res = genai.list_models()
-            # res may be list or object
-            if isinstance(res, (list, tuple)):
-                for m in res:
-                    if isinstance(m, dict) and "name" in m:
-                        names.append(m["name"])
-                    else:
-                        names.append(getattr(m, "name", str(m)))
-            elif hasattr(res, "models"):
-                for m in getattr(res, "models"):
-                    names.append(getattr(m, "name", str(m)))
+        lm = getattr(genai, "list_models", None)
+        if callable(lm):
+            try:
+                _push_from_response(lm())
+            except Exception:
+                pass
     except Exception:
         pass
 
-    # Strategy 2: genai.get_models()
+    # Strategy 2: call get_models if present
     try:
-        if hasattr(genai, "get_models"):
-            res = genai.get_models()
-            if isinstance(res, (list, tuple)):
-                for m in res:
-                    names.append(getattr(m, "name", str(m)))
-            elif hasattr(res, "models"):
-                for m in getattr(res, "models"):
-                    names.append(getattr(m, "name", str(m)))
+        gm = getattr(genai, "get_models", None)
+        if callable(gm):
+            try:
+                _push_from_response(gm())
+            except Exception:
+                pass
     except Exception:
         pass
 
-    # Strategy 3: inspect client attribute
+    # Strategy 3: inspect genai.client object if available
     try:
         client = getattr(genai, "client", None)
         if client is not None:
-            # Try list_models on client
-            if hasattr(client, "list_models"):
-                try:
-                    res = client.list_models()
-                    # Try to extract
-                    for item in getattr(res, "models", []) or res:
-                        names.append(getattr(item, "name", str(item)))
-                except Exception:
-                    pass
-            # Try get_models
-            if hasattr(client, "get_models"):
-                try:
-                    res = client.get_models()
-                    for item in getattr(res, "models", []) or res:
-                        names.append(getattr(item, "name", str(item)))
-                except Exception:
-                    pass
+            for func_name in ("list_models", "get_models"):
+                fn = getattr(client, func_name, None)
+                if callable(fn):
+                    try:
+                        _push_from_response(fn())
+                    except Exception:
+                        pass
     except Exception:
         pass
 
-    # Strategy 4: check constants or attributes in genai module
+    # Strategy 4: scan module attributes for model-like strings
     try:
         for attr in dir(genai):
             if attr.lower().startswith("model"):
-                val = getattr(genai, attr)
-                if isinstance(val, str) and "gemini" in val.lower():
-                    names.append(val)
+                try:
+                    val = getattr(genai, attr)
+                    if isinstance(val, str) and "gemini" in val.lower():
+                        names.append(val)
+                except Exception:
+                    continue
     except Exception:
         pass
 
-    # Deduplicate and sort
-    clean = []
+    # Deduplicate while preserving order
+    clean: list[str] = []
     for n in names:
         if not n:
             continue
