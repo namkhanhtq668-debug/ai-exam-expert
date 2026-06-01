@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-JSON Schema cho Kế hoạch bài dạy tiểu học — khớp 100% mẫu PDF chuẩn 2025-2026.
+JSON Schema cho Kế hoạch bài dạy tiểu học — khớp 100% mẫu PDF chuẩn 2026-2027.
 
 Cấu trúc 7 mục La Mã (I-VII):
     I.   YÊU CẦU CẦN ĐẠT         (1. NL đặc thù / 2. NL chung / 3. Phẩm chất)
@@ -94,7 +94,7 @@ class WorksheetItem(TypedDict):
 class DocumentInfo(TypedDict):
     department: str         # PHÒNG GD&ĐT (VD: "GD&ĐT Quận 1") — có thể "..." nếu trống
     school: str             # TRƯỜNG (VD: "Tiểu học Hồng Thái")
-    schoolYear: str         # Năm học (VD: "2025 - 2026")
+    schoolYear: str         # Năm học (VD: "2026 - 2027")
 
 
 class LessonInfo(TypedDict):

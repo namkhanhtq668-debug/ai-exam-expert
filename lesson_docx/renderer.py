@@ -4,7 +4,7 @@ Renderer — CODE 100% quyết định layout DOCX. Render JSON → DOCX khớp 
 
 AI KHÔNG được động vào layout. Tất cả định nghĩa font/lề/bảng/thứ tự mục
 được hardcode tại đây để đảm bảo file giáo viên tải về CHÍNH XÁC theo
-mẫu chuẩn 2025-2026 mà tổ chuyên môn yêu cầu.
+mẫu chuẩn 2026-2027 mà tổ chuyên môn yêu cầu.
 
 Spec layout (khớp PDF "Giao_an_Toan_4_Bai_1_Chuan_hoa.pdf"):
 - Khổ A4, lề T2-B2-L3-R2 cm, TNR 13pt, giãn dòng 1.15

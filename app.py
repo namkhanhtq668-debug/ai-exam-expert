@@ -121,7 +121,7 @@ Tạo đề kiểm tra/đề thi theo chuẩn đánh giá (NB/TH/VD/VDC hoặc M
 4) Xem trước → chỉnh → **Xuất file** (nếu có)
         """)
         st.divider()
-        st.markdown("### 5. 📑 Soạn giáo án chuẩn KHBD 2025-2026")
+        st.markdown("### 5. 📑 Soạn giáo án chuẩn KHBD 2026-2027")
         st.markdown(f"""
 **Dùng khi nào?**
 Soạn KHBD chuẩn 7 mục I-VII (Yêu cầu cần đạt / Đồ dùng / Hoạt động / Điều chỉnh / Đánh giá / Phiếu HT / Điều chỉnh sau bài) — mở Word chỉnh tên cá nhân là nộp tổ chuyên môn ngay.
@@ -178,7 +178,7 @@ DASHBOARD_HTML = """
   <div class="wrap">
     <div class="grid">
       <div class="card">
-        <p class="title">📑 Soạn giáo án chuẩn KHBD 2025-2026</p>
+        <p class="title">📑 Soạn giáo án chuẩn KHBD 2026-2027</p>
         <p class="sub">7 mục I-VII chuẩn nộp tổ chuyên môn — mở Word chỉnh tên là nộp ngay.</p>
         <span class="badge">KHBD chuẩn</span>
       </div>
@@ -2910,7 +2910,7 @@ def main_app():
         st.caption("Dùng để tạo đề nhanh trong thực tế giảng dạy.")
         
         col_year, col_lvl = st.columns(2)
-        with col_year: school_year = st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=1)
+        with col_year: school_year = st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=2)
         with col_lvl: level_key = st.radio("Cấp học", ["Tiểu học", "THCS", "THPT"], horizontal=True)
         
         curr_lvl = "tieu_hoc" if level_key == "Tiểu học" else "thcs" if level_key == "THCS" else "thpt"
@@ -3464,7 +3464,7 @@ def module_lesson_plan_legacy():
         st.markdown("<div class='lp-box'><div class='lp-h'>1) Thông tin bài dạy</div>", unsafe_allow_html=True)
         r1c1, r1c2, r1c3, r1c4 = st.columns([1.1, 1.2, 1.0, 1.2])
         with r1c1:
-            st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=1, key=_lp_key("year"))
+            st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=2, key=_lp_key("year"))
         with r1c2:
             level_key = st.radio("Cấp học", ["Tiểu học", "THCS", "THPT"], horizontal=True, key=_lp_key("level"))
         curr_lvl = "tieu_hoc" if level_key == "Tiểu học" else "thcs" if level_key == "THCS" else "thpt"
@@ -4888,7 +4888,7 @@ def module_lesson_plan():
     with st.form(key=_lp2_key("form"), clear_on_submit=False):
         r1c1, r1c2, r1c3, r1c4 = st.columns([1.1, 1.2, 1.0, 1.2])
         with r1c1:
-            st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=1, key=_lp2_key("year"))
+            st.selectbox("Năm học", ["2024-2025", "2025-2026", "2026-2027"], index=2, key=_lp2_key("year"))
         with r1c2:
             cap_hoc = st.radio("Cấp học", ["Tiểu học", "THCS", "THPT"], horizontal=True, key=_lp2_key("cap_hoc"))
         curr_lvl = "tieu_hoc" if cap_hoc == "Tiểu học" else "thcs" if cap_hoc == "THCS" else "thpt"
@@ -5397,7 +5397,7 @@ def _detect_chat_module_intent(text: str) -> dict | None:
         ),
         (
             "lesson_plan_advanced",
-            "Soạn giáo án chuẩn KHBD 2025-2026",
+            "Soạn giáo án chuẩn KHBD 2026-2027",
             ("soạn giáo án", "soạn bài", "kế hoạch bài dạy", "giáo án", "bài dạy", "ppct", "lesson plan", "khbd"),
         ),
         (
@@ -6208,7 +6208,7 @@ Tạo đề kiểm tra/đề thi theo chuẩn đánh giá (NB/TH/VD/VDC hoặc M
             """
         )
         st.divider()
-        st.markdown("### 5. 📑 Soạn giáo án chuẩn KHBD 2025-2026")
+        st.markdown("### 5. 📑 Soạn giáo án chuẩn KHBD 2026-2027")
         st.markdown(f"""
 **Dùng khi nào?**
 Soạn KHBD chuẩn 7 mục I-VII đúng mẫu nộp tổ chuyên môn — mở Word chỉnh tên cá nhân là nộp ngay.
@@ -6413,7 +6413,7 @@ with st.sidebar:
         "🧠 Mindmap": "mindmap",
         "🧾 Ra đề – KTĐG": "exam",
         # "Trợ lý Soạn bài" (free, deprecated) — đã gộp vào "Soạn giáo án chuẩn KHBD".
-        **({"📑 Soạn giáo án chuẩn KHBD 2025-2026": "lesson_plan_advanced"} if ENABLE_LESSON_PLAN_ADVANCED else {}),
+        **({"📑 Soạn giáo án chuẩn KHBD 2026-2027": "lesson_plan_advanced"} if ENABLE_LESSON_PLAN_ADVANCED else {}),
         "🖥️ Năng lực số": "digital",
         "🧭 Nhận xét – Tư vấn": "advisor",
         "📘 Hướng dẫn": "help",
@@ -6704,7 +6704,8 @@ def render_lesson_plan_advanced_gate():
         if not demo_used and module_lesson_plan_advanced is not None:
             # 🎁 Demo miễn phí lần đầu — vào module với cost=0
             st.success(
-                "🎁 **LƯỢT DÙNG THỬ MIỄN PHÍ** — Bạn được dùng module này **1 lần duy nhất** không mất điểm. "
+                "🎁 **LƯỢT DÙNG THỬ MIỄN PHÍ — Soạn giáo án chuẩn KHBD 2026-2027** "
+                "Tài khoản mới được dùng tính năng này **1 lần duy nhất** không mất điểm. "
                 "Khi soạn xong giáo án đầu tiên, lượt demo sẽ kết thúc và bạn cần nâng cấp PRO để tiếp tục."
             )
             module_lesson_plan_advanced(
@@ -6718,7 +6719,7 @@ def render_lesson_plan_advanced_gate():
 
         # === Đã dùng demo HOẶC guest chưa login HOẶC module không load được ===
         if demo_used:
-            st.info("ℹ️ Bạn đã sử dụng **lượt demo miễn phí**. Nâng cấp PRO để tiếp tục soạn giáo án.")
+            st.info("ℹ️ Bạn đã sử dụng **lượt demo miễn phí Soạn giáo án chuẩn KHBD 2026-2027**. Nâng cấp PRO để tiếp tục soạn giáo án.")
         st.warning("🔒 **Tính năng dành cho thành viên PRO.** Nâng cấp để mở khóa toàn bộ công cụ soạn giáo án AI nâng cao.")
         col1, col2 = st.columns([1, 1])
         with col1:
@@ -6768,8 +6769,8 @@ elif page == "profile":
     module_profile()
 elif page == "lesson_plan":
     # Module "Trợ lý Soạn bài" (free) đã bị deprecate.
-    # Tự redirect sang module mới "Soạn giáo án AI nâng cao" — chuẩn KHBD 2025-2026.
-    st.info("📑 Module **Trợ lý Soạn bài** đã được nâng cấp thành **Soạn giáo án chuẩn KHBD 2025-2026**. Đang chuyển hướng…")
+    # Tự redirect sang module mới "Soạn giáo án AI nâng cao" — chuẩn KHBD 2026-2027.
+    st.info("📑 Module **Trợ lý Soạn bài** đã được nâng cấp thành **Soạn giáo án chuẩn KHBD 2026-2027**. Đang chuyển hướng…")
     go("lesson_plan_advanced")
     st.rerun()
 elif page == "lesson_plan_advanced":

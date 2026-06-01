@@ -1645,17 +1645,17 @@ def module_lesson_plan_advanced(
             st.code(content_html, language="html")
 
         # ====================================================================
-        # 🆕 MẪU CHUẨN 2025-2026 (JSON pipeline) — kiến trúc mới, code 100%
+        # 🆕 MẪU CHUẨN 2026-2027 (JSON pipeline) — kiến trúc mới, code 100%
         # quyết định layout, AI chỉ tạo nội dung. Khớp PDF mẫu KHBD tiểu học.
         # ====================================================================
         st.markdown("---")
-        st.markdown("### 🆕 Tải theo mẫu chuẩn 2025-2026")
+        st.markdown("### 🆕 Tải theo mẫu chuẩn 2026-2027")
         st.caption(
-            "Bản render mới theo mẫu KHBD tiểu học chuẩn 2025-2026 (7 mục I-VII, "
+            "Bản render mới theo mẫu KHBD tiểu học chuẩn 2026-2027 (7 mục I-VII, "
             "bảng 3 cột GV/HS/Sản phẩm-Đánh giá, header chỉ trang 1, không có 'AIEXAM'). "
             "Code quyết định 100% bố cục — AI chỉ sinh nội dung JSON."
         )
-        if st.button("⚡ Tạo & tải theo mẫu chuẩn 2025-2026",
+        if st.button("⚡ Tạo & tải theo mẫu chuẩn 2026-2027",
                      key=_k("btn_v2"), use_container_width=True):
             _run_v2_pipeline(
                 api_key=api_key, point_check=point_check, point_cost=point_cost,
@@ -1667,7 +1667,7 @@ def module_lesson_plan_advanced(
                 school=st.session_state.get(_k("school"), ""),
                 department=st.session_state.get(_k("department"), ""),
                 teacher=st.session_state.get(_k("teacher"), ""),
-                school_year=st.session_state.get(_k("school_year"), "2025 - 2026"),
+                school_year=st.session_state.get(_k("school_year"), "2026 - 2027"),
                 teaching_date=st.session_state.get(_k("teaching_date"), ""),
                 duration_minutes=int(st.session_state.get(_k("duration"), 35) or 35),
                 week=st.session_state.get(_k("period_note"), ""),
@@ -1765,7 +1765,7 @@ def _run_v2_pipeline(
     safe_title = re.sub(r"[^a-zA-Z0-9_\-]+", "_", lesson_title) or "GiaoAn"
     assert result.docx_bytes is not None
     st.download_button(
-        "⬇️ Tải file .docx (mẫu chuẩn 2025-2026)",
+        "⬇️ Tải file .docx (mẫu chuẩn 2026-2027)",
         data=result.docx_bytes,
         file_name=f"{safe_title}_mau_chuan.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
