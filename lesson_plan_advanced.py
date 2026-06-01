@@ -110,7 +110,7 @@ BOOK_SERIES_LOCKED = "Kết nối tri thức với cuộc sống"  # CHỈ DUY N
 SCHOOL_YEAR_DEFAULT = "2026-2027"  # Áp dụng từ năm học 2026-2027 trở đi
 SCHOOL_YEAR_MIN = 2026  # Năm bắt đầu (chặn AI tham chiếu chương trình cũ)
 PUBLISHER = "Nhà xuất bản Giáo dục Việt Nam"
-DEFAULT_MODEL = "gemini-2.0-flash"
+DEFAULT_MODEL = "gemini-3.1-flash"
 APP_KEY = "lp_adv"
 
 APPROVED_DOMAINS = [
