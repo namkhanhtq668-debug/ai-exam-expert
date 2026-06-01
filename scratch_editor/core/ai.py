@@ -24,7 +24,7 @@ class AIRequestError(Exception):
 @dataclass
 class AIConfig:
     api_key: str = ""
-    model: str = "gemini-3.5-flash-lite"
+    model: str = "gemini-3.1-flash-lite"
     temperature: float = 0.4
     max_output_tokens: int = 4096
 
