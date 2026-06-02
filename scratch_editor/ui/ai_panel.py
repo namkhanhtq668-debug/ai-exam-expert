@@ -25,7 +25,7 @@ class AIPanel(ttk.Frame):
     def __init__(self, master, app, **kw):
         super().__init__(master, **kw)
         self.app = app
-        self.config = AIConfig(api_key="", model="gemini-3.5-flash-lite")
+        self.config = AIConfig(api_key="", model="gemini-3.1-flash-lite")
         self._client: GeminiClient | None = None
 
         self._build_settings()
@@ -51,11 +51,11 @@ class AIPanel(ttk.Frame):
                       foreground="#666").grid(row=1, column=1, sticky="w")
 
         ttk.Label(f, text="Model:").grid(row=2, column=0, sticky="w", padx=6, pady=4)
-        self.var_model = tk.StringVar(value="gemini-3.5-flash-lite")
+        self.var_model = tk.StringVar(value="gemini-3.1-flash-lite")
         cmb = ttk.Combobox(f, textvariable=self.var_model, width=30,
-                           values=["gemini-3.5-flash-lite", "gemini-3.5-flash",
-                                   "gemini-3.1-flash", "gemini-2.0-flash",
-                                   "gemini-1.5-flash", "gemini-1.5-pro"])
+                   values=["gemini-3.1-flash-lite",
+                       "gemini-3.5-flash", "gemini-3.5-flash-lite",
+                       "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"])
         cmb.grid(row=2, column=1, padx=4, sticky="w")
 
         ttk.Button(f, text="Kiểm tra kết nối",
@@ -71,7 +71,7 @@ class AIPanel(ttk.Frame):
             messagebox.showwarning("Thiếu API key",
                                    "Hãy nhập GEMINI_API_KEY ở trên rồi thử lại.")
             return None
-        cfg = AIConfig(api_key=key, model=self.var_model.get().strip() or "gemini-3.5-flash-lite")
+        cfg = AIConfig(api_key=key, model=self.var_model.get().strip() or "gemini-3.1-flash-lite")
         try:
             client = GeminiClient(cfg)
         except AIConfigError as e:
