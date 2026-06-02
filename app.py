@@ -302,7 +302,7 @@ QUY TẮC KỸ THUẬT:
 # 3. Hàm xử lý AI riêng cho Module này
 def generate_nls_lesson_plan_legacy(api_key, lesson_content, distribution_content, textbook, subject, grade, analyze_only):
     _genai_configure(api_key)
-    model = _genai_model('gemini-3.1-flash', system_instruction=SYSTEM_INSTRUCTION_NLS)
+    model = _genai_model('gemini-3.1-flash-lite', system_instruction=SYSTEM_INSTRUCTION_NLS)
     
     user_prompt = f"""
     THÔNG TIN ĐẦU VÀO:
@@ -1055,7 +1055,7 @@ QUY TẮC KỸ THUẬT:
 """
 def generate_nls_lesson_plan(api_key, lesson_content, subject, grade, textbook, ppct_content, analyze_only):
     _genai_configure(api_key)
-    model = _genai_model("gemini-3.1-flash", system_instruction=SYSTEM_INSTRUCTION_NLS)
+    model = _genai_model("gemini-3.1-flash-lite", system_instruction=SYSTEM_INSTRUCTION_NLS)
     
     prompt = f"""
     THÔNG TIN:
@@ -2258,8 +2258,8 @@ class YCCDManager:
 class QuestionGeneratorYCCD:
     def __init__(self, api_key):
         _genai_configure(api_key)
-        # [SỬA LỖI 404] Dùng gemini-3.1-flash theo yêu cầu
-        self.model = _genai_model('gemini-3.1-flash')
+        # [SỬA LỖI 404] Dùng gemini-3.1-flash-lite theo yêu cầu
+        self.model = _genai_model('gemini-3.1-flash-lite')
     def generate(self, yccd_item, muc_do="Thông hiểu"):
         prompt = f"""
         VAI TRÒ: Giáo viên Toán Tiểu học (Chương trình GDPT 2018).
@@ -2606,7 +2606,7 @@ def generate_lesson_plan_locked(
     thoi_luong: int,
     si_so: int,
     teacher_note: str,
-    model_name: str = "gemini-3.1-flash"
+    model_name: str = "gemini-3.1-flash-lite"
 ) -> dict:
     """
     Sinh JSON data-only theo LESSON_PLAN_DATA_SCHEMA (meta + sections).
@@ -2763,7 +2763,7 @@ def generate_lesson_plan_data_only(
     api_key: str,
     meta_ppct: dict,
     teacher_note: str,
-    model_name: str = "gemini-3.1-flash"
+    model_name: str = "gemini-3.1-flash-lite"
 ) -> dict:
     """Sinh JSON data-only (meta + sections) để render HTML.
     Tự sửa tối đa 3 lần nếu sai schema hoặc thiếu chi tiết.
@@ -3099,8 +3099,8 @@ def main_app():
                                         """
                                         try:
                                             _genai_configure(api_key)
-                                            # [SỬA LỖI 404] Dùng gemini-3.1-flash
-                                            model = _genai_model('gemini-3.1-flash', system_instruction=SYSTEM_PROMPT)
+                                            # [SỬA LỖI 404] Dùng gemini-3.1-flash-lite
+                                            model = _genai_model('gemini-3.1-flash-lite', system_instruction=SYSTEM_PROMPT)
                                             
                                             # [FIX LỖI] Cấu hình tắt bộ lọc an toàn để AI không chặn đề thi
                                             safe_settings = [
@@ -3592,7 +3592,7 @@ YÊU CẦU CHẤT LƯỢNG:
                     api_key=api_key,
                     meta_ppct=meta_ppct,
                     teacher_note=teacher_note,
-                    model_name="gemini-3.1-flash"
+                    model_name="gemini-3.1-flash-lite"
                 )
                 validate_lesson_plan(data)
                 content_html = render_lesson_plan_html(data)
@@ -4810,7 +4810,7 @@ def generate_lesson_plan_html_simple(
     si_so: int,
     lesson_context: str,
     teacher_note: str,
-    model_name: str = "gemini-3.1-flash",
+    model_name: str = "gemini-3.1-flash-lite",
 ) -> str:
     """Trả về HTML hoàn chỉnh (không JSON)."""
     _genai_configure(api_key)
@@ -4958,7 +4958,7 @@ def module_lesson_plan():
                     si_so=int(si_so),
                     lesson_context=lesson_ctx,
                     teacher_note=teacher_note or "",
-                    model_name="gemini-3.1-flash",
+                    model_name="gemini-3.1-flash-lite",
                 )
                 st.session_state[_lp2_key("html")] = html
                 st.session_state[_lp2_key("title")] = f"GiaoAn_{mon}_{lop}_{ten_bai.strip()}"
@@ -5303,9 +5303,9 @@ def _gemini_generate(prompt: str, system: str | None = None) -> str:
     try:
         _genai_configure(api_key)
         if system:
-            model = _genai_model("gemini-3.1-flash", system_instruction=system)
+            model = _genai_model("gemini-3.1-flash-lite", system_instruction=system)
         else:
-            model = _genai_model("gemini-3.1-flash")
+            model = _genai_model("gemini-3.1-flash-lite")
         safe_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -6669,7 +6669,7 @@ def render_lesson_plan_advanced_gate():
                 api_key=_get_api_key_effective(),
                 point_check=require_points_or_block,
                 point_cost=POINT_COST_LESSON_PLAN_ADVANCED,
-                model_name="gemini-3.1-flash",
+                model_name="gemini-3.1-flash-lite",
                 docx_renderer=create_docx_from_html,
             )
         else:
@@ -6712,7 +6712,7 @@ def render_lesson_plan_advanced_gate():
                 api_key=_get_api_key_effective(),
                 point_check=_make_demo_point_check(username),
                 point_cost=0,  # demo: hiển thị "0 điểm" trên nút "Tạo giáo án"
-                model_name="gemini-3.1-flash",
+                model_name="gemini-3.1-flash-lite",
                 docx_renderer=create_docx_from_html,
             )
             return  # hết block, không hiện banner Pro
