@@ -9,319 +9,90 @@ import json
 import html as html_lib
 import re
 import hashlib
+import textwrap
+import io
+import time
+import secrets
+from datetime import datetime, timezone, timedelta
+import requests
+import random
+from html.parser import HTMLParser
+from typing import Any, Callable, Optional, cast
+try:
+    import bcrypt  # pyright: ignore[reportMissingImports]
+except Exception:  # pragma: no cover
+    bcrypt = None
+import urllib.parse # [BẮT BUỘC] Thư viện xử lý QR Code tránh lỗi
+from docx.oxml.ns import qn
+from docx.shared import Pt, Cm
+# === Brand logo (SVG, transparent) ===
+# ===== Brand logo (PNG) =====
+# Keep helper name `logo_svg()` for compatibility across the app.
 
-# Minimal early helper: returns API key from session or environment; can be overridden later
-def _get_api_key_effective() -> str:
+genai = cast(Any, genai)
+
+def _decode_jwt_claims(token: str) -> dict[str, Any]:
     try:
-        k = (st.session_state.get("api_key") or "").strip()
+        parts = (token or "").split(".")
+        if len(parts) < 2:
+            return {}
+        payload = parts[1]
+        pad = "=" * (-len(payload) % 4)
+        raw = base64.urlsafe_b64decode((payload + pad).encode("ascii"))
+        claims = json.loads(raw.decode("utf-8"))
+        return claims if isinstance(claims, dict) else {}
     except Exception:
-        k = ""
-    if not k:
-        try:
-            import os
-            k = globals().get("SYSTEM_GOOGLE_KEY", "") or os.environ.get("GEMINI_API_KEY", "")
-        except Exception:
-            k = ""
-    return k
+        return {}
 
+def _supabase_key_role(key: str) -> str:
+    claims = _decode_jwt_claims(key)
+    return str(claims.get("role") or "").strip().lower()
+
+def _is_service_role_key(key: str) -> bool:
+    return _supabase_key_role(key) == "service_role"
+
+def _as_dict_rows(value: Any) -> list[dict[str, Any]]:
+    if isinstance(value, list):
+        return [cast(dict[str, Any], item) for item in value if isinstance(item, dict)]
+    return []
 
 def _genai_configure(api_key: str) -> None:
-    """Configure the google.generativeai client if available (guarded).
+    getattr(genai, "configure")(api_key=api_key)
 
-    This is defensive: some SDKs expose different configure signatures.
-    """
-    try:
-        import google.generativeai as _gen
-    except Exception:
-        # leave graceful failure to callers
-        return
-    cfg = getattr(_gen, "configure", None)
-    if callable(cfg):
-        try:
-            try:
-                cfg(api_key=api_key)
-            except TypeError:
-                try:
-                    cfg(api_key)
-                except Exception:
-                    pass
-        except Exception:
-            pass
-    # store module for later use
-    globals()["_GENAI_MODULE"] = _gen
+def _genai_model(model_name: str, system_instruction: str | None = None) -> Any:
+    model_cls = getattr(genai, "GenerativeModel")
+    if system_instruction is None:
+        return model_cls(model_name)
+    return model_cls(model_name, system_instruction=system_instruction)
 
-
-def _genai_model(model_name: str = "gemini-3.1-flash-lite", system_instruction: str | None = None):
-    """Return a GenerativeModel object, trying fallbacks on failures.
-
-    Attempts to construct the model with the SDK's `GenerativeModel`.
-    If the requested model fails (404 / not found), try a few safe Gemini
-    model names before raising.
-    """
-    gen = globals().get("_GENAI_MODULE")
-    if gen is None:
-        try:
-            import google.generativeai as gen
-        except Exception as e:
-            raise RuntimeError("google.generativeai is not installed") from e
-        globals()["_GENAI_MODULE"] = gen
-
-    ModelClass = getattr(gen, "GenerativeModel", None)
-    if not callable(ModelClass):
-        raise RuntimeError("GenerativeModel API not available in google.generativeai module")
-
-    tried = []
-    last_err = None
-    # candidate list: prefer requested name, then safe defaults
-    candidates = []
-    if model_name:
-        candidates.append(model_name)
-    for alt in ("gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-3.5-mini", "gemini-3.1-mini"):
-        if alt not in candidates:
-            candidates.append(alt)
-
-    for m in candidates:
-        if not m or m in tried:
-            continue
-        tried.append(m)
-        try:
-            obj = ModelClass(m)
-            return obj
-        except Exception as e:
-            last_err = e
-            continue
-
-    raise RuntimeError(f"No usable Gemini model found among candidates: {tried}") from last_err
+def _json_generation_config() -> Any:
+    genai_types = getattr(genai, "types", None)
+    if genai_types is not None and hasattr(genai_types, "GenerationConfig"):
+        return genai_types.GenerationConfig(response_mime_type="application/json")
+    return {"response_mime_type": "application/json"}
 
 def module_help_intro():
     st.markdown("## 📘 Hướng dẫn sử dụng")
     st.caption("Tài liệu hướng dẫn nhanh dành cho thầy/cô – dễ hiểu – dùng được ngay.")
     tab1, tab2 = st.tabs(["🧠 Hướng dẫn sử dụng module", "💎 Hướng dẫn nạp VIP / PRO"])
-
     # -----------------------------
     # TAB 1: MODULES
     # -----------------------------
     with tab1:
-        st.markdown(
-            "AIEXAM là nền tảng AI hỗ trợ giáo viên trong dạy học và kiểm tra đánh giá.\n\n"
-            "Để AI cho kết quả đúng hơn, hãy nhập rõ: **môn – lớp – nội dung – mục tiêu – thời lượng.**\n\n"
-            "Lưu ý: AI chỉ hỗ trợ tạo gợi ý. Giáo viên là người kiểm tra và quyết định sử dụng."
-        )
+        st.markdown("AIEXAM là nền tảng AI hỗ trợ giáo viên trong dạy học và kiểm tra đánh giá.\n\nĐể AI cho kết quả đúng hơn, hãy nhập rõ:\n**môn – lớp – nội dung – mục tiêu – thời lượng.**\n\nLưu ý: AI chỉ hỗ trợ tạo gợi ý.\nGiáo viên là người kiểm tra và quyết định sử dụng.")
         st.divider()
-
         st.markdown("### 1. 💬 Chat AI")
-        st.markdown(
-            """
+        st.markdown(f"""
 **Dùng khi nào?**  
 Hỏi đáp kiến thức, soạn câu hỏi, gợi ý hoạt động dạy học, viết nhận xét, chỉnh câu chữ…
 **Cách dùng:**
 1) Vào **Chat AI**  
 2) Nhập yêu cầu theo mẫu: **Môn – Lớp – Nội dung – Mục tiêu – Định dạng kết quả**  
 3) Nếu chưa đúng, gõ tiếp: *“Sửa theo…”* / *“Làm ngắn hơn…”* / *“Chi tiết hơn…”*
-            """
-        )
-        st.divider()
-
-        st.markdown("### 2. 📄 Doc AI")
-        st.markdown(
-            """
-**Dùng khi nào?**  
-Khi thầy/cô có **PDF / DOCX / TXT** cần tóm tắt, rút ý chính, tạo câu hỏi ôn tập hoặc hỏi theo nội dung tài liệu.
-**Cách dùng:**
-1) Vào **Doc AI**  
-2) **Tải tài liệu lên**  
-3) Chọn yêu cầu: *Tóm tắt* / *Rút ý chính* / *Tạo câu hỏi* / *Dàn ý bài giảng*
-            """
-        )
-        st.divider()
-
-        st.markdown("### 3. 🧠 Mindmap AI")
-        st.markdown(
-            """
-**Dùng khi nào?**  
-Tạo sơ đồ tư duy cho bài học/chương, ôn tập nhanh, làm slide, giao bài cho học sinh.
-**Cách dùng:**
-1) Nhập **chủ đề** hoặc dán **nội dung bài**  
-2) Yêu cầu *mindmap 3–4 cấp*, *ngắn gọn/dễ học*, *có ví dụ*
-            """
-        )
-        st.divider()
-
-        st.markdown("### 4. 📝 Ra đề – KTĐG")
-        st.markdown(
-            """
-**Dùng khi nào?**  
-Tạo đề kiểm tra/đề thi theo chuẩn đánh giá (NB/TH/VD/VDC hoặc M1/M2/M3), có thể kèm ma trận/đặc tả.
-**Cách dùng:**
-1) Chọn **môn – lớp – phạm vi kiến thức**  
-2) Chọn dạng: Trắc nghiệm / Tự luận / Kết hợp  
-3) Chọn số lượng câu & mức độ → bấm **Tạo đề**  
-4) Xem trước → chỉnh → **Xuất file** (nếu có)
-            """
-        )
-        st.divider()
-
-        st.markdown("### 5. 📑 Soạn giáo án chuẩn KHBD 2026-2027")
-        st.markdown(
-            """
-**Dùng khi nào?**
-Soạn KHBD chuẩn 7 mục I-VII (Yêu cầu cần đạt / Đồ dùng / Hoạt động / Điều chỉnh / Đánh giá / Phiếu HT / Điều chỉnh sau bài).
-**Cách dùng:**
-1) Nhập tên bài → chọn Lớp / Môn / Thời lượng
-2) (Tuỳ chọn) Đính kèm ảnh trang SGK hoặc file PDF/DOCX bài học
-3) Bấm **Tạo giáo án** → tải file `.docx`
-            """
-        )
-        st.divider()
-
-        st.markdown("### 6. 💻 Năng lực số")
-        st.markdown(
-            """
-**Dùng khi nào?**  
-Tích hợp **Năng lực số** vào bài dạy: hoạt động số, công cụ số, sản phẩm số, tiêu chí đánh giá.
-**Cách dùng:**
-1) Chọn môn – lớp – bài (hoặc tải giáo án gốc nếu module hỗ trợ)  
-2) Chọn mục tiêu NLS (tìm kiếm, hợp tác, an toàn số, AI…)  
-3) Bấm tạo → nhận hoạt động + sản phẩm + tiêu chí đánh giá
-            """
-        )
-        st.divider()
-
-        st.markdown("### 7. 🧩 Nhận xét – Tư vấn")
-        st.markdown(
-            """
-**Dùng khi nào?**  
-Viết nhận xét học sinh theo năng lực/phẩm chất, góp ý giáo án, tư vấn cải tiến hoạt động dạy học.
-            """
-        )
-
-        # Diagnostic button to list available Gemini models
-        if st.button("Kiểm tra mô hình Gemini khả dụng"):
-            api_key = _get_api_key_effective()
-            if not api_key:
-                st.error("Chưa cấu hình API key. Vui lòng nhập GEMINI_API_KEY trước.")
-            else:
-                with st.spinner("Đang lấy danh sách mô hình…"):
-                    names = _genai_list_models(api_key)
-                    if not names:
-                        st.warning(
-                            "Không lấy được danh sách mô hình — thư viện genai có thể không hỗ trợ list_models từ client hiện tại."
-                        )
-                        st.info(
-                            "Nếu dùng SDK khác, thử gọi ModelService.ListModels theo hướng dẫn của Google Cloud."
-                        )
-                    else:
-                        st.success(f"Tìm thấy {len(names)} mô hình")
-                        st.write(names)
-    # -----------------------------
-    # TAB 2: VIP / PRO
-    # -----------------------------
-    with tab2:
-        with st.form("advisor_tab2_form", clear_on_submit=False):
-            c1, c2 = st.columns(2)
-            with c1:
-                competences = st.multiselect(
-                    "Năng lực",
-                    ["tự học", "giao tiếp", "giải quyết vấn đề"],
-                    default=["tự học", "giao tiếp"],
-                )
-            with c2:
-                qualities = st.multiselect(
-                    "Phẩm chất",
-                    ["chăm chỉ", "trung thực", "trách nhiệm"],
-                    default=["chăm chỉ", "trách nhiệm"],
-                )
-            school_level_2 = st.selectbox(
-                "Cấp học",
-                ["Tự động", "Tiểu học", "THCS", "THPT"],
-                index=0,
-            )
-            class_context = st.text_area(
-                "Bối cảnh lớp (tuỳ chọn)",
-                height=90,
-                placeholder="Ví dụ: học sinh còn ngại phát biểu, cần tăng tương tác nhóm, lớp học ồn khi hoạt động đôi...",
-            )
-            submit_tab2 = st.form_submit_button("Tạo", type="primary", use_container_width=True)
-
-        if submit_tab2:
-            if not competences and not qualities:
-                st.error("Vui lòng chọn ít nhất một năng lực hoặc phẩm chất.")
-            else:
-                level_hint = _advisor_detect_school_level(class_context)
-                final_level_2 = school_level_2 if school_level_2 != "Tự động" else level_hint
-                user_prompt = f"""
-Hãy viết nhận xét theo năng lực và phẩm chất đúng chuẩn CTGDPT 2018.
-
-Thông tin:
-- Năng lực: {", ".join(competences) if competences else "(không nêu)"}
-- Phẩm chất: {", ".join(qualities) if qualities else "(không nêu)"}
-- Cấp học áp dụng: {final_level_2}
-- Ghi chú văn phong theo cấp học: {_advisor_level_profile(final_level_2)}
-- Bối cảnh lớp: {class_context.strip() if class_context.strip() else "(không có)"}
-
-Yêu cầu:
-- ngắn gọn, rõ ràng
-- đúng phong cách nhận xét cuối kỳ / thường xuyên
-- có thể dùng trực tiếp trong sổ nhận xét
-- không quá khen, không quá nặng
-"""
-                with st.spinner("AI đang tạo nhận xét năng lực & phẩm chất..."):
-                    try:
-                        resp = _genai_model(_get_api_key_effective())
-                    except Exception:
-                        resp = None
-1) Nhập tên bài → chọn Lớp / Môn / Thời lượng
-2) (Tuỳ chọn) Đính kèm ảnh trang SGK hoặc file PDF/DOCX bài học
-3) Bấm **Tạo giáo án** → tải file `.docx`
-            """
-        )
-        st.divider()
-
-        st.markdown("### 6. 💻 Năng lực số")
-        st.markdown(
-            """
-**Dùng khi nào?**  
-Tích hợp **Năng lực số** vào bài dạy: hoạt động số, công cụ số, sản phẩm số, tiêu chí đánh giá.
-**Cách dùng:**
-1) Chọn môn – lớp – bài (hoặc tải giáo án gốc nếu module hỗ trợ)  
-2) Chọn mục tiêu NLS (tìm kiếm, hợp tác, an toàn số, AI…)  
-3) Bấm tạo → nhận hoạt động + sản phẩm + tiêu chí đánh giá
-            """
-        )
-        st.divider()
-
-        st.markdown("### 7. 🧩 Nhận xét – Tư vấn")
-        st.markdown(
-            """
-**Dùng khi nào?**  
-Viết nhận xét học sinh theo năng lực/phẩm chất, góp ý giáo án, tư vấn cải tiến hoạt động dạy học.
-            """
-        )
-
-        # Diagnostic button to list available Gemini models
-        if st.button("Kiểm tra mô hình Gemini khả dụng"):
-            api_key = _get_api_key_effective()
-            if not api_key:
-                st.error("Chưa cấu hình API key. Vui lòng nhập GEMINI_API_KEY trước.")
-            else:
-                with st.spinner("Đang lấy danh sách mô hình…"):
-                    names = _genai_list_models(api_key)
-                    if not names:
-                        st.warning(
-                            "Không lấy được danh sách mô hình — thư viện genai có thể không hỗ trợ list_models từ client hiện tại."
-                        )
-                        st.info(
-                            "Nếu dùng SDK khác, thử gọi ModelService.ListModels theo hướng dẫn của Google Cloud."
-                        )
-                    else:
-                        st.success(f"Tìm thấy {len(names)} mô hình")
-                        st.write(names)
-2) Nhập yêu cầu theo mẫu: **Môn – Lớp – Nội dung – Mục tiêu – Định dạng kết quả**  
-3) Nếu chưa đúng, gõ tiếp: *“Sửa theo…”* / *“Làm ngắn hơn…”* / *“Chi tiết hơn…”*
         """)
         st.divider()
         st.markdown("### 2. 📄 Doc AI")
-             st.markdown("### 1. 💬 Chat AI")
+        st.markdown(f"""
 **Dùng khi nào?**  
 Khi thầy/cô có **PDF / DOCX / TXT** cần tóm tắt, rút ý chính, tạo câu hỏi ôn tập hoặc hỏi theo nội dung tài liệu.
 **Cách dùng:**
@@ -385,20 +156,6 @@ def logo_svg(size: int) -> str:
         "background:transparent;border:0;outline:0;box-shadow:none;"
         "border-radius:0;object-fit:contain;image-rendering:auto;"
     )
-             # Small diagnostic button to list available models (helps debug 404 errors)
-             if st.button("Kiểm tra mô hình Gemini khả dụng"):
-                 api_key = _get_api_key_effective()
-                 if not api_key:
-                  st.error("Chưa cấu hình API key. Vui lòng nhập GEMINI_API_KEY trước.")
-                 else:
-                  with st.spinner("Đang lấy danh sách mô hình…"):
-                      names = _genai_list_models(api_key)
-                      if not names:
-                       st.warning("Không lấy được danh sách mô hình — thư viện genai có thể không hỗ trợ list_models từ client hiện tại.")
-                       st.info("Nếu dùng SDK khác, thử gọi ModelService.ListModels theo hướng dẫn của Google Cloud.")
-                      else:
-                       st.success(f"Tìm thấy {len(names)} mô hình")
-                       st.write(names)
     return f'<img src="data:image/png;base64,{LOGO_PNG_B64}" style="{style}" />'
 DASHBOARD_HTML = """
 <!DOCTYPE html>
@@ -545,7 +302,7 @@ QUY TẮC KỸ THUẬT:
 # 3. Hàm xử lý AI riêng cho Module này
 def generate_nls_lesson_plan_legacy(api_key, lesson_content, distribution_content, textbook, subject, grade, analyze_only):
     _genai_configure(api_key)
-    model = _genai_model('gemini-3.1-flash-lite', system_instruction=SYSTEM_INSTRUCTION_NLS)
+    model = _genai_model('gemini-3.1-flash', system_instruction=SYSTEM_INSTRUCTION_NLS)
     
     user_prompt = f"""
     THÔNG TIN ĐẦU VÀO:
@@ -1298,7 +1055,7 @@ QUY TẮC KỸ THUẬT:
 """
 def generate_nls_lesson_plan(api_key, lesson_content, subject, grade, textbook, ppct_content, analyze_only):
     _genai_configure(api_key)
-    model = _genai_model("gemini-3.1-flash-lite", system_instruction=SYSTEM_INSTRUCTION_NLS)
+    model = _genai_model("gemini-3.1-flash", system_instruction=SYSTEM_INSTRUCTION_NLS)
     
     prompt = f"""
     THÔNG TIN:
@@ -2501,8 +2258,8 @@ class YCCDManager:
 class QuestionGeneratorYCCD:
     def __init__(self, api_key):
         _genai_configure(api_key)
-        # [SỬA LỖI 404] Dùng gemini-3.1-flash-lite theo yêu cầu
-        self.model = _genai_model('gemini-3.1-flash-lite')
+        # [SỬA LỖI 404] Dùng gemini-3.1-flash theo yêu cầu
+        self.model = _genai_model('gemini-3.1-flash')
     def generate(self, yccd_item, muc_do="Thông hiểu"):
         prompt = f"""
         VAI TRÒ: Giáo viên Toán Tiểu học (Chương trình GDPT 2018).
@@ -2849,7 +2606,7 @@ def generate_lesson_plan_locked(
     thoi_luong: int,
     si_so: int,
     teacher_note: str,
-    model_name: str = "gemini-3.1-flash-lite"
+    model_name: str = "gemini-3.1-flash"
 ) -> dict:
     """
     Sinh JSON data-only theo LESSON_PLAN_DATA_SCHEMA (meta + sections).
@@ -3006,7 +2763,7 @@ def generate_lesson_plan_data_only(
     api_key: str,
     meta_ppct: dict,
     teacher_note: str,
-    model_name: str = "gemini-3.1-flash-lite"
+    model_name: str = "gemini-3.1-flash"
 ) -> dict:
     """Sinh JSON data-only (meta + sections) để render HTML.
     Tự sửa tối đa 3 lần nếu sai schema hoặc thiếu chi tiết.
@@ -3342,8 +3099,8 @@ def main_app():
                                         """
                                         try:
                                             _genai_configure(api_key)
-                                            # [SỬA LỖI 404] Dùng gemini-3.1-flash-lite
-                                            model = _genai_model('gemini-3.1-flash-lite', system_instruction=SYSTEM_PROMPT)
+                                            # [SỬA LỖI 404] Dùng gemini-3.1-flash
+                                            model = _genai_model('gemini-3.1-flash', system_instruction=SYSTEM_PROMPT)
                                             
                                             # [FIX LỖI] Cấu hình tắt bộ lọc an toàn để AI không chặn đề thi
                                             safe_settings = [
@@ -3835,7 +3592,7 @@ YÊU CẦU CHẤT LƯỢNG:
                     api_key=api_key,
                     meta_ppct=meta_ppct,
                     teacher_note=teacher_note,
-                            model_name="gemini-3.1-flash-lite"
+                    model_name="gemini-3.1-flash"
                 )
                 validate_lesson_plan(data)
                 content_html = render_lesson_plan_html(data)
@@ -5053,7 +4810,7 @@ def generate_lesson_plan_html_simple(
     si_so: int,
     lesson_context: str,
     teacher_note: str,
-    model_name: str = "gemini-3.1-flash-lite",
+    model_name: str = "gemini-3.1-flash",
 ) -> str:
     """Trả về HTML hoàn chỉnh (không JSON)."""
     _genai_configure(api_key)
@@ -5201,7 +4958,7 @@ def module_lesson_plan():
                     si_so=int(si_so),
                     lesson_context=lesson_ctx,
                     teacher_note=teacher_note or "",
-                    model_name="gemini-3.1-flash-lite",
+                    model_name="gemini-3.1-flash",
                 )
                 st.session_state[_lp2_key("html")] = html
                 st.session_state[_lp2_key("title")] = f"GiaoAn_{mon}_{lop}_{ten_bai.strip()}"
@@ -5546,9 +5303,9 @@ def _gemini_generate(prompt: str, system: str | None = None) -> str:
     try:
         _genai_configure(api_key)
         if system:
-            model = _genai_model("gemini-3.1-flash-lite", system_instruction=system)
+            model = _genai_model("gemini-3.1-flash", system_instruction=system)
         else:
-            model = _genai_model("gemini-3.1-flash-lite")
+            model = _genai_model("gemini-3.1-flash")
         safe_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -6912,7 +6669,7 @@ def render_lesson_plan_advanced_gate():
                 api_key=_get_api_key_effective(),
                 point_check=require_points_or_block,
                 point_cost=POINT_COST_LESSON_PLAN_ADVANCED,
-                    model_name="gemini-3.1-flash-lite",
+                model_name="gemini-3.1-flash",
                 docx_renderer=create_docx_from_html,
             )
         else:
@@ -6955,7 +6712,7 @@ def render_lesson_plan_advanced_gate():
                 api_key=_get_api_key_effective(),
                 point_check=_make_demo_point_check(username),
                 point_cost=0,  # demo: hiển thị "0 điểm" trên nút "Tạo giáo án"
-                model_name="gemini-3.1-flash-lite",
+                model_name="gemini-3.1-flash",
                 docx_renderer=create_docx_from_html,
             )
             return  # hết block, không hiện banner Pro
