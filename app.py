@@ -24,6 +24,75 @@ def _get_api_key_effective() -> str:
             k = ""
     return k
 
+
+def _genai_configure(api_key: str) -> None:
+    """Configure the google.generativeai client if available (guarded).
+
+    This is defensive: some SDKs expose different configure signatures.
+    """
+    try:
+        import google.generativeai as _gen
+    except Exception:
+        # leave graceful failure to callers
+        return
+    cfg = getattr(_gen, "configure", None)
+    if callable(cfg):
+        try:
+            try:
+                cfg(api_key=api_key)
+            except TypeError:
+                try:
+                    cfg(api_key)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    # store module for later use
+    globals()["_GENAI_MODULE"] = _gen
+
+
+def _genai_model(model_name: str = "gemini-3.1-flash-lite", system_instruction: str | None = None):
+    """Return a GenerativeModel object, trying fallbacks on failures.
+
+    Attempts to construct the model with the SDK's `GenerativeModel`.
+    If the requested model fails (404 / not found), try a few safe Gemini
+    model names before raising.
+    """
+    gen = globals().get("_GENAI_MODULE")
+    if gen is None:
+        try:
+            import google.generativeai as gen
+        except Exception as e:
+            raise RuntimeError("google.generativeai is not installed") from e
+        globals()["_GENAI_MODULE"] = gen
+
+    ModelClass = getattr(gen, "GenerativeModel", None)
+    if not callable(ModelClass):
+        raise RuntimeError("GenerativeModel API not available in google.generativeai module")
+
+    tried = []
+    last_err = None
+    # candidate list: prefer requested name, then safe defaults
+    candidates = []
+    if model_name:
+        candidates.append(model_name)
+    for alt in ("gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-3.5-mini", "gemini-3.1-mini"):
+        if alt not in candidates:
+            candidates.append(alt)
+
+    for m in candidates:
+        if not m or m in tried:
+            continue
+        tried.append(m)
+        try:
+            obj = ModelClass(m)
+            return obj
+        except Exception as e:
+            last_err = e
+            continue
+
+    raise RuntimeError(f"No usable Gemini model found among candidates: {tried}") from last_err
+
 def module_help_intro():
     st.markdown("## 📘 Hướng dẫn sử dụng")
     st.caption("Tài liệu hướng dẫn nhanh dành cho thầy/cô – dễ hiểu – dùng được ngay.")
